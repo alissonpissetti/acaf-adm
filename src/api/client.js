@@ -1,4 +1,4 @@
-import { API_URL } from '../config.js';
+import { apiUrl } from '../config.js';
 import { clearToken, getToken } from './auth.js';
 
 async function parseErrorResponse(response) {
@@ -23,7 +23,7 @@ export async function fetchApi(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     headers,
   });
@@ -56,7 +56,7 @@ export async function fetchApiUpload(path, formData) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers,
     body: formData,

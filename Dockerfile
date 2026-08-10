@@ -30,8 +30,9 @@ ENV API_BACKEND_URL=http://127.0.0.1:8787
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY docker-entrypoint.d/10-default-env.sh /docker-entrypoint.d/10-default-env.sh
+COPY docker-entrypoint.d/15-api-config.sh /docker-entrypoint.d/15-api-config.sh
 
-RUN chmod +x /docker-entrypoint.d/10-default-env.sh
+RUN chmod +x /docker-entrypoint.d/10-default-env.sh /docker-entrypoint.d/15-api-config.sh
 
 EXPOSE 80
 

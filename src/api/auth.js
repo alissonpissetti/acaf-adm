@@ -1,3 +1,5 @@
+import { apiUrl } from '../config.js';
+
 const TOKEN_KEY = 'acaf_admin_token';
 
 export function getToken() {
@@ -13,7 +15,7 @@ export function clearToken() {
 }
 
 export async function login(email, password) {
-  const response = await fetch('/api/auth/login', {
+  const response = await fetch(apiUrl('/api/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -34,7 +36,7 @@ export async function login(email, password) {
 }
 
 export async function getMe(token) {
-  const response = await fetch('/api/auth/me', {
+  const response = await fetch(apiUrl('/api/auth/me'), {
     headers: {
       Authorization: `Bearer ${token}`,
     },
