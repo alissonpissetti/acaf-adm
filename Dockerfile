@@ -24,7 +24,7 @@ RUN apk add --no-cache wget tzdata \
 
 ENV TZ=America/Sao_Paulo
 ENV PORT=80
-# URL interna da acaf-api na rede do Coolify (ex.: http://acaf-api:8787).
+# URL da acaf-api (Coolify: porta 80, sem :8787). Dev local: http://127.0.0.1:8787
 ENV API_BACKEND_URL=http://127.0.0.1:8787
 
 COPY --from=builder /app/dist /usr/share/nginx/html
