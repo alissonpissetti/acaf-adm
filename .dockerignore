@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+.vscode
+.idea
+*.log
+.env
+.env.*
+!.env.example
+.npm-cache
+.DS_Store
+README.md

@@ -1,3 +1,2 @@
-export const API_URL =
-  import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? '' : 'http://127.0.0.1:8787');
+/** Em produção com nginx, deixe vazio para usar /api na mesma origem (proxy). */
+export const API_URL = import.meta.env.VITE_API_URL ?? '';

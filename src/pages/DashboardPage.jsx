@@ -88,7 +88,7 @@ export function DashboardPage() {
           <div className="panel-body">
             <p className="muted">
               Inicie a <code>acaf-api</code> com <code>npm run start:dev</code> em{' '}
-              <code>{API_URL || 'http://127.0.0.1:8787'}</code>.
+              <code>{API_URL || 'mesma origem (/api)'}</code>.
             </p>
             <p className="error-text">{error}</p>
           </div>
