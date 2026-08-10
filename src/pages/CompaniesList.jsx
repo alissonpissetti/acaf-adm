@@ -115,6 +115,14 @@ export function CompaniesList({
 
       {error ? <div className="alert-banner alert-banner-error">{error}</div> : null}
 
+      {counts.pending > 0 ? (
+        <div className="alert-banner alert-banner-warning">
+          <strong>{counts.pending} empresa(s) aguardando aprovação.</strong> Abra a empresa na lista e
+          clique em <strong>Aprovar empresa</strong> para liberar o portal corporativo e o código de
+          adesão.
+        </div>
+      ) : null}
+
       <div className="stat-grid companies-stat-grid">
         <article className="panel stat-panel">
           <span className="stat-label">Total</span>

@@ -97,7 +97,11 @@ export function CompanyEditScreen({ companyId, onBack, onUpdated }) {
     try {
       const updated = await updateCompanyStatus(companyId, status);
       setCompany((prev) => ({ ...prev, ...updated }));
-      setMessage(`Status atualizado para ${STATUS_LABEL[status] ?? status}.`);
+      if (status === 'active' && updated.enrollmentCode) {
+        setMessage(`Empresa aprovada. Código de adesão para o app: ${updated.enrollmentCode}`);
+      } else {
+        setMessage(`Status atualizado para ${STATUS_LABEL[status] ?? status}.`);
+      }
       onUpdated?.();
     } catch (err) {
       setError(err.message);
@@ -272,6 +276,17 @@ export function CompanyEditScreen({ companyId, onBack, onUpdated }) {
                   </span>
                 </dd>
               </div>
+              {company.status === 'active' && company.enrollmentCode ? (
+                <div>
+                  <dt>Código de adesão (app)</dt>
+                  <dd>
+                    <code className="enrollment-code-admin">{company.enrollmentCode}</code>
+                    <p className="field-hint">
+                      Colaboradores usam este código em Minha conta no app ACAF Connect.
+                    </p>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </div>
         </section>
