@@ -63,13 +63,13 @@ export function UnitPhotosField({ unitId, heroPhoto, galleryPhotos, onChange, di
   const canAddGallery = galleryCount < MAX_GALLERY;
 
   return (
-    <div className={`unit-photos-field ${embedded ? 'unit-photos-field-embedded' : ''} field-span-2`}>
+    <div className={`unit-photos-field ${embedded ? 'unit-photos-field-embedded' : ''} field-span-full`}>
       {!embedded ? (
         <div className="unit-photos-header">
           <div>
             <span className="field-label">Fotos da unidade</span>
             <p className="muted unit-photos-help">
-              Imagens exibidas no Guia ACAF Connect. Capa principal e até {MAX_GALLERY} fotos na
+              Imagens exibidas no Guia ACAF. Capa principal e até {MAX_GALLERY} fotos na
               galeria — clique em uma foto da galeria para usá-la como capa.
             </p>
           </div>

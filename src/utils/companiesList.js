@@ -57,3 +57,36 @@ export function countCompaniesByStatus(companies) {
   }
   return counts;
 }
+
+export function companyDisplayName(company) {
+  return company?.tradeName?.trim() || company?.legalName?.trim() || 'Sem nome';
+}
+
+export function companySecondaryName(company) {
+  const trade = company?.tradeName?.trim();
+  const legal = company?.legalName?.trim();
+  if (trade && legal && trade !== legal) return legal;
+  return null;
+}
+
+export function companyInitials(company) {
+  return personInitials(companyDisplayName(company));
+}
+
+export function personInitials(name) {
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+export function sortPeopleByName(people) {
+  return [...people].sort((a, b) =>
+    String(a.name ?? '').localeCompare(String(b.name ?? ''), 'pt-BR', {
+      sensitivity: 'base',
+    }),
+  );
+}

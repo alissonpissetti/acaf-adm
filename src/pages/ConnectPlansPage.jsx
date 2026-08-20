@@ -1,7 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getConnectDomain, updateConnectDomain } from '../api/admin.js';
+import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CrudListShell } from '../components/crud/CrudListShell.jsx';
 import { CurrencyBrlInput } from '../components/CurrencyBrlInput.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { PermissionGate } from '../components/PermissionGate.jsx';
+import { confirmCrudDelete } from '../crud/crudUtils.js';
+import { useCrudList } from '../crud/useCrudList.js';
+import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
+import { useCrudRouter } from '../crud/useCrudRouter.js';
 import { formatBRL } from '../utils/currency.js';
 
 function slugifyPlanId(name, existingIds) {
@@ -23,103 +32,42 @@ function slugifyPlanId(name, existingIds) {
   return id;
 }
 
-function suggestNextPlan(existing) {
-  const sorted = [...existing].sort(
-    (a, b) => Number(a.pricePerMonth) - Number(b.pricePerMonth),
-  );
-  const last = sorted[sorted.length - 1];
-  const lastPrice = Number(last?.pricePerMonth) || 99.9;
-  const nextPrice = Math.round((lastPrice + 100) * 100) / 100;
-  const name = `ACAF Tier ${existing.length + 1}`;
-  const ids = new Set(existing.map((plan) => plan.id));
-
-  return {
-    id: slugifyPlanId(name, ids),
-    name,
-    pricePerMonth: nextPrice,
-    tierIndex: existing.length,
-    description: '',
-  };
+async function persistPlans(plans) {
+  return updateConnectDomain({
+    connectPlans: plans.map((plan, index) => ({
+      id: plan.id,
+      name: plan.name,
+      pricePerMonth: Number(plan.pricePerMonth),
+      tierIndex: index,
+    })),
+  });
 }
 
-export function ConnectPlansPage() {
-  const [domain, setDomain] = useState(null);
-  const [connectFee, setConnectFee] = useState(20);
-  const [dailyFee, setDailyFee] = useState(20);
-  const [plans, setPlans] = useState([]);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+function ConnectPlanForm({
+  title,
+  subtitle,
+  breadcrumbs,
+  initial,
+  onSubmit,
+  onCancel,
+  onDelete,
+}) {
+  const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
-
-  const load = () => {
-    getConnectDomain()
-      .then((data) => {
-        setDomain(data);
-        setConnectFee(data.acafConnectFeePercent ?? 20);
-        setDailyFee(data.acafDailyFeePercent ?? 20);
-        setPlans(data.connectPlans ?? []);
-        setError('');
-      })
-      .catch((err) => setError(err.message));
-  };
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    load();
-  }, []);
-
-  const updatePlan = (id, field, value) => {
-    setPlans((prev) =>
-      prev.map((plan) => (plan.id === id ? { ...plan, [field]: value } : plan)),
-    );
-    setMessage('');
-  };
-
-  const addPlan = () => {
-    const next = suggestNextPlan(plans);
-    setPlans((prev) => [...prev, next]);
-    setMessage('Novo plano adicionado. Ajuste nome e preço e clique em Salvar alterações.');
+    setForm(initial);
     setError('');
-  };
+  }, [initial]);
 
-  const removePlan = (id) => {
-    if (plans.length <= 1) return;
-    const plan = plans.find((row) => row.id === id);
-    if (!window.confirm(`Remover o plano "${plan?.name ?? id}"?`)) return;
-    setPlans((prev) => prev.filter((row) => row.id !== id));
-    setMessage('Plano removido da lista. Salve para publicar a alteração.');
-    setError('');
-  };
-
-  const movePlan = (index, direction) => {
-    const target = index + direction;
-    if (target < 0 || target >= plans.length) return;
-    setPlans((prev) => {
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-    setMessage('Ordem alterada. Salve para publicar.');
-  };
-
-  const onSave = async (ev) => {
+  const submit = async (ev) => {
     ev.preventDefault();
+    if (form.readOnly) return;
     setBusy(true);
     setError('');
-    setMessage('');
     try {
-      const payload = {
-        acafConnectFeePercent: Number(connectFee),
-        acafDailyFeePercent: Number(dailyFee),
-        connectPlans: plans.map((plan, index) => ({
-          ...plan,
-          pricePerMonth: Number(plan.pricePerMonth),
-          tierIndex: index,
-        })),
-      };
-      const updated = await updateConnectDomain(payload);
-      setDomain(updated);
-      setPlans(updated.connectPlans ?? []);
-      setMessage('Planos e taxas salvos. Novos tiers ficam disponíveis no portal parceiro e no app.');
+      await onSubmit(form);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -127,161 +75,263 @@ export function ConnectPlansPage() {
     }
   };
 
-  if (!domain) {
+  return (
+    <div className="page-stack">
+      <PageHeader breadcrumbs={breadcrumbs} title={title} subtitle={subtitle} />
+      <CrudAlerts error={error} />
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Dados do plano</h2>
+        </div>
+        <div className="panel-body">
+          <form className="form-grid" onSubmit={submit}>
+            <label>
+              <span>Nome do plano</span>
+              <input
+                className="input"
+                value={form.name}
+                onChange={(ev) => setForm({ ...form, name: ev.target.value })}
+                required
+                disabled={form.readOnly}
+              />
+            </label>
+            <CurrencyBrlInput
+              id="plan-price"
+              label="Preço mensal (R$)"
+              value={Number(form.pricePerMonth) || 0}
+              min={0}
+              max={99_999.99}
+              disabled={form.readOnly}
+              onChange={(value) => setForm({ ...form, pricePerMonth: value })}
+            />
+            {form.id ? (
+              <label>
+                <span>ID</span>
+                <input className="input" value={form.id} disabled readOnly />
+              </label>
+            ) : null}
+            <div className="field-span-full form-actions">
+              {form.readOnly ? (
+                <CrudViewActions onBack={onCancel} onEdit={form.onEdit} />
+              ) : (
+                <CrudFormActions
+                  busy={busy}
+                  onCancel={onCancel}
+                  onDelete={onDelete}
+                  showDelete={Boolean(onDelete)}
+                  submitLabel={form.submitLabel ?? 'Salvar'}
+                />
+              )}
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function ConnectPlansPage() {
+  const router = useCrudRouter();
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const list = useCrudList(
+    useMemo(
+      () =>
+        plans.map((plan) => ({
+          ...plan,
+          priceLabel: formatBRL(Number(plan.pricePerMonth) || 0),
+        })),
+      [plans],
+    ),
+    {
+      searchKeys: ['name', 'id'],
+      defaultSort: { key: 'name', direction: 'asc' },
+      storageKey: LIST_PREFERENCE_KEYS.connectPlans,
+    },
+  );
+
+  const selected = useMemo(
+    () => plans.find((plan) => plan.id === router.id) ?? null,
+    [plans, router.id],
+  );
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getConnectDomain();
+      setPlans(data.connectPlans ?? []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const savePlans = async (nextPlans) => {
+    const updated = await persistPlans(nextPlans);
+    setPlans(updated.connectPlans ?? []);
+    return updated;
+  };
+
+  const handleDelete = async (row) => {
+    if (plans.length <= 1) {
+      setError('Deve existir ao menos um plano.');
+      return;
+    }
+    if (!(await confirmCrudDelete(row.name))) return;
+    setBusy(true);
+    setError('');
+    try {
+      await savePlans(plans.filter((plan) => plan.id !== row.id));
+      setMessage('Plano removido.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (router.isCreating) {
     return (
-      <div className="panel">
-        <div className="panel-body">Carregando planos…</div>
-      </div>
+      <ConnectPlanForm
+        title="Adicionar plano"
+        subtitle="Cadastre um plano de assinatura ACAF."
+        breadcrumbs={[{ label: 'Planos', onClick: router.goToList }, { label: 'Novo' }]}
+        initial={{
+          name: '',
+          pricePerMonth: 99.9,
+          submitLabel: 'Salvar plano',
+        }}
+        onCancel={router.goToList}
+        onSubmit={async (form) => {
+          const ids = new Set(plans.map((plan) => plan.id));
+          const next = [
+            ...plans,
+            {
+              id: slugifyPlanId(form.name, ids),
+              name: form.name.trim(),
+              pricePerMonth: Number(form.pricePerMonth),
+            },
+          ];
+          await savePlans(next);
+          setMessage('Plano criado.');
+          router.goToList();
+        }}
+      />
+    );
+  }
+
+  if (router.isViewing || router.isEditing) {
+    if (!selected && loading) return <AppLoadingPanel label="Carregando plano…" />;
+    if (!selected) {
+      return (
+        <div className="page-stack">
+          <CrudAlerts error={error || 'Plano não encontrado.'} />
+          <button type="button" className="btn-ghost" onClick={router.goToList}>
+            Voltar para lista
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <ConnectPlanForm
+        title={router.isViewing ? selected.name : 'Editar plano'}
+        subtitle={formatBRL(Number(selected.pricePerMonth) || 0) + '/mês'}
+        breadcrumbs={[
+          { label: 'Planos', onClick: router.goToList },
+          { label: selected.name },
+        ]}
+        initial={{
+          id: selected.id,
+          name: selected.name,
+          pricePerMonth: selected.pricePerMonth,
+          readOnly: router.isViewing,
+          onEdit: () => router.goToEdit(selected.id),
+          submitLabel: 'Salvar alterações',
+        }}
+        onCancel={router.goToList}
+        onDelete={
+          plans.length > 1 && !router.isViewing
+            ? async () => {
+                await handleDelete(selected);
+                router.goToList();
+              }
+            : undefined
+        }
+        onSubmit={async (form) => {
+          const next = plans.map((plan) =>
+            plan.id === selected.id
+              ? {
+                  ...plan,
+                  name: form.name.trim(),
+                  pricePerMonth: Number(form.pricePerMonth),
+                }
+              : plan,
+          );
+          await savePlans(next);
+          setMessage('Plano atualizado.');
+          router.goToView(selected.id);
+        }}
+      />
     );
   }
 
   return (
-    <div className="page-stack">
-      <PageHeader
-        title="Planos Connect"
-        subtitle="Assinaturas da plataforma, do tier de entrada até planos premium. Tiers mais altos = preços maiores."
-        actions={
-          <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={addPlan}>
-            + Adicionar plano
-          </button>
-        }
-      />
-
-      <form className="page-stack" onSubmit={onSave}>
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Taxas da plataforma</h2>
-          </div>
-          <div className="panel-body">
-            <div className="form-grid">
-              <label>
-                <span>Taxa Connect (%)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={connectFee}
-                  onChange={(e) => setConnectFee(e.target.value)}
-                />
-              </label>
-              <label>
-                <span>Taxa diárias (%)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={dailyFee}
-                  onChange={(e) => setDailyFee(e.target.value)}
-                />
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-header connect-plans-panel-head">
-            <div>
-              <h2>Planos de assinatura</h2>
-              <span className="panel-meta">
-                {plans.length} plano(s) · ordem = tier (1 = entrada, {plans.length} = mais premium)
-              </span>
-            </div>
-            <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={addPlan}>
-              + Adicionar plano
-            </button>
-          </div>
-          <div className="panel-body">
-            <div className="connect-plans-grid">
-              {plans.map((plan, index) => (
-                <article key={plan.id} className="connect-plan-card">
-                  <header className="connect-plan-card-head">
-                    <div>
-                      <span className="connect-plan-tier">Tier {index + 1}</span>
-                      <div className="connect-plan-card-toolbar">
-                        <button
-                          type="button"
-                          className="connect-plan-icon-btn"
-                          disabled={busy || index === 0}
-                          onClick={() => movePlan(index, -1)}
-                          title="Subir tier"
-                          aria-label="Subir tier"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="connect-plan-icon-btn"
-                          disabled={busy || index === plans.length - 1}
-                          onClick={() => movePlan(index, 1)}
-                          title="Descer tier"
-                          aria-label="Descer tier"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          className="connect-plan-icon-btn connect-plan-icon-btn-danger"
-                          disabled={busy || plans.length <= 1}
-                          onClick={() => removePlan(plan.id)}
-                          title="Remover plano"
-                          aria-label="Remover plano"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                    <div className="connect-plan-price-display">
-                      {formatBRL(Number(plan.pricePerMonth) || 0)}
-                      <small>/mês</small>
-                    </div>
-                  </header>
-
-                  <div className="connect-plan-card-body">
-                    <label>
-                      <span>Nome do plano</span>
-                      <input
-                        value={plan.name}
-                        onChange={(e) => updatePlan(plan.id, 'name', e.target.value)}
-                      />
-                    </label>
-
-                    <CurrencyBrlInput
-                      id={`plan-price-${plan.id}`}
-                      label="Preço mensal (colaborador)"
-                      value={Number(plan.pricePerMonth) || 0}
-                      min={0}
-                      max={99_999.99}
-                      onChange={(value) => updatePlan(plan.id, 'pricePerMonth', value)}
-                    />
-
-                    <label className="connect-plan-desc-field">
-                      <span>Descrição</span>
-                      <textarea
-                        rows={3}
-                        value={plan.description ?? ''}
-                        onChange={(e) => updatePlan(plan.id, 'description', e.target.value)}
-                      />
-                    </label>
-
-                    <code className="connect-plan-id">{plan.id}</code>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="panel-actions">
-          <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? 'Salvando…' : 'Salvar alterações'}
-          </button>
-        </div>
-      </form>
-
-      {message ? <p className="success-text">{message}</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
-    </div>
+    <PermissionGate permission="plataforma.connect">
+      <div className="page-stack">
+        <CrudListShell
+        title="Planos"
+        subtitle="Assinaturas da plataforma ACAF."
+        addLabel="Adicionar plano"
+        onAdd={router.goToCreate}
+        loading={loading || busy}
+        error={error}
+        message={message}
+        query={list.query}
+        onQueryChange={list.onQueryChange}
+        searchPlaceholder="Buscar plano por nome ou ID"
+        sortKey={list.sortKey}
+        sortDirection={list.sortDirection}
+        onSortChange={list.setSort}
+        sortOptions={[
+          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+          { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
+          { key: 'pricePerMonth', direction: 'desc', label: 'Preço (maior)' },
+          { key: 'pricePerMonth', direction: 'asc', label: 'Preço (menor)' },
+        ]}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalItems={list.totalItems}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.onPageSizeChange}
+        panelTitle="Planos de assinatura"
+        emptyMessage="Nenhum plano cadastrado."
+        columns={[
+          {
+            key: 'id',
+            label: 'ID',
+            render: (row) => <code className="connect-plan-id">{row.id}</code>,
+          },
+          { key: 'name', label: 'Plano', render: (row) => <strong>{row.name}</strong> },
+          { key: 'priceLabel', label: 'Preço/mês' },
+        ]}
+        rows={list.rows}
+        onView={(row) => router.goToView(row.id)}
+        onEdit={(row) => router.goToEdit(row.id)}
+        onDelete={handleDelete}
+        />
+      </div>
+    </PermissionGate>
   );
 }

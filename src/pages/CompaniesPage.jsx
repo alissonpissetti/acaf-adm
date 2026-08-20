@@ -2,68 +2,98 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getCompanies } from '../api/admin.js';
 import { CompaniesList } from './CompaniesList.jsx';
+import { CompanyCreateScreen } from './CompanyCreateScreen.jsx';
 import { CompanyEditScreen } from './CompanyEditScreen.jsx';
+import { CompanyEmployeeProfileScreen } from './CompanyEmployeeProfileScreen.jsx';
 
 export function CompaniesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get('id');
-  const statusFilter = searchParams.get('status') ?? '';
-  const searchQuery = searchParams.get('q') ?? '';
-  const page = Number(searchParams.get('page') || '1');
+  const employeeId = searchParams.get('employee');
+  const mode = searchParams.get('mode');
+  const isCreating = searchParams.get('new') === '1';
+  const isViewing = Boolean(selectedId) && mode === 'view';
 
   const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = () => {
-    getCompanies()
-      .then(setCompanies)
-      .catch((err) => setError(err.message));
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      setCompanies(await getCompanies());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  const buildListParams = (overrides = {}) => {
-    const params = {};
-    const status = overrides.status ?? statusFilter;
-    const q = overrides.q ?? searchQuery;
-    const nextPage = overrides.page ?? page;
-
-    if (status) params.status = status;
-    if (q.trim()) params.q = q.trim();
-    if (nextPage > 1) params.page = String(nextPage);
-    return params;
+  const goToList = () => {
+    setSearchParams({});
+    load();
   };
 
-  const goToList = () => {
-    setSearchParams(buildListParams());
-    load();
+  const goToCreate = () => {
+    setSearchParams({ new: '1' });
   };
 
   const goToEdit = (companyId) => {
     setSearchParams({ id: companyId });
   };
 
-  const onFilterChange = (value) => {
-    setSearchParams(buildListParams({ status: value, page: 1 }));
+  const goToView = (companyId) => {
+    setSearchParams({ id: companyId, mode: 'view' });
   };
 
-  const onSearchChange = (value) => {
-    setSearchParams(buildListParams({ q: value, page: 1 }));
+  const onCompanyCreated = (company) => {
+    load();
+    setSearchParams({ id: company.id });
   };
 
-  const onPageChange = (nextPage) => {
-    setSearchParams(buildListParams({ page: nextPage }));
+  const goBackToCompany = () => {
+    const params = { id: selectedId };
+    if (isViewing) params.mode = 'view';
+    setSearchParams(params);
   };
+
+  const goToEmployeeProfile = (empId) => {
+    const params = { id: selectedId, employee: empId };
+    if (isViewing) params.mode = 'view';
+    setSearchParams(params);
+  };
+
+  if (isCreating) {
+    return <CompanyCreateScreen onBack={goToList} onCreated={onCompanyCreated} />;
+  }
+
+  if (selectedId && employeeId) {
+    return (
+      <CompanyEmployeeProfileScreen
+        key={`${selectedId}-${employeeId}`}
+        companyId={selectedId}
+        employeeId={employeeId}
+        onBack={goBackToCompany}
+      />
+    );
+  }
 
   if (selectedId) {
     return (
       <CompanyEditScreen
         key={selectedId}
         companyId={selectedId}
+        readOnly={isViewing}
         onBack={goToList}
+        onEdit={() => goToEdit(selectedId)}
+        onViewEmployee={goToEmployeeProfile}
         onUpdated={load}
+        onDeleted={goToList}
       />
     );
   }
@@ -71,13 +101,10 @@ export function CompaniesPage() {
   return (
     <CompaniesList
       companies={companies}
-      statusFilter={statusFilter}
-      searchQuery={searchQuery}
-      page={page}
+      loading={loading}
       error={error}
-      onFilterChange={onFilterChange}
-      onSearchChange={onSearchChange}
-      onPageChange={onPageChange}
+      onAdd={goToCreate}
+      onView={goToView}
       onEdit={goToEdit}
     />
   );

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { appConfirm } from './confirm/appConfirm.js';
+import { SuccessFlashEffect } from './flash/FlashMessageProvider.jsx';
 import {
   addCompanyManager,
   getCompany,
@@ -97,7 +99,13 @@ export function CompanyManagersField({ companyId, disabled = false, onChanged })
   };
 
   const unlinkUser = async (user) => {
-    const confirmed = window.confirm(`Remover ${user.name} como gestor desta empresa?`);
+    const confirmed = await appConfirm({
+      title: 'Remover gestor',
+      message: `Remover ${user.name} como gestor desta empresa?`,
+      confirmLabel: 'Remover',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+    });
     if (!confirmed) return;
 
     setBusy(true);
@@ -118,7 +126,7 @@ export function CompanyManagersField({ companyId, disabled = false, onChanged })
   return (
     <div className="company-managers-field">
       {error ? <p className="error-text">{error}</p> : null}
-      {message ? <p className="success-text">{message}</p> : null}
+      <SuccessFlashEffect message={message} />
 
       <div>
         <p className="company-managers-label">Gestores vinculados</p>

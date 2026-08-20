@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getNetworks } from '../api/admin.js';
+import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { NetworkCreateScreen } from './NetworkCreateScreen.jsx';
 import { NetworkEditScreen } from './NetworkEditScreen.jsx';
 import { NetworksList } from './NetworksList.jsx';
@@ -10,12 +12,15 @@ import { UnitEditScreen } from './UnitEditScreen.jsx';
 export function NetworksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get('id');
+  const mode = searchParams.get('mode');
   const unitParam = searchParams.get('unit');
   const isCreatingNetwork = searchParams.get('new') === '1';
   const isCreatingUnit = unitParam === 'new';
   const unitId = unitParam && unitParam !== 'new' ? unitParam : null;
+  const isViewingNetwork = Boolean(selectedId) && mode === 'view' && !unitParam;
 
   const [networks, setNetworks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const selectedNetwork = useMemo(
@@ -23,10 +28,16 @@ export function NetworksPage() {
     [networks, selectedId],
   );
 
-  const load = () => {
-    getNetworks()
-      .then(setNetworks)
-      .catch((err) => setError(err.message));
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      setNetworks(await getNetworks());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -44,6 +55,10 @@ export function NetworksPage() {
 
   const goToEditNetwork = (networkId) => {
     setSearchParams({ id: networkId });
+  };
+
+  const goToViewNetwork = (networkId) => {
+    setSearchParams({ id: networkId, mode: 'view' });
   };
 
   const goToCreateUnit = () => {
@@ -86,18 +101,14 @@ export function NetworksPage() {
   }
 
   if (selectedId) {
-    if (!selectedNetwork && !error) {
-      return (
-        <div className="panel">
-          <div className="panel-body">Carregando rede…</div>
-        </div>
-      );
+    if (!selectedNetwork && loading) {
+      return <AppLoadingPanel label="Carregando rede…" />;
     }
 
     if (!selectedNetwork) {
       return (
         <div className="page-stack">
-          <p className="error-text">{error || 'Rede não encontrada.'}</p>
+          <CrudAlerts error={error || 'Rede não encontrada.'} />
           <button type="button" className="btn-ghost" onClick={goToList}>
             Voltar para lista
           </button>
@@ -138,8 +149,11 @@ export function NetworksPage() {
         <NetworkEditScreen
           key={selectedNetwork.id}
           network={selectedNetwork}
+          readOnly={isViewingNetwork}
           onBack={goToList}
+          onEdit={() => goToEditNetwork(selectedNetwork.id)}
           onUpdated={load}
+          onDeleted={goToList}
           onAddUnit={goToCreateUnit}
           onEditUnit={goToEditUnit}
         />
@@ -149,9 +163,13 @@ export function NetworksPage() {
   }
 
   return (
-    <>
-      <NetworksList networks={networks} onAdd={goToCreateNetwork} onEdit={goToEditNetwork} />
-      {error ? <p className="error-text">{error}</p> : null}
-    </>
+    <NetworksList
+      networks={networks}
+      loading={loading}
+      error={error}
+      onAdd={goToCreateNetwork}
+      onView={goToViewNetwork}
+      onEdit={goToEditNetwork}
+    />
   );
 }

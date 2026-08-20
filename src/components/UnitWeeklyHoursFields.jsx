@@ -83,7 +83,7 @@ export function UnitWeeklyHoursFields({
 
   if (!collapsible) {
     return (
-      <div className={embedded ? 'weekly-hours weekly-hours-embedded' : 'weekly-hours field-span-2'}>
+      <div className={embedded ? 'weekly-hours weekly-hours-embedded' : 'weekly-hours field-span-full'}>
         {!embedded ? <h3 className="address-fields-title">Horário de funcionamento</h3> : null}
         {editor}
       </div>
@@ -92,7 +92,7 @@ export function UnitWeeklyHoursFields({
 
   return (
     <div
-      className={`weekly-hours field-span-2 address-fields-collapsible ${expanded ? 'is-expanded' : 'is-collapsed'}`}
+      className={`weekly-hours field-span-full address-fields-collapsible ${expanded ? 'is-expanded' : 'is-collapsed'}`}
     >
       <button
         type="button"

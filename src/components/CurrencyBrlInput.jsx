@@ -15,8 +15,6 @@ export function CurrencyBrlInput({
   min = 0,
   max = 999_999.99,
   disabled = false,
-  showSteppers = false,
-  step = 1,
   onChange,
 }) {
   const inputRef = useRef(null);
@@ -29,12 +27,12 @@ export function CurrencyBrlInput({
     }
   }, [value, min, max, focused]);
 
-  const commit = (raw, blur = false) => {
+  const commit = (raw) => {
     const parsed = parseBrlInput(raw);
     const next = clampAmount(parsed, min, max);
     onChange(next);
     setText(formatBrlInputDigits(next));
-    if (blur) setFocused(false);
+    setFocused(false);
   };
 
   const onInputChange = (raw) => {
@@ -46,67 +44,29 @@ export function CurrencyBrlInput({
     onChange(next);
   };
 
-  const nudge = (delta) => {
-    const next = clampAmount(value + delta, min, max);
-    onChange(next);
-    setText(formatBrlInputDigits(next));
-  };
-
-  const atMin = value <= min + 0.001;
-  const atMax = value >= max - 0.001;
-
   return (
     <label className="currency-brl-field">
       {label ? <span>{label}</span> : null}
       {hint ? <small className="muted currency-brl-hint">{hint}</small> : null}
-      <div
-        className={`currency-brl-control ${focused ? 'is-focused' : ''} ${disabled ? 'is-disabled' : ''}`}
-      >
-        <span className="currency-brl-prefix" aria-hidden="true">
-          R$
-        </span>
-        <input
-          ref={inputRef}
-          id={id}
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          disabled={disabled}
-          className="currency-brl-input"
-          value={text}
-          aria-valuemin={min}
-          aria-valuemax={max}
-          aria-valuenow={value}
-          onFocus={() => {
-            setFocused(true);
-            requestAnimationFrame(() => inputRef.current?.select());
-          }}
-          onBlur={() => commit(text, true)}
-          onChange={(e) => onInputChange(e.target.value)}
-        />
-        {showSteppers ? (
-          <div className="currency-brl-steppers">
-            <button
-              type="button"
-              className="currency-brl-step"
-              disabled={disabled || atMin}
-              aria-label="Diminuir um real"
-              onClick={() => nudge(-step)}
-            >
-              −
-            </button>
-            <button
-              type="button"
-              className="currency-brl-step"
-              disabled={disabled || atMax}
-              aria-label="Aumentar um real"
-              onClick={() => nudge(step)}
-            >
-              +
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <input
+        ref={inputRef}
+        id={id}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        disabled={disabled}
+        className="input"
+        value={text}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        onFocus={() => {
+          setFocused(true);
+          requestAnimationFrame(() => inputRef.current?.select());
+        }}
+        onBlur={() => commit(text)}
+        onChange={(e) => onInputChange(e.target.value)}
+      />
     </label>
   );
 }

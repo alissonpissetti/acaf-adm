@@ -32,14 +32,14 @@ export function DashboardPage() {
     <div className="page-stack">
       <PageHeader
         title="Dashboard"
-        subtitle="Visão consolidada da operação ACAF Connect."
+        subtitle="Visão consolidada da operação ACAF."
       />
 
       <div className="stat-grid">
         <article className="panel stat-panel">
-          <span className="stat-label">Redes parceiras</span>
+          <span className="stat-label">Parceiros</span>
           <strong className="stat-value">{overview?.networks?.length ?? '—'}</strong>
-          <Link to="/networks" className="stat-link">
+          <Link to="/m/operacao/redes" className="stat-link">
             Ver redes →
           </Link>
         </article>
@@ -50,9 +50,9 @@ export function DashboardPage() {
         </article>
 
         <article className="panel stat-panel">
-          <span className="stat-label">Planos Connect</span>
+          <span className="stat-label">Planos</span>
           <strong className="stat-value">{overview?.planCount ?? '—'}</strong>
-          <Link to="/connect" className="stat-link">
+          <Link to="/m/operacao/planos" className="stat-link">
             Gerenciar planos →
           </Link>
         </article>
@@ -73,7 +73,7 @@ export function DashboardPage() {
           </div>
           <div className="panel-body">
             <p className="muted">
-              Connect: <strong>{overview.connectFeePercent}%</strong> · Diárias:{' '}
+              Planos: <strong>{overview.connectFeePercent}%</strong> · Diárias:{' '}
               <strong>{overview.dailyFeePercent}%</strong>
             </p>
           </div>

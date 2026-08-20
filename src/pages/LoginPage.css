@@ -94,6 +94,54 @@
   margin-top: 0.25rem;
 }
 
+.login-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: -0.25rem;
+}
+
+.login-link,
+.login-back-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--orange);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.login-link:hover,
+.login-back-link:hover {
+  text-decoration: underline;
+}
+
+.login-back-link {
+  justify-self: center;
+  margin-top: 0.25rem;
+  text-align: center;
+}
+
+.form-info {
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.625rem;
+  background: rgba(46, 125, 50, 0.08);
+  color: #2e7d32;
+  font-size: 0.875rem;
+}
+
+.form-error {
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.625rem;
+  background: rgba(198, 40, 40, 0.08);
+  color: #c62828;
+  font-size: 0.875rem;
+}
+
 .auth-loading {
   min-height: 100vh;
   display: grid;

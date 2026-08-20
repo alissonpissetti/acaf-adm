@@ -1,14 +1,128 @@
-import { useEffect, useState } from 'react';
-import { deleteUnit, getUnits, updateNetwork, uploadNetworkLogo } from '../api/admin.js';
+import { useEffect, useMemo, useState } from 'react';
+import { deleteUnit, deleteNetwork, getUnits, updateNetwork, uploadNetworkLogo } from '../api/admin.js';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CrudListShell } from '../components/crud/CrudListShell.jsx';
 import { NetworkLogoField } from '../components/NetworkLogoField.jsx';
 import { NetworkSocialFields } from '../components/NetworkSocialFields.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { confirmCrudDelete } from '../crud/crudUtils.js';
+import { useCrudList } from '../crud/useCrudList.js';
+import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { formatUnitLocation } from '../utils/address.js';
 import { formatTodayHours } from '../utils/weeklySchedule.js';
 import { networkSocialFromNetwork } from '../utils/networkSocial.js';
 
-export function NetworkEditScreen({ network, onBack, onUpdated, onAddUnit, onEditUnit }) {
+function NetworkUnitsPanel({
+  networkId,
+  units,
+  loading,
+  readOnly,
+  busy,
+  onAddUnit,
+  onEditUnit,
+  onDeleteUnit,
+}) {
+  const list = useCrudList(units, {
+    searchKeys: ['unitName', 'city', 'neighborhood', 'address'],
+    defaultSort: { key: 'unitName', direction: 'asc' },
+    storageKey: networkId ? `${LIST_PREFERENCE_KEYS.networkUnits}.${networkId}` : null,
+  });
+
+  const handleDelete = async (row) => {
+    if (!(await confirmCrudDelete(row.unitName))) return;
+    await onDeleteUnit(row);
+  };
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <h2>Unidades da rede</h2>
+        <span className="panel-meta">{list.totalItems} registro(s)</span>
+        {!readOnly ? (
+          <button type="button" className="btn-primary btn-sm" onClick={onAddUnit} disabled={busy}>
+            Adicionar unidade
+          </button>
+        ) : null}
+      </div>
+      <CrudListShell
+        embedded
+        loading={loading || busy}
+        query={list.query}
+        onQueryChange={list.onQueryChange}
+        searchPlaceholder="Buscar unidade por nome ou endereço"
+        sortKey={list.sortKey}
+        sortDirection={list.sortDirection}
+        onSortChange={list.setSort}
+        sortOptions={[
+          { key: 'unitName', direction: 'asc', label: 'Nome (A–Z)' },
+          { key: 'unitName', direction: 'desc', label: 'Nome (Z–A)' },
+          { key: 'city', direction: 'asc', label: 'Cidade (A–Z)' },
+        ]}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalItems={list.totalItems}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.onPageSizeChange}
+        emptyMessage="Nenhuma unidade nesta rede. Clique em Adicionar unidade para começar."
+        columns={[
+          {
+            key: 'unitName',
+            label: 'Unidade',
+            render: (row) => <strong>{row.unitName}</strong>,
+          },
+          {
+            key: 'location',
+            label: 'Localização',
+            render: (row) => formatUnitLocation(row),
+          },
+          {
+            key: 'hours',
+            label: 'Horário',
+            render: (row) => formatTodayHours(row),
+          },
+          {
+            key: 'primaryMemberCount',
+            label: 'Academia principal',
+            render: (row) => (
+              <span className="badge badge-muted" title="Usuários do app com esta unidade como principal">
+                {row.primaryMemberCount ?? 0}
+              </span>
+            ),
+          },
+          {
+            key: 'dailyPassActive',
+            label: 'Diária',
+            render: (row) => (
+              <span className={`badge ${row.dailyPassActive ? 'badge-success' : 'badge-muted'}`}>
+                {row.dailyPassActive ? 'Ativa' : 'Inativa'}
+              </span>
+            ),
+          },
+        ]}
+        rows={list.rows}
+        onView={(row) => onEditUnit(row.id)}
+        onEdit={!readOnly ? (row) => onEditUnit(row.id) : undefined}
+        onDelete={!readOnly ? handleDelete : undefined}
+        canManage
+      />
+    </section>
+  );
+}
+
+export function NetworkEditScreen({
+  network,
+  readOnly = false,
+  onBack,
+  onEdit,
+  onUpdated,
+  onDeleted,
+  onAddUnit,
+  onEditUnit,
+}) {
   const [units, setUnits] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(true);
   const [networkName, setNetworkName] = useState(network.name);
   const [social, setSocial] = useState(networkSocialFromNetwork(network));
   const [logoUrl, setLogoUrl] = useState(network.logoUrl ?? null);
@@ -17,10 +131,14 @@ export function NetworkEditScreen({ network, onBack, onUpdated, onAddUnit, onEdi
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const unitCountLabel = useMemo(() => `${units.length} unidade(s)`, [units.length]);
+
   const loadUnits = () => {
-    getUnits(network.id)
+    setUnitsLoading(true);
+    return getUnits(network.id)
       .then(setUnits)
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setUnitsLoading(false));
   };
 
   useEffect(() => {
@@ -35,6 +153,7 @@ export function NetworkEditScreen({ network, onBack, onUpdated, onAddUnit, onEdi
 
   const saveNetwork = async (ev) => {
     ev.preventDefault();
+    if (readOnly) return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -57,18 +176,13 @@ export function NetworkEditScreen({ network, onBack, onUpdated, onAddUnit, onEdi
   };
 
   const removeUnit = async (unit) => {
-    const confirmed = window.confirm(
-      `Remover a unidade "${unit.unitName}"? Esta ação não pode ser desfeita.`,
-    );
-    if (!confirmed) return;
-
     setBusy(true);
     setError('');
     setMessage('');
     try {
       await deleteUnit(unit.id);
       setMessage(`Unidade "${unit.unitName}" removida.`);
-      loadUnits();
+      await loadUnits();
       onUpdated?.();
     } catch (err) {
       setError(err.message);
@@ -77,18 +191,29 @@ export function NetworkEditScreen({ network, onBack, onUpdated, onAddUnit, onEdi
     }
   };
 
+  const removeNetwork = async () => {
+    if (!(await confirmCrudDelete(networkName))) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await deleteNetwork(network.id);
+      onDeleted?.();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="page-stack">
       <PageHeader
-        breadcrumbs={[{ label: 'Redes', onClick: onBack }, { label: networkName }]}
-        title="Editar rede"
-        subtitle={`${units.length} unidade(s)`}
-        actions={
-          <button type="button" className="btn-ghost" onClick={onBack}>
-            Voltar para lista
-          </button>
-        }
+        breadcrumbs={[{ label: 'Parceiros', onClick: onBack }, { label: networkName }]}
+        title={readOnly ? networkName : 'Editar rede'}
+        subtitle={unitCountLabel}
       />
+
+      <CrudAlerts error={error} message={message} />
 
       <section className="panel">
         <div className="panel-header">
@@ -96,104 +221,69 @@ export function NetworkEditScreen({ network, onBack, onUpdated, onAddUnit, onEdi
         </div>
         <div className="panel-body">
           <form className="form-grid" onSubmit={saveNetwork}>
-            <div className="field-span-2">
-              <NetworkLogoField value={logoUrl} onChange={setLogoFile} disabled={busy} />
-            </div>
-            <label className="field-span-2">
-              <span>Nome comercial</span>
-              <input
-                value={networkName}
-                onChange={(e) => setNetworkName(e.target.value)}
-                required
-              />
-            </label>
-            <NetworkSocialFields value={social} onChange={setSocial} disabled={busy} />
-            <div className="field-span-2 panel-actions">
-              <button type="submit" className="btn-primary" disabled={busy}>
-                {busy ? 'Salvando…' : 'Salvar alterações'}
-              </button>
+            <section className="form-section field-span-full">
+              <h3 className="form-section-title">Identidade</h3>
+              <div className="form-grid-inner">
+                <div className="field-span-full">
+                  <NetworkLogoField
+                    value={logoUrl}
+                    onChange={setLogoFile}
+                    disabled={busy || readOnly}
+                  />
+                </div>
+                <label>
+                  <span>Nome comercial</span>
+                  <input
+                    className="input"
+                    value={networkName}
+                    onChange={(e) => setNetworkName(e.target.value)}
+                    placeholder="Ex.: Academia H2O"
+                    required
+                    disabled={readOnly}
+                  />
+                </label>
+                <label>
+                  <span>Responsável comercial</span>
+                  <input
+                    className="input"
+                    value={network.commercialOwnerName ?? '—'}
+                    readOnly
+                    disabled
+                  />
+                </label>
+              </div>
+            </section>
+
+            <NetworkSocialFields value={social} onChange={setSocial} disabled={busy || readOnly} />
+
+            <div className="field-span-full form-actions">
+              {readOnly ? (
+                <CrudViewActions onBack={onBack} onEdit={onEdit} />
+              ) : (
+                <CrudFormActions
+                  busy={busy}
+                  onCancel={onBack}
+                  submitLabel="Salvar alterações"
+                  onDelete={removeNetwork}
+                  showDelete
+                  deleteLabel="Excluir parceiro"
+                />
+              )}
             </div>
           </form>
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Unidades da rede</h2>
-          <button type="button" className="btn-primary btn-sm" onClick={onAddUnit}>
-            Adicionar unidade
-          </button>
-        </div>
-        <div className="panel-body panel-body-flush">
-          {units.length === 0 ? (
-            <div className="empty-state">
-              Nenhuma unidade nesta rede. Clique em Adicionar unidade para começar.
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table data-table-enterprise">
-                <thead>
-                  <tr>
-                    <th>Unidade</th>
-                    <th>Localização</th>
-                    <th>Horário</th>
-                    <th>Diária</th>
-                    <th className="col-actions">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {units.map((unit) => (
-                    <tr
-                      key={unit.id}
-                      className="data-table-row-clickable"
-                      onClick={() => onEditUnit(unit.id)}
-                    >
-                      <td>
-                        <strong>{unit.unitName}</strong>
-                      </td>
-                      <td>{formatUnitLocation(unit)}</td>
-                      <td className="muted">{formatTodayHours(unit)}</td>
-                      <td>
-                        <span
-                          className={`badge ${unit.dailyPassActive ? 'badge-success' : 'badge-muted'}`}
-                        >
-                          {unit.dailyPassActive ? 'ativa' : 'inativa'}
-                        </span>
-                      </td>
-                      <td className="table-actions col-actions">
-                        <button
-                          type="button"
-                          className="btn-primary btn-sm"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            onEditUnit(unit.id);
-                          }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-ghost btn-sm btn-danger"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            removeUnit(unit);
-                          }}
-                          disabled={busy}
-                        >
-                          Remover
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {message ? <p className="success-text">{message}</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
+      <NetworkUnitsPanel
+        networkId={network.id}
+        units={units}
+        loading={unitsLoading}
+        readOnly={readOnly}
+        busy={busy}
+        onAddUnit={onAddUnit}
+        onEditUnit={onEditUnit}
+        onDeleteUnit={removeUnit}
+      />
     </div>
   );
 }

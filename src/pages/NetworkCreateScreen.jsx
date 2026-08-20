@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { createNetwork, uploadNetworkLogo } from '../api/admin.js';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { NetworkLogoField } from '../components/NetworkLogoField.jsx';
 import { NetworkSocialFields } from '../components/NetworkSocialFields.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
@@ -33,15 +35,12 @@ export function NetworkCreateScreen({ onBack, onCreated }) {
   return (
     <div className="page-stack">
       <PageHeader
-        breadcrumbs={[{ label: 'Redes', onClick: onBack }, { label: 'Nova rede' }]}
+        breadcrumbs={[{ label: 'Parceiros', onClick: onBack }, { label: 'Nova rede' }]}
         title="Adicionar rede"
         subtitle="Cadastre uma nova rede parceira de academias."
-        actions={
-          <button type="button" className="btn-ghost" onClick={onBack}>
-            Voltar para lista
-          </button>
-        }
       />
+
+      <CrudAlerts error={error} />
 
       <section className="panel">
         <div className="panel-header">
@@ -49,33 +48,34 @@ export function NetworkCreateScreen({ onBack, onCreated }) {
         </div>
         <div className="panel-body">
           <form className="form-grid" onSubmit={onSubmit}>
-            <div className="field-span-2">
-              <NetworkLogoField onChange={setLogoFile} disabled={busy} />
-            </div>
-            <label className="field-span-2">
-              <span>Nome comercial da rede</span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex.: Carpe Diem Academia"
-                autoFocus
-                required
-              />
-            </label>
+            <section className="form-section field-span-full">
+              <h3 className="form-section-title">Identidade</h3>
+              <div className="form-grid-inner">
+                <div className="field-span-full">
+                  <NetworkLogoField onChange={setLogoFile} disabled={busy} />
+                </div>
+                <label>
+                  <span>Nome comercial da rede</span>
+                  <input
+                    className="input"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex.: Carpe Diem Academia"
+                    autoFocus
+                    required
+                  />
+                </label>
+              </div>
+            </section>
+
             <NetworkSocialFields value={social} onChange={setSocial} disabled={busy} />
-            <div className="field-span-2 panel-actions">
-              <button type="submit" className="btn-primary" disabled={busy}>
-                {busy ? 'Salvando…' : 'Cadastrar rede'}
-              </button>
-              <button type="button" className="btn-ghost" onClick={onBack}>
-                Cancelar
-              </button>
+
+            <div className="field-span-full form-actions">
+              <CrudFormActions busy={busy} onCancel={onBack} submitLabel="Cadastrar rede" />
             </div>
           </form>
         </div>
       </section>
-
-      {error ? <p className="error-text">{error}</p> : null}
     </div>
   );
 }

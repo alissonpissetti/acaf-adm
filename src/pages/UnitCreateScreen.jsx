@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { createUnit } from '../api/admin.js';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { UnitAddressFields } from '../components/UnitAddressFields.jsx';
 import { UnitWeeklyHoursFields } from '../components/UnitWeeklyHoursFields.jsx';
@@ -39,18 +41,15 @@ export function UnitCreateScreen({ network, onBack, onCreated }) {
     <div className="page-stack">
       <PageHeader
         breadcrumbs={[
-          { label: 'Redes', onClick: onBack.toList },
+          { label: 'Parceiros', onClick: onBack.toList },
           { label: network.name, onClick: onBack.toNetwork },
           { label: 'Nova unidade' },
         ]}
         title="Adicionar unidade"
         subtitle={`Rede ${network.name}`}
-        actions={
-          <button type="button" className="btn-ghost" onClick={onBack.toNetwork}>
-            Voltar para rede
-          </button>
-        }
       />
+
+      <CrudAlerts error={error} />
 
       <section className="panel">
         <div className="panel-header">
@@ -58,9 +57,10 @@ export function UnitCreateScreen({ network, onBack, onCreated }) {
         </div>
         <div className="panel-body">
           <form className="form-grid" onSubmit={onSubmit}>
-            <label className="field-span-2">
+            <label>
               <span>Nome da unidade</span>
               <input
+                className="input"
                 value={form.unitName}
                 onChange={(e) => setForm({ ...form, unitName: e.target.value })}
                 placeholder="Unidade Portão"
@@ -89,24 +89,22 @@ export function UnitCreateScreen({ network, onBack, onCreated }) {
             <label className="field-span-2">
               <span>Descrição</span>
               <textarea
+                className="input"
                 rows={4}
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </label>
-            <div className="field-span-2 panel-actions">
-              <button type="submit" className="btn-primary" disabled={busy}>
-                {busy ? 'Salvando…' : 'Cadastrar unidade'}
-              </button>
-              <button type="button" className="btn-ghost" onClick={onBack.toNetwork}>
-                Cancelar
-              </button>
+            <div className="field-span-full form-actions">
+              <CrudFormActions
+                busy={busy}
+                onCancel={onBack.toNetwork}
+                submitLabel="Cadastrar unidade"
+              />
             </div>
           </form>
         </div>
       </section>
-
-      {error ? <p className="error-text">{error}</p> : null}
     </div>
   );
 }

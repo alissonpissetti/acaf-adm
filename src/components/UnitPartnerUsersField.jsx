@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { appConfirm } from './confirm/appConfirm.js';
+import { SuccessFlashEffect } from './flash/FlashMessageProvider.jsx';
 import {
   addUnitPartnerUser,
   getUnitPartnerUsers,
@@ -95,7 +97,13 @@ export function UnitPartnerUsersField({ unitId, disabled = false, embedded = fal
   };
 
   const unlinkUser = async (user) => {
-    const confirmed = window.confirm('Remover o acesso deste usuário à unidade?');
+    const confirmed = await appConfirm({
+      title: 'Remover acesso',
+      message: 'Remover o acesso deste usuário à unidade?',
+      confirmLabel: 'Remover',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+    });
     if (!confirmed) return;
 
     setBusy(true);
@@ -114,7 +122,7 @@ export function UnitPartnerUsersField({ unitId, disabled = false, embedded = fal
 
   return (
     <div
-      className={`partner-users-field ${embedded ? 'partner-users-field-embedded' : ''} field-span-2`}
+      className={`partner-users-field ${embedded ? 'partner-users-field-embedded' : ''} field-span-full`}
       onKeyDown={(ev) => {
         if (ev.key === 'Enter') ev.preventDefault();
       }}
@@ -207,7 +215,7 @@ export function UnitPartnerUsersField({ unitId, disabled = false, embedded = fal
         <p className="muted">Nenhum usuário com acesso a esta unidade.</p>
       )}
 
-      {message ? <p className="success-text">{message}</p> : null}
+      <SuccessFlashEffect message={message} />
       {error ? <p className="error-text">{error}</p> : null}
     </div>
   );

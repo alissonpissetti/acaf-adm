@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getUnits, updateUnit } from '../api/admin.js';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { SuccessFlashEffect } from '../components/flash/FlashMessageProvider.jsx';
 import { UnitAddressFields } from '../components/UnitAddressFields.jsx';
 import { UnitCheckInsField } from '../components/UnitCheckInsField.jsx';
 import { UnitPartnerUsersField } from '../components/UnitPartnerUsersField.jsx';
@@ -107,7 +108,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
     <div className="page-stack">
       <PageHeader
         breadcrumbs={[
-          { label: 'Redes', onClick: onBack.toList },
+          { label: 'Parceiros', onClick: onBack.toList },
           { label: network.name, onClick: onBack.toNetwork },
           { label: form.unitName },
         ]}
@@ -140,8 +141,8 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
           {FORM_TABS.has(activeTab) ? (
             <form className="form-grid" onSubmit={saveUnit}>
               {activeTab === 'dados' ? (
-                <div className="unit-edit-tab-panel field-span-2" role="tabpanel">
-                  <label className="field-span-2">
+                <div className="unit-edit-tab-panel field-span-full" role="tabpanel">
+                  <label>
                     <span>Nome da unidade</span>
                     <input
                       value={form.unitName}
@@ -161,7 +162,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
               ) : null}
 
               {activeTab === 'endereco' ? (
-                <div className="unit-edit-tab-panel field-span-2" role="tabpanel">
+                <div className="unit-edit-tab-panel field-span-full" role="tabpanel">
                   <UnitAddressFields
                     value={form}
                     onChange={patchForm}
@@ -172,7 +173,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
               ) : null}
 
               {activeTab === 'horario' ? (
-                <div className="unit-edit-tab-panel field-span-2" role="tabpanel">
+                <div className="unit-edit-tab-panel field-span-full" role="tabpanel">
                   <UnitWeeklyHoursFields
                     value={form.weeklySchedule}
                     onChange={(weeklySchedule) => setForm({ ...form, weeklySchedule })}
@@ -183,11 +184,11 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
               ) : null}
 
               {activeTab === 'diarias' ? (
-                <div className="unit-edit-tab-panel field-span-2" role="tabpanel">
-                  <label className="field-span-2">
+                <div className="unit-edit-tab-panel field-span-full" role="tabpanel">
+                  <label>
                     <span>Diária avulsa</span>
                     <p className="muted unit-tab-help">
-                      Define se a unidade aceita venda de diárias avulsas pelo ACAF Connect.
+                      Define se a unidade aceita venda de diárias avulsas pelo ACAF.
                     </p>
                     <div className="toggle-row">
                       <button
@@ -209,7 +210,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                 </div>
               ) : null}
 
-              <div className="field-span-2 panel-actions">
+              <div className="field-span-full form-actions panel-actions">
                 <button type="submit" className="btn-primary" disabled={busy}>
                   {busy ? 'Salvando…' : 'Salvar alterações'}
                 </button>
@@ -258,7 +259,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
         </div>
       </section>
 
-      {message ? <p className="success-text">{message}</p> : null}
+      <SuccessFlashEffect message={message} />
       {error ? <p className="error-text">{error}</p> : null}
     </div>
   );

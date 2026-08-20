@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { appConfirm } from './confirm/appConfirm.js';
+import { SuccessFlashEffect } from './flash/FlashMessageProvider.jsx';
 import { cancelUnitCheckIn, getUnitCheckIns } from '../api/admin.js';
 
 function formatCheckInTime(iso) {
@@ -16,7 +18,7 @@ function formatCheckInTime(iso) {
 }
 
 function typeLabel(type) {
-  if (type === 'connect_member') return 'Connect';
+  if (type === 'connect_member') return 'Plano';
   if (type === 'daily_pass') return 'Diária';
   return type;
 }
@@ -42,9 +44,14 @@ export function UnitCheckInsField({ unitId, disabled }) {
   }, [load]);
 
   const onCancel = async (entryId) => {
-    if (!window.confirm('Cancelar este check-in? O aluno poderá fazer check-in novamente hoje.')) {
-      return;
-    }
+    const confirmed = await appConfirm({
+      title: 'Cancelar check-in',
+      message: 'Cancelar este check-in? O aluno poderá fazer check-in novamente hoje.',
+      confirmLabel: 'Cancelar check-in',
+      cancelLabel: 'Voltar',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     setBusyId(entryId);
     setMessage('');
     setError('');
@@ -72,7 +79,7 @@ export function UnitCheckInsField({ unitId, disabled }) {
       {entries.length === 0 ? (
         <p className="muted">Nenhum check-in hoje nesta unidade.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-wrap-responsive">
           <table className="data-table">
             <thead>
               <tr>
@@ -86,14 +93,14 @@ export function UnitCheckInsField({ unitId, disabled }) {
             <tbody>
               {entries.map((row) => (
                 <tr key={row.id}>
-                  <td>{formatCheckInTime(row.validatedAt)}</td>
-                  <td>{row.holderName}</td>
-                  <td>{typeLabel(row.type)}</td>
-                  <td className="mono">{row.code}</td>
-                  <td>
+                  <td data-label="Horário">{formatCheckInTime(row.validatedAt)}</td>
+                  <td data-label="Aluno">{row.holderName}</td>
+                  <td data-label="Tipo">{typeLabel(row.type)}</td>
+                  <td data-label="Código" className="mono">{row.code}</td>
+                  <td data-label="Ação">
                     <button
                       type="button"
-                      className="btn-ghost btn-sm"
+                      className="btn-ghost btn-sm unit-checkin-cancel"
                       disabled={disabled || busyId === row.id}
                       onClick={() => onCancel(row.id)}
                     >
@@ -107,7 +114,7 @@ export function UnitCheckInsField({ unitId, disabled }) {
         </div>
       )}
 
-      {message ? <p className="success-text">{message}</p> : null}
+      <SuccessFlashEffect message={message} />
       {error ? <p className="error-text">{error}</p> : null}
     </div>
   );

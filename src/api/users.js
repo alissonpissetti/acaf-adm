@@ -23,3 +23,10 @@ export function deleteUser(id) {
     method: 'DELETE',
   });
 }
+
+export function deleteUsers(ids) {
+  return fetchApi('/api/admin/users/bulk-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}

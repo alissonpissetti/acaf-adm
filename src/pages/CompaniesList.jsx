@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { Building2, Calendar, Mail, Phone, UserCog, Users } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { CrudPagination } from '../components/crud/CrudListToolbar.jsx';
+import { CrudRowActions } from '../components/crud/CrudRowActions.jsx';
+import { AppLoading } from '../components/crud/AppLoading.jsx';
+import { selectFilter } from '../crud/filterUtils.js';
+import { useCrudList } from '../crud/useCrudList.js';
 import {
   COMPANIES_PAGE_SIZE,
+  companyMatchesSearch,
   countCompaniesByStatus,
-  filterCompanies,
-  paginateItems,
 } from '../utils/companiesList.js';
+import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 
 const STATUS_LABEL = {
   pending: 'Pendente',
@@ -24,7 +30,7 @@ function formatDate(value) {
   try {
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
-      month: '2-digit',
+      month: 'short',
       year: 'numeric',
     }).format(new Date(value));
   } catch {
@@ -32,78 +38,201 @@ function formatDate(value) {
   }
 }
 
-function ListPagination({ page, totalPages, totalItems, onPageChange }) {
-  if (totalPages <= 1) {
-    return (
-      <div className="list-pagination">
-        <span className="list-pagination-meta">{totalItems} empresa(s)</span>
-      </div>
-    );
-  }
+function formatPhoneDisplay(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function companyDisplayName(company) {
+  return company.tradeName?.trim() || company.legalName?.trim() || 'Sem nome';
+}
+
+function companySecondaryName(company) {
+  const trade = company.tradeName?.trim();
+  const legal = company.legalName?.trim();
+  if (trade && legal && trade !== legal) return legal;
+  return null;
+}
+
+function companyInitials(company) {
+  const name = companyDisplayName(company);
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function statusFilterValue(fieldFilters) {
+  const match = fieldFilters.find((item) => item.id === 'status');
+  return match?.value ?? '';
+}
+
+function CompanyMetaChip({ icon: Icon, label, value, href }) {
+  if (!value || value === '—') return null;
+
+  const content = href ? (
+    <a href={href} onClick={(ev) => ev.stopPropagation()}>
+      {value}
+    </a>
+  ) : (
+    <span>{value}</span>
+  );
 
   return (
-    <div className="list-pagination">
-      <span className="list-pagination-meta">
-        {totalItems} empresa(s) · página {page} de {totalPages}
-      </span>
-      <div className="list-pagination-actions">
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          Anterior
-        </button>
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          Próxima
-        </button>
+    <span className="companies-registry-chip" title={label}>
+      <Icon size={13} aria-hidden="true" />
+      {content}
+    </span>
+  );
+}
+
+function CompanyRegistryCard({ company, onView, onEdit }) {
+  const secondaryName = companySecondaryName(company);
+  const phone = formatPhoneDisplay(company.phone);
+  const hasSecondaryRow = Boolean(
+    company.cnpj || company.email || phone || company.commercialOwnerName,
+  );
+
+  const open = () => (onView ? onView(company.id) : onEdit(company.id));
+
+  return (
+    <article
+      className="companies-registry-card"
+      onClick={open}
+      onKeyDown={(ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          open();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="companies-registry-row companies-registry-row--primary">
+        <div className="companies-registry-avatar" aria-hidden="true">
+          {companyInitials(company)}
+        </div>
+
+        <div className="companies-registry-identity">
+          <h3 className="companies-registry-title">{companyDisplayName(company)}</h3>
+          {secondaryName ? (
+            <>
+              <span className="companies-registry-dot" aria-hidden="true">
+                ·
+              </span>
+              <span className="companies-registry-subtitle">{secondaryName}</span>
+            </>
+          ) : null}
+        </div>
+
+        <span className={STATUS_CLASS[company.status] ?? 'badge badge-muted'}>
+          {STATUS_LABEL[company.status] ?? company.status}
+        </span>
+
+        <div className="companies-registry-metrics">
+          <span className="companies-registry-metric" title="Gestores de RH vinculados">
+            <Users size={14} aria-hidden="true" />
+            <span className="companies-registry-metric-label">Gestores</span>
+            <strong>{company.managers ?? 0}</strong>
+          </span>
+          <span className="companies-registry-metric" title="Colaboradores cadastrados">
+            <UserCog size={14} aria-hidden="true" />
+            <span className="companies-registry-metric-label">Colab.</span>
+            <strong>{company.employees ?? 0}</strong>
+          </span>
+          <span className="companies-registry-metric" title="Data de cadastro">
+            <Calendar size={14} aria-hidden="true" />
+            <span className="companies-registry-metric-label">Cadastro</span>
+            <strong>{formatDate(company.createdAt)}</strong>
+          </span>
+        </div>
+
+        <div className="companies-registry-actions">
+          <CrudRowActions
+            onView={onView ? () => onView(company.id) : undefined}
+            onEdit={() => onEdit(company.id)}
+          />
+        </div>
       </div>
-    </div>
+
+      {hasSecondaryRow ? (
+        <div className="companies-registry-row companies-registry-row--secondary">
+          <CompanyMetaChip icon={Building2} label="CNPJ" value={company.cnpj || null} />
+          <CompanyMetaChip
+            icon={Mail}
+            label="E-mail"
+            value={company.email || null}
+            href={company.email ? `mailto:${company.email}` : undefined}
+          />
+          <CompanyMetaChip
+            icon={Phone}
+            label="Telefone"
+            value={phone || null}
+            href={phone ? `tel:+55${String(company.phone).replace(/\D/g, '')}` : undefined}
+          />
+          {company.commercialOwnerName ? (
+            <CompanyMetaChip
+              icon={UserCog}
+              label="Resp. comercial"
+              value={company.commercialOwnerName}
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function StatPanel({ label, value, active, onClick }) {
+  return (
+    <button
+      type="button"
+      className={`panel stat-panel companies-stat-panel${active ? ' companies-stat-panel--active' : ''}`}
+      onClick={onClick}
+      aria-pressed={active}
+    >
+      <span className="stat-label">{label}</span>
+      <strong className="stat-value">{value}</strong>
+    </button>
   );
 }
 
 export function CompaniesList({
   companies,
-  statusFilter,
-  searchQuery,
-  page,
+  loading = false,
   error,
-  onFilterChange,
-  onSearchChange,
-  onPageChange,
+  onAdd,
+  onView,
   onEdit,
 }) {
-  const [searchInput, setSearchInput] = useState(searchQuery);
+  const filterDefinitions = useMemo(
+    () => [
+      selectFilter('status', 'Status', 'status', [
+        { value: 'pending', label: 'Pendente' },
+        { value: 'active', label: 'Ativa' },
+        { value: 'suspended', label: 'Suspensa' },
+      ]),
+    ],
+    [],
+  );
 
-  useEffect(() => {
-    setSearchInput(searchQuery);
-  }, [searchQuery]);
+  const list = useCrudList(companies, {
+    filterDefinitions,
+    matchesSearch: companyMatchesSearch,
+    defaultSort: { key: 'tradeName', direction: 'asc' },
+    defaultPageSize: COMPANIES_PAGE_SIZE,
+    storageKey: LIST_PREFERENCE_KEYS.companies,
+  });
 
   const counts = useMemo(() => countCompaniesByStatus(companies), [companies]);
+  const statusFilter = statusFilterValue(list.fieldFilters);
 
-  const filtered = useMemo(
-    () => filterCompanies(companies, { status: statusFilter, query: searchQuery }),
-    [companies, statusFilter, searchQuery],
-  );
-
-  const pagination = useMemo(
-    () => paginateItems(filtered, page, COMPANIES_PAGE_SIZE),
-    [filtered, page],
-  );
-
-  const applySearch = () => {
-    onSearchChange(searchInput);
-  };
-
-  const clearSearch = () => {
-    setSearchInput('');
-    onSearchChange('');
+  const setStatusFilter = (value) => {
+    if (!value) list.removeFieldFilter('status');
+    else list.applyFieldFilter({ id: 'status', value });
   };
 
   return (
@@ -111,6 +240,13 @@ export function CompaniesList({
       <PageHeader
         title="Empresas corporativas"
         subtitle="Cadastros do portal corporativo — aprovação, gestores de RH e visão dos colaboradores."
+        actions={
+          onAdd ? (
+            <button type="button" className="btn-primary" onClick={onAdd}>
+              Adicionar empresa
+            </button>
+          ) : null
+        }
       />
 
       {error ? <div className="alert-banner alert-banner-error">{error}</div> : null}
@@ -124,29 +260,37 @@ export function CompaniesList({
       ) : null}
 
       <div className="stat-grid companies-stat-grid">
-        <article className="panel stat-panel">
-          <span className="stat-label">Total</span>
-          <strong className="stat-value">{counts.total}</strong>
-        </article>
-        <article className="panel stat-panel">
-          <span className="stat-label">Pendentes</span>
-          <strong className="stat-value">{counts.pending}</strong>
-        </article>
-        <article className="panel stat-panel">
-          <span className="stat-label">Ativas</span>
-          <strong className="stat-value">{counts.active}</strong>
-        </article>
-        <article className="panel stat-panel">
-          <span className="stat-label">Suspensas</span>
-          <strong className="stat-value">{counts.suspended}</strong>
-        </article>
+        <StatPanel
+          label="Total"
+          value={counts.total}
+          active={statusFilter === ''}
+          onClick={() => setStatusFilter('')}
+        />
+        <StatPanel
+          label="Pendentes"
+          value={counts.pending}
+          active={statusFilter === 'pending'}
+          onClick={() => setStatusFilter('pending')}
+        />
+        <StatPanel
+          label="Ativas"
+          value={counts.active}
+          active={statusFilter === 'active'}
+          onClick={() => setStatusFilter('active')}
+        />
+        <StatPanel
+          label="Suspensas"
+          value={counts.suspended}
+          active={statusFilter === 'suspended'}
+          onClick={() => setStatusFilter('suspended')}
+        />
       </div>
 
-      <section className="panel">
+      <section className="panel companies-registry-panel">
         <div className="panel-header list-toolbar-header">
           <h2>Empresas cadastradas</h2>
           <span className="panel-meta">
-            {filtered.length} de {counts.total} na listagem
+            {list.filteredCount} de {counts.total} na listagem
           </span>
         </div>
 
@@ -157,138 +301,49 @@ export function CompaniesList({
                 type="search"
                 className="list-toolbar-input"
                 placeholder="Buscar por nome, CNPJ, e-mail…"
-                value={searchInput}
-                onChange={(ev) => setSearchInput(ev.target.value)}
-                onKeyDown={(ev) => {
-                  if (ev.key === 'Enter') {
-                    ev.preventDefault();
-                    applySearch();
-                  }
-                }}
+                value={list.query}
+                onChange={(ev) => list.onQueryChange(ev.target.value)}
               />
-              <button type="button" className="btn-primary btn-sm" onClick={applySearch}>
-                Buscar
-              </button>
-              {searchQuery ? (
-                <button type="button" className="btn-ghost btn-sm" onClick={clearSearch}>
+              {list.query ? (
+                <button type="button" className="btn-ghost btn-sm" onClick={() => list.onQueryChange('')}>
                   Limpar
                 </button>
               ) : null}
             </div>
-
-            <div className="list-toolbar-filters">
-              <button
-                type="button"
-                className={`filter-chip${statusFilter === '' ? ' active' : ''}`}
-                onClick={() => onFilterChange('')}
-              >
-                Todas
-              </button>
-              <button
-                type="button"
-                className={`filter-chip${statusFilter === 'pending' ? ' active' : ''}`}
-                onClick={() => onFilterChange('pending')}
-              >
-                Pendentes
-                {counts.pending > 0 ? <span className="filter-chip-count">{counts.pending}</span> : null}
-              </button>
-              <button
-                type="button"
-                className={`filter-chip${statusFilter === 'active' ? ' active' : ''}`}
-                onClick={() => onFilterChange('active')}
-              >
-                Ativas
-              </button>
-              <button
-                type="button"
-                className={`filter-chip${statusFilter === 'suspended' ? ' active' : ''}`}
-                onClick={() => onFilterChange('suspended')}
-              >
-                Suspensas
-              </button>
-            </div>
           </div>
         </div>
 
-        <div className="panel-body panel-body-flush">
-          {pagination.items.length === 0 ? (
+        <div className="panel-body companies-registry-body">
+          {loading ? (
+            <AppLoading label="Carregando empresas…" />
+          ) : list.rows.length === 0 ? (
             <div className="empty-state">
               {companies.length === 0
-                ? 'Nenhuma empresa cadastrada.'
+                ? 'Nenhuma empresa cadastrada. Clique em Adicionar empresa para começar.'
                 : 'Nenhuma empresa corresponde aos filtros aplicados.'}
             </div>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table data-table-enterprise">
-                <thead>
-                  <tr>
-                    <th>Empresa</th>
-                    <th>CNPJ</th>
-                    <th>Contato</th>
-                    <th>Status</th>
-                    <th>Gestores</th>
-                    <th>Colaboradores</th>
-                    <th>Cadastro</th>
-                    <th className="col-actions">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagination.items.map((company) => (
-                    <tr
-                      key={company.id}
-                      className="data-table-row-clickable"
-                      onClick={() => onEdit(company.id)}
-                    >
-                      <td>
-                        <strong>{company.tradeName}</strong>
-                        <div className="table-sub">{company.legalName}</div>
-                      </td>
-                      <td>{company.cnpj}</td>
-                      <td>
-                        <div>{company.email}</div>
-                        {company.phone ? (
-                          <div className="table-sub">{company.phone}</div>
-                        ) : null}
-                      </td>
-                      <td>
-                        <span className={STATUS_CLASS[company.status] ?? 'badge badge-muted'}>
-                          {STATUS_LABEL[company.status] ?? company.status}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="badge badge-muted">{company.managers ?? 0}</span>
-                      </td>
-                      <td>
-                        <span className="badge badge-muted">{company.employees ?? 0}</span>
-                      </td>
-                      <td>{formatDate(company.createdAt)}</td>
-                      <td className="table-actions col-actions">
-                        <button
-                          type="button"
-                          className="btn-primary btn-sm"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            onEdit(company.id);
-                          }}
-                        >
-                          Abrir
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="companies-registry-list">
+              {list.rows.map((company) => (
+                <CompanyRegistryCard
+                  key={company.id}
+                  company={company}
+                  onView={onView}
+                  onEdit={onEdit}
+                />
+              ))}
             </div>
           )}
         </div>
 
-        {pagination.totalItems > 0 ? (
-          <div className="panel-body list-pagination-wrap">
-            <ListPagination
-              page={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.totalItems}
-              onPageChange={onPageChange}
+        {!loading && list.totalItems > 0 ? (
+          <div className="panel-body crud-pagination-wrap">
+            <CrudPagination
+              page={list.page}
+              pageSize={list.pageSize}
+              totalPages={list.totalPages}
+              totalItems={list.totalItems}
+              onPageChange={list.setPage}
             />
           </div>
         ) : null}

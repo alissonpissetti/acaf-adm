@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 
 export function PageHeader({ breadcrumbs = [], title, subtitle, actions = null }) {
+  const showHeadingRow = Boolean(title || subtitle || actions);
+
   return (
     <header className="page-header">
       {breadcrumbs.length > 0 ? (
@@ -21,13 +23,19 @@ export function PageHeader({ breadcrumbs = [], title, subtitle, actions = null }
           ))}
         </nav>
       ) : null}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">{title}</h1>
-          {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
+      {showHeadingRow ? (
+        <div
+          className={`page-header-row${!title && !subtitle ? ' page-header-row--actions-only' : ''}`}
+        >
+          {title || subtitle ? (
+            <div>
+              {title ? <h1 className="page-title">{title}</h1> : null}
+              {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
+            </div>
+          ) : null}
+          {actions ? <div className="page-header-actions">{actions}</div> : null}
         </div>
-        {actions ? <div className="page-header-actions">{actions}</div> : null}
-      </div>
+      ) : null}
     </header>
   );
 }

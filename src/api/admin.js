@@ -22,6 +22,12 @@ export function updateNetwork(id, payload) {
   });
 }
 
+export function deleteNetwork(id) {
+  return fetchApi(`/api/admin/networks/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export function uploadNetworkLogo(id, file) {
   const formData = new FormData();
   formData.append('logo', file);
@@ -166,16 +172,16 @@ export function deleteModality(id) {
   });
 }
 
-export function reorderModalities(ids) {
-  return fetchApi('/api/admin/modalities/reorder', {
-    method: 'PUT',
-    body: JSON.stringify({ ids }),
-  });
-}
-
 export function getCompanies(status) {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return fetchApi(`/api/admin/companies${query}`);
+}
+
+export function createCompany(payload) {
+  return fetchApi('/api/admin/companies', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getCompany(id) {
@@ -200,4 +206,20 @@ export function removeCompanyManager(companyId, userId) {
   return fetchApi(`/api/admin/companies/${companyId}/access/${userId}`, {
     method: 'DELETE',
   });
+}
+
+export function deleteCompany(id) {
+  return fetchApi(`/api/admin/companies/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function removeCompanyEmployee(companyId, employeeId) {
+  return fetchApi(`/api/admin/companies/${companyId}/employees/${employeeId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function getCompanyEmployeeProfile(companyId, employeeId) {
+  return fetchApi(`/api/admin/companies/${companyId}/employees/${employeeId}/profile`);
 }

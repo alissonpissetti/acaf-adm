@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { createUser } from '../api/users.js';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import {
   formatCpfInput,
@@ -43,12 +45,9 @@ export function UserCreateScreen({ onBack, onCreated }) {
         breadcrumbs={[{ label: 'Usuários', onClick: onBack }, { label: 'Novo usuário' }]}
         title="Adicionar usuário"
         subtitle="Cadastre uma pessoa na plataforma ACAF."
-        actions={
-          <button type="button" className="btn-ghost" onClick={onBack}>
-            Voltar para lista
-          </button>
-        }
       />
+
+      <CrudAlerts error={error} />
 
       <section className="panel">
         <div className="panel-header">
@@ -56,7 +55,7 @@ export function UserCreateScreen({ onBack, onCreated }) {
         </div>
         <div className="panel-body">
           <form className="form-grid" onSubmit={onSubmit}>
-            <label className="field-span-2">
+            <label>
               <span>Nome</span>
               <input
                 value={form.name}
@@ -94,7 +93,7 @@ export function UserCreateScreen({ onBack, onCreated }) {
               />
             </label>
 
-            <label className="field-span-2">
+            <label>
               <span>E-mail</span>
               <input
                 type="email"
@@ -105,7 +104,7 @@ export function UserCreateScreen({ onBack, onCreated }) {
               />
             </label>
 
-            <label className="field-span-2">
+            <label>
               <span>Senha inicial</span>
               <input
                 type="password"
@@ -116,19 +115,16 @@ export function UserCreateScreen({ onBack, onCreated }) {
               />
             </label>
 
-            <div className="field-span-2 panel-actions">
-              <button type="submit" className="btn-primary" disabled={busy}>
-                {busy ? 'Salvando…' : 'Cadastrar usuário'}
-              </button>
-              <button type="button" className="btn-ghost" onClick={onBack}>
-                Cancelar
-              </button>
+            <div className="field-span-full form-actions">
+              <CrudFormActions
+                busy={busy}
+                onCancel={onBack}
+                submitLabel="Salvar usuário"
+              />
             </div>
           </form>
         </div>
       </section>
-
-      {error ? <p className="error-text">{error}</p> : null}
     </div>
   );
 }
