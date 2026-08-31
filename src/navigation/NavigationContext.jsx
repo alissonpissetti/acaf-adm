@@ -52,7 +52,9 @@ export function useActiveModuleItem(pathname) {
   const { modules } = useNavigation();
 
   for (const module of modules) {
-    const item = module.items.find((entry) => pathname.startsWith(entry.route));
+    const item = module.items.find((entry) =>
+      pathname.startsWith(entry.route.split('?')[0]),
+    );
     if (item) {
       return { module, item };
     }

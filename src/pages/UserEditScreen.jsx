@@ -173,7 +173,6 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
                 placeholder="000.000.000-00"
                 inputMode="numeric"
                 autoComplete="off"
-                required
                 disabled={readOnly}
               />
             </label>
@@ -189,7 +188,6 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                required
                 disabled={readOnly}
               />
             </label>

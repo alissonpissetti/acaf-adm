@@ -69,7 +69,7 @@ export function UnitPhotosField({ unitId, heroPhoto, galleryPhotos, onChange, di
           <div>
             <span className="field-label">Fotos da unidade</span>
             <p className="muted unit-photos-help">
-              Imagens exibidas no Guia ACAF. Capa principal e até {MAX_GALLERY} fotos na
+              Imagens exibidas no Guia de academias. Capa principal e até {MAX_GALLERY} fotos na
               galeria — clique em uma foto da galeria para usá-la como capa.
             </p>
           </div>

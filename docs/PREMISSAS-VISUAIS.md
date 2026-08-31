@@ -1,4 +1,4 @@
-# Premissas Visuais — ACAF Admin (resumo executivo)
+# Premissas Visuais — Painel Admin (resumo executivo)
 
 Documento complementar à [Referência Visual completa](./REFERENCIA-VISUAL.md). Use este arquivo como **checklist rápido** em reviews de UI e planejamento de telas.
 
@@ -6,7 +6,7 @@ Documento complementar à [Referência Visual completa](./REFERENCIA-VISUAL.md).
 
 ## Identidade
 
-- Console **enterprise** de gestão operacional da ACAF.
+- Console **enterprise** de gestão operacional da plataforma.
 - Marca: **laranja `#e8881c`** como acento; base **neutra fria** (cinzas + branco).
 - Sidebar **escura** = navegação entre módulos; área de conteúdo **clara** = trabalho.
 
@@ -147,7 +147,7 @@ Nunca usar texto solto "Carregando…" sem o componente padrão.
 
 ### Exclusão e confirmações
 
-- **Nunca** usar `window.confirm()` ou `window.alert()` — diálogos nativos do navegador não fazem parte da UI ACAF.
+- **Nunca** usar `window.confirm()` ou `window.alert()` — diálogos nativos do navegador não fazem parte da UI da plataforma.
 - Confirmar ações destrutivas com `confirmCrudDelete(label)` (`src/crud/crudUtils.js`) ou `appConfirm({ title, message, confirmLabel, cancelLabel, tone })` (`src/components/confirm/appConfirm.js`).
 - Mensagens informativas bloqueantes com `appAlert({ title, message, okLabel, tone })`.
 - Provider global: `ConfirmDialogProvider` em `App.jsx` (modal no layout da aplicação, responsivo, botões touch-friendly).

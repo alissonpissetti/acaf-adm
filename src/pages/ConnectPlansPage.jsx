@@ -204,7 +204,7 @@ export function ConnectPlansPage() {
     return (
       <ConnectPlanForm
         title="Adicionar plano"
-        subtitle="Cadastre um plano de assinatura ACAF."
+        subtitle="Cadastre um plano de assinatura Connect."
         breadcrumbs={[{ label: 'Planos', onClick: router.goToList }, { label: 'Novo' }]}
         initial={{
           name: '',
@@ -291,7 +291,7 @@ export function ConnectPlansPage() {
       <div className="page-stack">
         <CrudListShell
         title="Planos"
-        subtitle="Assinaturas da plataforma ACAF."
+        subtitle="Assinaturas da plataforma."
         addLabel="Adicionar plano"
         onAdd={router.goToCreate}
         loading={loading || busy}

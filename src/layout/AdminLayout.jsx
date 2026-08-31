@@ -6,6 +6,7 @@ import { NavigationProvider, useActiveModuleItem } from '../navigation/Navigatio
 import { ModuleSidebar } from './ModuleSidebar.jsx';
 import { ModuleTopNav } from './ModuleTopNav.jsx';
 import { Avatar } from '../components/Avatar.jsx';
+import { NotificationBell } from '../components/NotificationBell.jsx';
 import { UserProfilePanel } from '../components/UserProfilePanel.jsx';
 import './AdminLayout.css';
 
@@ -14,7 +15,7 @@ function AdminLayoutInner() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { module, item } = useActiveModuleItem(location.pathname);
-  const topTitle = item?.label ?? module?.name ?? 'ACAF Admin';
+  const topTitle = item?.label ?? module?.name ?? 'Painel Admin';
   const [navOpen, setNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -91,7 +92,7 @@ function AdminLayoutInner() {
             <span className="admin-brand-mark" aria-hidden="true">
               A
             </span>
-            <strong className="admin-brand-title">ACAF</strong>
+            <strong className="admin-brand-title">Connect</strong>
           </NavLink>
 
           <button
@@ -119,6 +120,7 @@ function AdminLayoutInner() {
             {module ? <div className="admin-topbar-meta">{module.name}</div> : null}
           </div>
           <div className="admin-topbar-actions">
+            <NotificationBell />
             <div className="admin-user-menu" ref={profileRef}>
               <button
                 type="button"

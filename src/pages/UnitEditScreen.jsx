@@ -188,7 +188,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                   <label>
                     <span>Diária avulsa</span>
                     <p className="muted unit-tab-help">
-                      Define se a unidade aceita venda de diárias avulsas pelo ACAF.
+                      Define se a unidade aceita venda de diárias avulsas pelo app.
                     </p>
                     <div className="toggle-row">
                       <button

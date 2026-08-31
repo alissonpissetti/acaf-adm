@@ -4,8 +4,8 @@
  * Dev: VITE_API_URL ou proxy Vite (/api).
  */
 function readApiUrl() {
-  if (typeof window !== 'undefined' && window.__ACAF_API_URL__) {
-    return String(window.__ACAF_API_URL__).replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.__CONNECT_API_URL__) {
+    return String(window.__CONNECT_API_URL__).replace(/\/$/, '');
   }
   const fromEnv = import.meta.env.VITE_API_URL ?? '';
   return String(fromEnv).replace(/\/$/, '');

@@ -247,7 +247,7 @@ export function DepartmentsPage() {
   return (
     <CrudListShell
       title="Departamentos"
-      subtitle="Estrutura organizacional global da ACAF"
+      subtitle="Estrutura organizacional global da organização"
       addLabel="Adicionar departamento"
       onAdd={canManage ? router.goToCreate : undefined}
       canAdd={canManage}

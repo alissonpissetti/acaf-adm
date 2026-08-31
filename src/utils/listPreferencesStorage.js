@@ -1,4 +1,4 @@
-const STORAGE_PREFIX = 'acaf.list-prefs.';
+const STORAGE_PREFIX = 'connect.list-prefs.';
 
 export const LIST_PREFERENCE_KEYS = {
   companies: 'operacao.empresas',
@@ -8,6 +8,8 @@ export const LIST_PREFERENCE_KEYS = {
   modalities: 'operacao.modalidades',
   connectPlans: 'operacao.planos-connect',
   commercialFunnels: 'comercial.funis',
+  marketingCampaigns: 'marketing.campanhas',
+  marketingLandingPages: 'marketing.formularios',
   accountPlans: 'financeiro.planos-conta',
   suppliers: 'financeiro.fornecedores',
   payables: 'financeiro.contas-pagar',
@@ -20,6 +22,7 @@ export const LIST_PREFERENCE_KEYS = {
   jobPositions: 'config.cargos',
   departments: 'config.departamentos',
   platformSettings: 'config.parametros-plataforma',
+  supportQueues: 'atendimento.filas',
 };
 
 function buildStorageKey(key) {

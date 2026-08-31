@@ -1,7 +1,7 @@
 import { apiUrl } from '../config.js';
 import { fetchApiUpload } from './client.js';
 
-const TOKEN_KEY = 'acaf_admin_token';
+const TOKEN_KEY = 'connect_admin_token';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);

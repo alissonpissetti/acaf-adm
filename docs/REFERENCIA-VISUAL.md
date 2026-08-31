@@ -1,6 +1,6 @@
-# ACAF Admin — Referência Visual e Premissas de UI
+# Painel Admin — Referência Visual e Premissas de UI
 
-Documento de referência para o frontend **acaf-adm**. Objetivo: manter consistência visual, acelerar novas telas e preparar o console para crescer como **grande sistema de gestão** sem fragmentação de estilo.
+Documento de referência para o frontend **connect-adm**. Objetivo: manter consistência visual, acelerar novas telas e preparar o console para crescer como **grande sistema de gestão** sem fragmentação de estilo.
 
 **Escopo:** painel administrativo interno (`localhost:5173`)  
 **Stack UI:** React + Vite, CSS vanilla, Lucide React  
@@ -12,7 +12,7 @@ Documento de referência para o frontend **acaf-adm**. Objetivo: manter consist�
 
 ### 1.1 Posicionamento
 
-O acaf-adm é um **console operacional enterprise**: denso o suficiente para gestão diária, claro o suficiente para uso prolongado. Não é marketing site nem app consumer.
+O connect-adm é um **console operacional enterprise**: denso o suficiente para gestão diária, claro o suficiente para uso prolongado. Não é marketing site nem app consumer.
 
 | Princípio | O que significa na prática |
 |-----------|----------------------------|
@@ -21,7 +21,7 @@ O acaf-adm é um **console operacional enterprise**: denso o suficiente para ges
 | **Consistência antes de criatividade** | Reutilizar componentes e classes existentes antes de inventar layout novo. |
 | **Escalabilidade** | Padrões que funcionam com 5 ou 500 telas: tokens, grid, tabelas, formulários repetíveis. |
 | **Confiança** | Feedback explícito (sucesso/erro/carregando), estados vazios orientados, confirmação em ações destrutivas. |
-| **Marca ACAF contida** | Laranja como acento de ação/seleção; base neutra profissional (cinzas + branco). |
+| **Marca contida** | Laranja como acento de ação/seleção; base neutra profissional (cinzas + branco). |
 
 ### 1.2 Tom visual
 
@@ -366,7 +366,7 @@ Form grids: **2 colunas** (721px+), **3 colunas** (≥ 1200px), **1 coluna** aba
 
 ## 10. Checklist para nova tela
 
-Antes de abrir PR de UI no acaf-adm:
+Antes de abrir PR de UI no connect-adm:
 
 - [ ] **CRUD:** usa `CrudListShell` + `useCrudRouter` + `CrudFormActions`
 - [ ] **Listagem:** busca, ordenação e paginação presentes

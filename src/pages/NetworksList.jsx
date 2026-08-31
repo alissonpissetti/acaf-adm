@@ -12,7 +12,7 @@ export function NetworksList({ networks, loading, error, onAdd, onView, onEdit }
   return (
     <CrudListShell
       title="Parceiros"
-      subtitle="Gerencie redes de academias parceiras do ACAF."
+      subtitle="Gerencie redes de academias parceiras da plataforma."
       addLabel="Adicionar rede"
       onAdd={onAdd}
       loading={loading}

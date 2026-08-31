@@ -25,8 +25,10 @@ export function ModuleSidebar({ onNavigate }) {
   return (
     <nav className="module-sidebar-nav">
       {modules.map((module) => {
-        const isActive = module.items.some((item) => location.pathname.startsWith(item.route));
-        const target = module.items[0]?.route ?? '#';
+        const isActive = module.items.some((item) =>
+          location.pathname.startsWith(item.route.split('?')[0]),
+        );
+        const target = module.items[0]?.route.split('?')[0] ?? '#';
 
         return (
           <NavLink

@@ -13,20 +13,20 @@ import { useCrudRouter } from '../crud/useCrudRouter.js';
 
 const SYSTEM_VARIABLES = [
   {
-    id: 'acafConnectFeePercent',
-    key: 'acafConnectFeePercent',
+    id: 'connectFeePercent',
+    key: 'connectFeePercent',
     name: 'Taxa sobre planos',
-    description: 'Percentual retido pela ACAF sobre assinaturas de planos (portal parceiro e app).',
+    description: 'Percentual retido pela plataforma sobre assinaturas de planos (portal parceiro e app).',
     suffix: '%',
     min: 0,
     max: 100,
     step: 0.1,
   },
   {
-    id: 'acafDailyFeePercent',
-    key: 'acafDailyFeePercent',
+    id: 'dailyFeePercent',
+    key: 'dailyFeePercent',
     name: 'Taxa diárias',
-    description: 'Percentual retido pela ACAF sobre diárias avulsas nas unidades parceiras.',
+    description: 'Percentual retido pela plataforma sobre diárias avulsas nas unidades parceiras.',
     suffix: '%',
     min: 0,
     max: 100,
@@ -213,7 +213,7 @@ export function PlatformSettingsPage() {
     <PermissionGate permission="plataforma.configuracoes">
       <CrudListShell
         title="Configurações"
-        subtitle="Variáveis globais da plataforma ACAF — taxas e parâmetros operacionais."
+        subtitle="Variáveis globais da plataforma — taxas e parâmetros operacionais."
         canAdd={false}
         loading={loading}
         error={error}

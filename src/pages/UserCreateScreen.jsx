@@ -44,7 +44,7 @@ export function UserCreateScreen({ onBack, onCreated }) {
       <PageHeader
         breadcrumbs={[{ label: 'Usuários', onClick: onBack }, { label: 'Novo usuário' }]}
         title="Adicionar usuário"
-        subtitle="Cadastre uma pessoa na plataforma ACAF."
+        subtitle="Cadastre uma pessoa na plataforma."
       />
 
       <CrudAlerts error={error} />
@@ -74,7 +74,6 @@ export function UserCreateScreen({ onBack, onCreated }) {
                 placeholder="000.000.000-00"
                 inputMode="numeric"
                 autoComplete="off"
-                required
               />
             </label>
 
@@ -89,7 +88,6 @@ export function UserCreateScreen({ onBack, onCreated }) {
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                required
               />
             </label>
 
@@ -99,7 +97,7 @@ export function UserCreateScreen({ onBack, onCreated }) {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="usuario@acaf.com.br"
+                placeholder="usuario@exemplo.com.br"
                 required
               />
             </label>

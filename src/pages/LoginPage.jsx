@@ -155,7 +155,7 @@ export function LoginPage() {
         <div className="login-brand">
           <span className="login-brand-mark">A</span>
           <div>
-            <strong>ACAF Admin</strong>
+            <strong>Painel Admin</strong>
             <span>Console administrativo</span>
           </div>
         </div>
@@ -171,7 +171,7 @@ export function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@acaf.com.br"
+                placeholder="admin@exemplo.com.br"
                 autoComplete="username"
                 required
               />

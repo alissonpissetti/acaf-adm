@@ -32,7 +32,7 @@ export function DashboardPage() {
     <div className="page-stack">
       <PageHeader
         title="Dashboard"
-        subtitle="Visão consolidada da operação ACAF."
+        subtitle="Visão consolidada da operação."
       />
 
       <div className="stat-grid">
@@ -59,7 +59,7 @@ export function DashboardPage() {
 
         <article className="panel stat-panel">
           <span className="stat-label">Status da API</span>
-          <strong className="stat-value stat-value-sm">{health?.service ?? 'acaf-api'}</strong>
+          <strong className="stat-value stat-value-sm">{health?.service ?? 'connect-api'}</strong>
           <span className={`badge ${health ? 'badge-success' : error ? 'badge-error' : 'badge-muted'}`}>
             {health ? health.status : error ? 'offline' : 'verificando...'}
           </span>
@@ -87,7 +87,7 @@ export function DashboardPage() {
           </div>
           <div className="panel-body">
             <p className="muted">
-              Inicie a <code>acaf-api</code> com <code>npm run start:dev</code> em{' '}
+              Inicie a <code>connect-api</code> com <code>npm run start:dev</code> em{' '}
               <code>{API_URL || 'mesma origem (/api)'}</code>.
             </p>
             <p className="error-text">{error}</p>

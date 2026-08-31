@@ -132,13 +132,13 @@ export function UnitPartnerUsersField({ unitId, disabled = false, embedded = fal
           <span className="field-label">Acesso ao portal parceiro</span>
           <p className="muted partner-users-help">
             Vincule qualquer pessoa cadastrada na plataforma (clientes, admins ou equipe) para
-            acessar esta unidade no acaf-partner.
+            acessar esta unidade no connect-partner.
           </p>
         </div>
       ) : (
         <p className="muted partner-users-help">
           Vincule qualquer pessoa cadastrada na plataforma (clientes, admins ou equipe) para acessar
-          esta unidade no acaf-partner.
+          esta unidade no connect-partner.
         </p>
       )}
 

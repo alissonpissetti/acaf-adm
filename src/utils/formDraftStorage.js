@@ -17,8 +17,8 @@ const DRAFT_FIELDS = [
 ];
 
 export const FINANCE_DRAFT_KEYS = {
-  payable: 'acaf.finance.payables.create-draft',
-  receivable: 'acaf.finance.receivables.create-draft',
+  payable: 'connect.finance.payables.create-draft',
+  receivable: 'connect.finance.receivables.create-draft',
 };
 
 function pickDraftFields(form) {

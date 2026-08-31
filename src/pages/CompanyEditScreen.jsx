@@ -403,7 +403,7 @@ export function CompanyEditScreen({
             <div className="company-detail-enrollment-copy">
               <span className="company-detail-enrollment-label">Código de adesão no app</span>
               <p className="company-detail-enrollment-hint">
-                Colaboradores informam este código em Minha conta no ACAF para vincular o benefício
+                Colaboradores informam este código em Minha conta no app para vincular o benefício
                 corporativo.
               </p>
             </div>

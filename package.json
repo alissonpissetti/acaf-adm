@@ -1,6 +1,6 @@
 {
-  "name": "acaf-adm",
-  "description": "Painel administrativo interno do ecossistema ACAF (React + Vite).",
+  "name": "connect-adm",
+  "description": "Painel administrativo interno do ecossistema Connect (React + Vite).",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

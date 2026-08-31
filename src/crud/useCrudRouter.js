@@ -8,7 +8,8 @@ export function useCrudRouter() {
   const duplicateId = searchParams.get('duplicate');
   const isCreating = searchParams.get('new') === '1';
   const isViewing = Boolean(id) && mode === 'view';
-  const isEditing = Boolean(id) && mode !== 'view';
+  const isEditing = Boolean(id) && mode !== 'view' && mode !== 'metrics';
+  const isMetrics = Boolean(id) && mode === 'metrics';
   const isList = !id && !isCreating;
 
   const goToList = () => setSearchParams({});
@@ -16,6 +17,7 @@ export function useCrudRouter() {
   const goToDuplicate = (recordId) => setSearchParams({ new: '1', duplicate: recordId });
   const goToEdit = (recordId) => setSearchParams({ id: recordId });
   const goToView = (recordId) => setSearchParams({ id: recordId, mode: 'view' });
+  const goToMetrics = (recordId) => setSearchParams({ id: recordId, mode: 'metrics' });
 
   return {
     id,
@@ -25,11 +27,13 @@ export function useCrudRouter() {
     isCreating,
     isEditing,
     isViewing,
+    isMetrics,
     goToList,
     goToCreate,
     goToDuplicate,
     goToEdit,
     goToView,
+    goToMetrics,
   };
 }
 

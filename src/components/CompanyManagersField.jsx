@@ -164,7 +164,7 @@ export function CompanyManagersField({ companyId, disabled = false, onChanged })
           onChange={(ev) => setQuery(ev.target.value)}
           disabled={disabled || busy}
         />
-        <p className="field-hint">Digite ao menos 2 caracteres para buscar em acaf_users.</p>
+        <p className="field-hint">Digite ao menos 2 caracteres para buscar em usuários cadastrados.</p>
       </div>
 
       {searchBusy ? <p className="field-hint">Buscando…</p> : null}
