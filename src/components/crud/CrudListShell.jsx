@@ -35,6 +35,8 @@ export function CrudListShell({
   onPageChange,
   onPageSizeChange,
   panelTitle,
+  /** Se false, o painel não repete o título em um segundo cabeçalho (evita duplicar o PageHeader). */
+  showPanelHeading = false,
   emptyMessage = 'Nenhum registro encontrado.',
   columns = [],
   rows = [],
@@ -51,8 +53,15 @@ export function CrudListShell({
   tableClassName = '',
   tableFooter = null,
   embedded = false,
+  /** `{ selectedIds, onToggleRow, onTogglePage }` — checkbox na primeira coluna; não altera `onRowClick` nas outras células. */
+  selection = null,
 }) {
   const showActions = canManage && (onView || onEdit || onDuplicate || onDelete);
+  const selectRowKey = selection?.rowKey ?? rowKey;
+  const pageIds = rows.map((r) => r[selectRowKey]).filter(Boolean);
+  const selectedOnPage = pageIds.filter((id) => selection?.selectedIds?.has(id));
+  const allPageSelected = pageIds.length > 0 && selectedOnPage.length === pageIds.length;
+  const somePageSelected = selectedOnPage.length > 0 && !allPageSelected;
 
   const tableSection = (
     <>
@@ -89,8 +98,24 @@ export function CrudListShell({
             <table className={`data-table data-table-enterprise data-table-compact ${tableClassName}`.trim()}>
               <thead>
                 <tr>
+                  {selection ? (
+                    <th className="data-table-col-select col-select" scope="col">
+                      <input
+                        type="checkbox"
+                        className="data-table-select-all"
+                        checked={allPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = somePageSelected;
+                        }}
+                        onChange={() => selection.onTogglePage?.()}
+                        aria-label="Selecionar todos nesta página"
+                      />
+                    </th>
+                  ) : null}
                   {columns.map((column) => (
-                    <th key={column.key}>{column.label}</th>
+                    <th key={column.key} className={column.className ?? ''}>
+                      {column.label}
+                    </th>
                   ))}
                   {showActions ? <th className="col-actions" aria-label="Ações" /> : null}
                 </tr>
@@ -110,8 +135,22 @@ export function CrudListShell({
                             : undefined
                     }
                   >
+                    {selection ? (
+                      <td
+                        className="data-table-col-select col-select"
+                        data-label=""
+                        onClick={(ev) => ev.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selection.selectedIds?.has(row[selectRowKey]) ?? false}
+                          onChange={() => selection.onToggleRow?.(row[selectRowKey])}
+                          aria-label={`Selecionar ${row.name ?? row[selectRowKey]}`}
+                        />
+                      </td>
+                    ) : null}
                     {columns.map((column) => (
-                      <td key={column.key} data-label={column.label}>
+                      <td key={column.key} data-label={column.label} className={column.className ?? ''}>
                         {renderCell
                           ? renderCell(row, column.key)
                           : column.render
@@ -181,8 +220,14 @@ export function CrudListShell({
       <CrudAlerts error={error} message={message} />
 
       <section className="panel">
-        <div className="panel-header">
-          <h2>{panelTitle ?? title}</h2>
+        <div
+          className={
+            showPanelHeading
+              ? 'panel-header'
+              : 'panel-header panel-header--meta-only'
+          }
+        >
+          {showPanelHeading ? <h2>{panelTitle ?? title}</h2> : null}
           <span className="panel-meta">{totalItems} registro(s)</span>
         </div>
         {tableSection}

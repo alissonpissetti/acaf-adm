@@ -21,8 +21,8 @@
   width: 3rem;
   height: 3rem;
   border-radius: 0.75rem;
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -90,9 +90,9 @@
 }
 
 .icon-picker-category--active {
-  border-color: var(--orange);
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .icon-picker-meta {
@@ -146,18 +146,18 @@
 }
 
 .icon-picker-btn:hover {
-  border-color: rgba(232, 136, 28, 0.45);
+  border-color: rgba(117, 121, 229, 0.45);
 }
 
 .icon-picker-btn.active {
-  border-color: var(--orange);
-  box-shadow: inset 0 0 0 1px var(--orange);
-  color: var(--orange-dark);
-  background: var(--orange-soft);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
 }
 
 .icon-picker-btn:focus-visible {
-  outline: 2px solid var(--orange);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

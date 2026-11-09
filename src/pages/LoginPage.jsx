@@ -1,3 +1,6 @@
+import { BrandLogo, BrandMark } from '../components/BrandLogo.jsx';
+import { PasswordInput } from '../components/PasswordInput.jsx';
+import { MOVLY_WORDMARK } from '../brand/displayName.js';
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -78,7 +81,7 @@ export function LoginPage() {
     try {
       const purpose = mode === MODES.FORGOT ? 'password_reset' : 'login';
       const result = await requestOtp(mobilePhone, purpose);
-      setInfo(result.message ?? 'Código enviado por SMS.');
+      setInfo(result.message ?? 'Código enviado para o celular.');
       setStep(2);
     } catch (err) {
       setError(err.message);
@@ -135,14 +138,14 @@ export function LoginPage() {
       title: step === 1 ? 'Entrar com código' : 'Validar código',
       subtitle:
         step === 1
-          ? 'Informe seu celular cadastrado para receber um código por SMS.'
+          ? 'Informe seu celular cadastrado para receber um código de acesso.'
           : 'Digite o código de 6 dígitos enviado para o seu celular.',
     },
     [MODES.FORGOT]: {
       title: step === 1 ? 'Recuperar senha' : 'Nova senha',
       subtitle:
         step === 1
-          ? 'Informe seu celular cadastrado para receber um código por SMS.'
+          ? 'Informe seu celular cadastrado para receber um código de acesso.'
           : 'Informe o código recebido e escolha uma nova senha.',
     },
   };
@@ -150,12 +153,21 @@ export function LoginPage() {
   const copy = titles[mode];
 
   return (
-    <div className="login-page">
+    <div className="login-page movly-grain">
+      <section className="login-hero" aria-hidden="true">
+        <BrandLogo variant="gradient" height={120} className="login-hero-logo" />
+        <p className="login-hero-tagline">
+          nosso movimento
+          <br />
+          de bem-estar
+        </p>
+      </section>
+
       <div className="login-card">
         <div className="login-brand">
-          <span className="login-brand-mark">A</span>
+          <BrandMark size={44} bg="#8254e4" fg="#cbf74f" />
           <div>
-            <strong>Painel Admin</strong>
+            <strong>{MOVLY_WORDMARK} Admin</strong>
             <span>Console administrativo</span>
           </div>
         </div>
@@ -179,10 +191,9 @@ export function LoginPage() {
 
             <label>
               <span>Senha</span>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 autoComplete="current-password"
                 required
               />
@@ -193,7 +204,7 @@ export function LoginPage() {
                 Esqueci minha senha
               </button>
               <button type="button" className="login-link" onClick={() => switchMode(MODES.TOKEN)}>
-                Entrar com código SMS
+                Entrar com código no celular
               </button>
             </div>
 
@@ -240,7 +251,7 @@ export function LoginPage() {
           ) : (
             <form className="login-form" onSubmit={onSubmitTokenLogin}>
               <label>
-                <span>Código SMS</span>
+                <span>Código no celular</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -310,7 +321,7 @@ export function LoginPage() {
           ) : (
             <form className="login-form" onSubmit={onSubmitResetPassword}>
               <label>
-                <span>Código SMS</span>
+                <span>Código no celular</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -326,10 +337,9 @@ export function LoginPage() {
 
               <label>
                 <span>Nova senha</span>
-                <input
-                  type="password"
+                <PasswordInput
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={setNewPassword}
                   autoComplete="new-password"
                   required
                 />
@@ -337,10 +347,9 @@ export function LoginPage() {
 
               <label>
                 <span>Confirmar senha</span>
-                <input
-                  type="password"
+                <PasswordInput
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={setConfirmPassword}
                   autoComplete="new-password"
                   required
                 />

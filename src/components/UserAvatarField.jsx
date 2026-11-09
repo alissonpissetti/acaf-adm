@@ -130,7 +130,7 @@ export function UserAvatarField({
 
           <div className="user-avatar-color-section">
             <span className="field-label">Cor do avatar</span>
-            <p className="field-hint">Usada quando não há foto. Escolha uma das 12 cores abaixo.</p>
+            <p className="field-hint">Usada quando não há foto. Clique numa cor abaixo.</p>
             <div className="user-avatar-color-grid" role="listbox" aria-label="Cor do avatar">
               {AVATAR_COLORS.map((color) => {
                 const selected = avatarColor === color.id;
@@ -144,10 +144,15 @@ export function UserAvatarField({
                     className={`user-avatar-color-option${selected ? ' user-avatar-color-option--active' : ''}`}
                     style={getAvatarColorStyle(color.id)}
                     title={color.label}
+                    aria-label={color.label}
                     disabled={disabled || busy || Boolean(busyColor)}
                     onClick={() => onColorChange?.(color.id)}
                   >
-                    <span aria-hidden="true">{isBusy ? '…' : color.label.slice(0, 1)}</span>
+                    {isBusy ? (
+                      <span className="user-avatar-color-option-busy" aria-hidden="true" />
+                    ) : selected ? (
+                      <span className="user-avatar-color-option-check" aria-hidden="true" />
+                    ) : null}
                   </button>
                 );
               })}

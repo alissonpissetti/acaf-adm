@@ -198,6 +198,12 @@ export function UnitPartnerUsersField({ unitId, disabled = false, embedded = fal
                   {user.email}
                   {user.cpf ? ` · ${user.cpf}` : ''}
                   {` · ${rolesLabel(user)}`}
+                  {user.active === false ? (
+                    <>
+                      {' '}
+                      <span className="badge badge-muted partner-users-inactive-badge">Inativo</span>
+                    </>
+                  ) : null}
                 </span>
               </div>
               <button

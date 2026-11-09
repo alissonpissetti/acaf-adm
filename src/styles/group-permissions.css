@@ -68,9 +68,9 @@
 }
 
 .group-permissions-filter-btn.is-active {
-  border-color: var(--orange, #f97316);
-  background: rgba(249, 115, 22, 0.08);
-  color: #c2410c;
+  border-color: var(--accent);
+  background: rgba(117, 121, 229, 0.08);
+  color: var(--select);
 }
 
 .group-permissions-actions {
@@ -132,8 +132,8 @@
   width: 2rem;
   height: 2rem;
   border-radius: 0.625rem;
-  background: rgba(249, 115, 22, 0.1);
-  color: var(--orange, #f97316);
+  background: rgba(117, 121, 229, 0.1);
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -178,7 +178,7 @@
 }
 
 .group-permissions-module-select input {
-  accent-color: var(--orange, #f97316);
+  accent-color: var(--accent);
 }
 
 .group-permissions-module-body {
@@ -252,7 +252,7 @@
 }
 
 .group-permissions-action-cell input {
-  accent-color: var(--orange, #f97316);
+  accent-color: var(--accent);
 }
 
 .group-permissions-action-cell label:has(input:disabled) {

@@ -4,10 +4,12 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { NavigationProvider, useActiveModuleItem } from '../navigation/NavigationContext.jsx';
 import { ModuleSidebar } from './ModuleSidebar.jsx';
-import { ModuleTopNav } from './ModuleTopNav.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { NotificationBell } from '../components/NotificationBell.jsx';
 import { UserProfilePanel } from '../components/UserProfilePanel.jsx';
+import { MOVLY_WORDMARK } from '../brand/displayName.js';
+import { BrandLogo } from '../components/BrandLogo.jsx';
+import { FlashMessageProvider } from '../components/flash/FlashMessageProvider.jsx';
 import './AdminLayout.css';
 
 function AdminLayoutInner() {
@@ -15,7 +17,7 @@ function AdminLayoutInner() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { module, item } = useActiveModuleItem(location.pathname);
-  const topTitle = item?.label ?? module?.name ?? 'Painel Admin';
+  const topTitle = item?.label ?? module?.name ?? `${MOVLY_WORDMARK} Admin`;
   const [navOpen, setNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -65,7 +67,7 @@ function AdminLayoutInner() {
 
         <div className="admin-mobile-bar-copy">
           <div className="admin-mobile-bar-title">{topTitle}</div>
-          {module ? <div className="admin-mobile-bar-meta">{module.name}</div> : null}
+          {module && !item ? <div className="admin-mobile-bar-meta">{module.name}</div> : null}
         </div>
 
         <button type="button" className="admin-mobile-logout btn-ghost btn-sm" onClick={onLogout}>
@@ -81,7 +83,7 @@ function AdminLayoutInner() {
         onClick={() => setNavOpen(false)}
       />
 
-      <aside id="admin-sidebar" className="admin-sidebar" aria-label="Módulos">
+      <aside id="admin-sidebar" className="admin-sidebar movly-grain" aria-label="Navegação">
         <div className="admin-sidebar-head">
           <NavLink
             to="/m/operacao/dashboard"
@@ -89,10 +91,11 @@ function AdminLayoutInner() {
             title="Ir para o dashboard de operação"
             onClick={() => setNavOpen(false)}
           >
-            <span className="admin-brand-mark" aria-hidden="true">
-              A
+            <BrandLogo variant="lime" height={24} />
+            <span className="admin-brand-copy">
+              <strong className="admin-brand-title">{MOVLY_WORDMARK}</strong>
+              <span className="admin-brand-sub">Console admin</span>
             </span>
-            <strong className="admin-brand-title">Connect</strong>
           </NavLink>
 
           <button
@@ -108,8 +111,13 @@ function AdminLayoutInner() {
         <ModuleSidebar onNavigate={() => setNavOpen(false)} />
 
         <footer className="admin-sidebar-footer">
-          <div className="admin-env-badge">Logado</div>
-          {user?.name ? <div className="admin-sidebar-user">{user.name}</div> : null}
+          <div className="admin-sidebar-user-card">
+            <Avatar name={user?.name} src={user?.avatarUrl} color={user?.avatarColor} size="sm" />
+            <div className="admin-sidebar-user-text">
+              {user?.name ? <div className="admin-sidebar-user-name">{user.name}</div> : null}
+              <div className="admin-env-badge">Sessão ativa</div>
+            </div>
+          </div>
         </footer>
       </aside>
 
@@ -117,7 +125,7 @@ function AdminLayoutInner() {
         <header className="admin-topbar">
           <div className="admin-topbar-left">
             <div className="admin-topbar-title">{topTitle}</div>
-            {module ? <div className="admin-topbar-meta">{module.name}</div> : null}
+            {module && !item ? <div className="admin-topbar-meta">{module.name}</div> : null}
           </div>
           <div className="admin-topbar-actions">
             <NotificationBell />
@@ -153,12 +161,10 @@ function AdminLayoutInner() {
           </div>
         </header>
 
-        <div className="module-top-nav-wrap">
-          <ModuleTopNav />
-        </div>
-
         <main className="admin-content">
-          <Outlet />
+          <FlashMessageProvider hostClassName="flash-message-host--admin-main">
+            <Outlet />
+          </FlashMessageProvider>
         </main>
       </div>
     </div>

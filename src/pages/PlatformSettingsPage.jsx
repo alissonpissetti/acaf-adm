@@ -9,6 +9,7 @@ import { PermissionGate } from '../components/PermissionGate.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
+import { parseOptionalPercent } from '../utils/parsePercentInput.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
 
 const SYSTEM_VARIABLES = [
@@ -20,7 +21,8 @@ const SYSTEM_VARIABLES = [
     suffix: '%',
     min: 0,
     max: 100,
-    step: 0.1,
+    /** Duas casas (ex.: 22,01); entrada como texto aceita `,` ou `.` */
+    step: 0.01,
   },
   {
     id: 'dailyFeePercent',
@@ -30,7 +32,7 @@ const SYSTEM_VARIABLES = [
     suffix: '%',
     min: 0,
     max: 100,
-    step: 0.1,
+    step: 0.01,
   },
 ];
 
@@ -56,7 +58,20 @@ function SettingForm({ title, subtitle, breadcrumbs, initial, onSubmit, onCancel
     setBusy(true);
     setError('');
     try {
-      await onSubmit(form);
+      const parsed = parseOptionalPercent(form.value);
+      if (parsed === undefined) {
+        setError('Informe um número válido (use vírgula ou ponto nas casas decimais, ex.: 22,01 ou 22.01).');
+        return;
+      }
+      if (parsed === null) {
+        setError('Informe um percentual.');
+        return;
+      }
+      if (parsed < form.min || parsed > form.max) {
+        setError(`O valor deve estar entre ${form.min} e ${form.max}.`);
+        return;
+      }
+      await onSubmit({ ...form, value: parsed });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -90,14 +105,16 @@ function SettingForm({ title, subtitle, breadcrumbs, initial, onSubmit, onCancel
               <span>Valor{form.suffix ? ` (${form.suffix})` : ''}</span>
               <input
                 className="input"
-                type="number"
-                min={form.min}
-                max={form.max}
-                step={form.step}
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Ex.: 22,01 ou 22.01"
                 value={form.value}
                 onChange={(ev) => setForm({ ...form, value: ev.target.value })}
                 disabled={form.readOnly}
                 required
+                aria-invalid={Boolean(error)}
               />
             </label>
             <div className="field-span-full form-actions">
@@ -198,7 +215,7 @@ export function PlatformSettingsPage() {
           onEdit={canManage ? () => router.goToEdit(selected.id) : undefined}
           onSubmit={async (form) => {
             await updateConnectDomain({
-              [selected.key]: Number(form.value),
+              [selected.key]: form.value,
             });
             setMessage('Variável atualizada.');
             router.goToView(selected.id);

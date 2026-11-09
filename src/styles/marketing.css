@@ -246,7 +246,7 @@
 }
 
 .marketing-gradient-preset.is-active {
-  outline: 2px solid var(--orange);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -302,8 +302,8 @@
 }
 
 .marketing-builder-field-card.is-section {
-  border-color: rgba(232, 136, 28, 0.22);
-  background: var(--orange-soft);
+  border-color: rgba(117, 121, 229, 0.22);
+  background: var(--accent-soft);
 }
 
 .marketing-builder-field-head {
@@ -321,8 +321,8 @@
   height: 1.75rem;
   padding-inline: 0.35rem;
   border-radius: 0.5rem;
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -477,7 +477,7 @@
 }
 
 .marketing-metrics-chart-bar.is-views {
-  background: var(--orange);
+  background: var(--accent);
 }
 
 .marketing-metrics-chart-bar.is-clicks {
@@ -505,7 +505,7 @@
 }
 
 .marketing-metrics-chart-legend i.is-views {
-  background: var(--orange);
+  background: var(--accent);
 }
 
 .marketing-metrics-chart-legend i.is-clicks {
@@ -535,8 +535,8 @@
   display: inline-flex;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -559,7 +559,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--orange);
+  background: var(--accent);
 }
 
 .marketing-metrics-device-grid {
@@ -577,7 +577,7 @@
 }
 
 .marketing-metrics-device-card.is-active {
-  border-color: rgba(232, 136, 28, 0.45);
+  border-color: rgba(117, 121, 229, 0.45);
   opacity: 1;
 }
 
@@ -630,8 +630,8 @@
 
 .marketing-metrics-response-card header {
   padding: 0.55rem 0.75rem;
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -729,8 +729,8 @@
 
 .marketing-preview-section.is-highlight,
 .marketing-public-section.is-highlight {
-  background: var(--orange-soft);
-  color: var(--orange-dark);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .marketing-preview-field,

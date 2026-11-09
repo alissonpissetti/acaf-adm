@@ -139,7 +139,7 @@ export function CompanyEmployeeProfileScreen({ companyId, employeeId, onBack }) 
                 <dd>{primary.currentPrimaryUnitName || client.primaryUnitName || '—'}</dd>
               </div>
               <div>
-                <dt>Plano Connect</dt>
+                <dt>Plano</dt>
                 <dd>{primary.connectPlanName || primary.connectPlanId || '—'}</dd>
               </div>
               <div>

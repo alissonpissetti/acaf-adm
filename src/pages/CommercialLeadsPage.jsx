@@ -245,7 +245,7 @@ function formatInteractionDateTime(isoDate) {
 }
 
 function interactionSourceLabel(source) {
-  if (source === 'whatsapp') return 'WhatsApp';
+  if (source === 'whatsapp') return 'Celular';
   if (source === 'system') return 'Sistema';
   return 'Anotação';
 }
@@ -300,7 +300,7 @@ function LeadInteractionsPanel({ leadId, lead, canManage, onLeadUpdated }) {
     <aside className="commercial-lead-modal-feed" aria-label="Interações do lead">
       <header className="commercial-lead-feed-head">
         <h3>Interações</h3>
-        <p>Anotações manuais e mensagens do WhatsApp em ordem cronológica.</p>
+        <p>Anotações manuais e mensagens recebidas no celular em ordem cronológica.</p>
       </header>
 
       <CrudAlerts error={error} />
@@ -332,18 +332,23 @@ function LeadInteractionsPanel({ leadId, lead, canManage, onLeadUpdated }) {
           <p className="commercial-lead-interaction-empty">Nenhuma interação registrada ainda.</p>
         ) : (
           items.map((item) => {
-            const isWhatsApp = item.source === 'whatsapp';
-            const authorName = isWhatsApp
-              ? getPrimaryContact(lead)?.name?.trim() || lead?.contactName?.trim() || item.userName || 'WhatsApp'
+            const isMobileChat = item.source === 'whatsapp';
+            const bubbleVariant =
+              item.source === 'whatsapp' ? 'mobile-chat' : item.source ?? 'manual';
+            const authorName = isMobileChat
+              ? getPrimaryContact(lead)?.name?.trim() ||
+                lead?.contactName?.trim() ||
+                item.userName ||
+                'Celular'
               : item.userName ?? 'Usuário';
             return (
               <article
                 key={item.id}
-                className={`commercial-lead-interaction-bubble commercial-lead-interaction-bubble--${item.source ?? 'manual'}`}
+                className={`commercial-lead-interaction-bubble commercial-lead-interaction-bubble--${bubbleVariant}`}
               >
                 <header className="commercial-lead-interaction-bubble-head">
                   <div className="commercial-lead-interaction-bubble-author">
-                    {!isWhatsApp ? (
+                    {!isMobileChat ? (
                       <Avatar
                         name={item.userName}
                         src={item.userAvatarUrl}
@@ -941,17 +946,17 @@ function LeadQuickActions({
 
         {wa ? (
           <a
-            className="commercial-action-btn commercial-action-btn--whatsapp"
+            className="commercial-action-btn commercial-action-btn--mobile-chat"
             href={wa}
             target="_blank"
             rel="noreferrer"
-            aria-label={`WhatsApp ${lead.title}`}
+            aria-label={`Mensagem no celular — ${lead.title}`}
             onClick={() => onRecordInteraction?.(lead, 'whatsapp')}
           >
             <span className="commercial-action-icon-text" aria-hidden="true">
-              WA
+              Msg
             </span>
-            <span>WhatsApp</span>
+            <span>Celular</span>
           </a>
         ) : null}
 
@@ -1230,7 +1235,7 @@ export function CommercialLeadsPage() {
         current?.lead?.id === updated.id ? { ...current, lead: updated } : current,
       );
     } catch {
-      // silencioso — a ação principal (ligar/WhatsApp/e-mail) não deve falhar por isso
+      // silencioso — a ação principal (ligar/celular/e-mail) não deve falhar por isso
     }
   };
 

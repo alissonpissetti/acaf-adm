@@ -9,6 +9,7 @@ import { appConfirm } from '../components/confirm/appConfirm.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { PasswordInput } from '../components/PasswordInput.jsx';
 import {
   formatCpfInput,
   formatMobilePhoneInput,
@@ -266,10 +267,9 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
             {!readOnly ? (
               <label>
                 <span>Nova senha</span>
-                <input
-                  type="password"
+                <PasswordInput
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(password) => setForm({ ...form, password })}
                   placeholder="Deixe em branco para manter a atual"
                   minLength={6}
                 />

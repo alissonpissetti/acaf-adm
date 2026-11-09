@@ -4,6 +4,7 @@ import { useFlashMessage } from '../flash/FlashMessageProvider.jsx';
 export function CrudAlerts({ error, message, onDismissError, onDismissMessage }) {
   const flash = useFlashMessage();
   const lastMessageRef = useRef('');
+  const lastErrorRef = useRef('');
 
   useEffect(() => {
     const trimmed = String(message ?? '').trim();
@@ -13,16 +14,17 @@ export function CrudAlerts({ error, message, onDismissError, onDismissMessage })
     onDismissMessage?.();
   }, [message, flash, onDismissMessage]);
 
-  if (!error) return null;
+  useEffect(() => {
+    const trimmed = String(error ?? '').trim();
+    if (!trimmed) {
+      lastErrorRef.current = '';
+      return;
+    }
+    if (trimmed === lastErrorRef.current) return;
+    lastErrorRef.current = trimmed;
+    flash.error(trimmed);
+    onDismissError?.();
+  }, [error, flash, onDismissError]);
 
-  return (
-    <div className="alert alert-error">
-      {error}
-      {onDismissError ? (
-        <button type="button" className="alert-dismiss" onClick={onDismissError}>
-          Fechar
-        </button>
-      ) : null}
-    </div>
-  );
+  return null;
 }

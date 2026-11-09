@@ -1,7 +1,20 @@
 import { Link } from 'react-router-dom';
 
+function normalizeHeading(s) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function PageHeader({ breadcrumbs = [], title, subtitle, actions = null }) {
-  const showHeadingRow = Boolean(title || subtitle || actions);
+  const lastCrumb = breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1]?.label : null;
+  const titleDuplicatesLastCrumb =
+    Boolean(title && lastCrumb) && normalizeHeading(title) === normalizeHeading(lastCrumb);
+  /** Evita «breadcrumb … / Mesmo nome» + <h1> repetido na linha de baixo. */
+  const headingTitle = titleDuplicatesLastCrumb ? undefined : title;
+  const showHeadingRow = Boolean(headingTitle || subtitle || actions);
 
   return (
     <header className="page-header">
@@ -16,7 +29,9 @@ export function PageHeader({ breadcrumbs = [], title, subtitle, actions = null }
                   {item.label}
                 </button>
               ) : (
-                <span>{item.label}</span>
+                <span className={index === breadcrumbs.length - 1 ? 'breadcrumb-current' : undefined}>
+                  {item.label}
+                </span>
               )}
               {index < breadcrumbs.length - 1 ? <span className="breadcrumb-sep">/</span> : null}
             </span>
@@ -25,11 +40,13 @@ export function PageHeader({ breadcrumbs = [], title, subtitle, actions = null }
       ) : null}
       {showHeadingRow ? (
         <div
-          className={`page-header-row${!title && !subtitle ? ' page-header-row--actions-only' : ''}`}
+          className={`page-header-row${
+            !headingTitle && !subtitle ? ' page-header-row--actions-only' : ''
+          }`}
         >
-          {title || subtitle ? (
+          {headingTitle || subtitle ? (
             <div>
-              {title ? <h1 className="page-title">{title}</h1> : null}
+              {headingTitle ? <h1 className="page-title">{headingTitle}</h1> : null}
               {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
             </div>
           ) : null}

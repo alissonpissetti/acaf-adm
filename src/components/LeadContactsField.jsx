@@ -252,12 +252,12 @@ export function LeadContactsField({
                       </a>
                       {whatsAppUrl(contact.phone) ? (
                         <a
-                          className="commercial-action-btn commercial-action-btn--whatsapp"
+                          className="commercial-action-btn commercial-action-btn--mobile-chat"
                           href={whatsAppUrl(contact.phone)}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          WhatsApp
+                          Celular
                         </a>
                       ) : null}
                     </>

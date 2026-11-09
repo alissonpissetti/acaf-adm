@@ -14,7 +14,7 @@ Documento complementar à [Referência Visual completa](./REFERENCIA-VISUAL.md).
 
 ## Regras inegociáveis
 
-1. **Um módulo por contexto na sidebar** — itens do módulo ficam no menu superior interno.
+1. **Um módulo por contexto na sidebar** — ao ativar um módulo, os **itens** aparecem logo abaixo na mesma coluna (acordeão / árvore), sem segunda barra em cima do conteúdo.
 2. **Uma ação primária dominante** por bloco (header ou formulário).
 3. **Toda listagem** tem empty state + tratamento de erro + loading.
 4. **Toda escrita** respeita permissão `.manage` no frontend e guard no backend.
@@ -29,7 +29,7 @@ Documento complementar à [Referência Visual completa](./REFERENCIA-VISUAL.md).
 ```
 Marca / ambiente logado
   → Módulo ativo (sidebar)
-    → Item ativo (topnav)
+    → Item ativo (sidebar, sob o módulo)
       → Título da página
         → Conteúdo (tabela | formulário | dashboard)
 ```

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getUnits, updateUnit } from '../api/admin.js';
+import { deleteUnit, getPlatformFeeDefaults, getUnits, updateUnit } from '../api/admin.js';
+import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
+import { confirmCrudDelete } from '../crud/crudUtils.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { SuccessFlashEffect } from '../components/flash/FlashMessageProvider.jsx';
 import { UnitAddressFields } from '../components/UnitAddressFields.jsx';
@@ -9,6 +11,9 @@ import { UnitPhotosField } from '../components/UnitPhotosField.jsx';
 import { UnitWeeklyHoursFields } from '../components/UnitWeeklyHoursFields.jsx';
 import { formatUnitLocation, unitToAddressForm } from '../utils/address.js';
 import { weeklyScheduleFromUnit } from '../utils/weeklySchedule.js';
+import { formatCnpjFromDigits } from '../utils/cnpj.js';
+import { acafAssociateFormFromUnit, payloadFromAcafForm } from '../utils/acafAssociateForm.js';
+import { formatPercentPtBr, parseOptionalPercent } from '../utils/parsePercentInput.js';
 
 const TABS = [
   { id: 'dados', label: 'Dados da unidade' },
@@ -29,6 +34,15 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [platformDefaults, setPlatformDefaults] = useState({ connectFeePercent: 20, dailyFeePercent: 20 });
+  const [connectOverrideInput, setConnectOverrideInput] = useState('');
+  const [dailyOverrideInput, setDailyOverrideInput] = useState('');
+
+  useEffect(() => {
+    getPlatformFeeDefaults()
+      .then(setPlatformDefaults)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     getUnits(network.id)
@@ -45,7 +59,14 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
           description: found.description ?? '',
           dailyPassActive: found.dailyPassActive ?? false,
           ...address,
+          acafAssociate: acafAssociateFormFromUnit(found),
         });
+        setConnectOverrideInput(
+          found.connectFeePercentOverride != null ? String(found.connectFeePercentOverride) : '',
+        );
+        setDailyOverrideInput(
+          found.dailyFeePercentOverride != null ? String(found.dailyFeePercentOverride) : '',
+        );
       })
       .catch((err) => setError(err.message));
   }, [network.id, unitId]);
@@ -63,7 +84,16 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
     setError('');
     setMessage('');
     try {
-      await updateUnit(unitId, {
+      const connectParsed = parseOptionalPercent(connectOverrideInput);
+      const dailyParsed = parseOptionalPercent(dailyOverrideInput);
+      if (connectParsed === undefined || dailyParsed === undefined) {
+        setError(
+          'Informe percentuais válidos (0–100), com vírgula ou ponto nas decimais, ou deixe em branco para usar rede/padrão global.',
+        );
+        setBusy(false);
+        return;
+      }
+      const patch = {
         unitName: form.unitName,
         zip: form.zip,
         address: form.address,
@@ -75,9 +105,51 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
         weeklySchedule: form.weeklySchedule,
         description: form.description,
         dailyPassActive: form.dailyPassActive,
-      });
+        connectFeePercentOverride: connectParsed,
+        dailyFeePercentOverride: dailyParsed,
+      };
+      if (form.acafAssociate) {
+        patch.acafAssociate = payloadFromAcafForm(form.acafAssociate);
+      }
+      const units = await updateUnit(unitId, patch);
+      const refreshed = Array.isArray(units) ? units.find((u) => u.id === unitId) : null;
+      if (refreshed) {
+        setUnit(refreshed);
+        const address = unitToAddressForm(refreshed);
+        setForm({
+          unitName: refreshed.unitName,
+          weeklySchedule: weeklyScheduleFromUnit(refreshed),
+          description: refreshed.description ?? '',
+          dailyPassActive: refreshed.dailyPassActive ?? false,
+          ...address,
+          acafAssociate: acafAssociateFormFromUnit(refreshed),
+        });
+        setConnectOverrideInput(
+          refreshed.connectFeePercentOverride != null ? String(refreshed.connectFeePercentOverride) : '',
+        );
+        setDailyOverrideInput(
+          refreshed.dailyFeePercentOverride != null ? String(refreshed.dailyFeePercentOverride) : '',
+        );
+      }
       setMessage('Unidade atualizada.');
       onUpdated?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeUnit = async () => {
+    if (!unit) return;
+    if (!(await confirmCrudDelete(form?.unitName ?? unit.unitName))) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await deleteUnit(unitId);
+      onUpdated?.();
+      onBack.toNetwork();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -150,6 +222,152 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                       required
                     />
                   </label>
+                  {form.acafAssociate && unit.acafAssociate?.importSource === 'acaf_associates_xlsx' ? (
+                    <div className="field-span-2 acaf-associate-readonly">
+                      <h3 className="section-subtitle">Dados da importação movly.</h3>
+                      <p className="muted">
+                        Edite os dados abaixo quando precisar corrigir a base; o{' '}
+                        <strong>CNPJ</strong> não pode ser alterado aqui (veio da planilha). Uma nova
+                        importação pode sobrescrever estes campos, exceto quando você só ajustar o que a
+                        planilha não traz.
+                      </p>
+                      <div className="acaf-meta-form-grid">
+                        <label>
+                          <span>CNPJ</span>
+                          <input
+                            value={formatCnpjFromDigits(unit.acafAssociate.cnpj)}
+                            disabled
+                            readOnly
+                            className="input-disabled"
+                          />
+                        </label>
+                        <label className="field-span-2">
+                          <span>Razão social</span>
+                          <input
+                            value={form.acafAssociate.legalName}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: { ...form.acafAssociate, legalName: e.target.value },
+                              })
+                            }
+                            disabled={busy}
+                          />
+                        </label>
+                        <label>
+                          <span>Associação</span>
+                          <input
+                            value={form.acafAssociate.association}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: { ...form.acafAssociate, association: e.target.value },
+                              })
+                            }
+                            disabled={busy}
+                          />
+                        </label>
+                        <label>
+                          <span>Data de assinatura</span>
+                          <input
+                            type="date"
+                            value={form.acafAssociate.signedAt}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: { ...form.acafAssociate, signedAt: e.target.value },
+                              })
+                            }
+                            disabled={busy}
+                          />
+                        </label>
+                        <label>
+                          <span>E-mail (planilha)</span>
+                          <input
+                            type="email"
+                            value={form.acafAssociate.contactEmail}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: { ...form.acafAssociate, contactEmail: e.target.value },
+                              })
+                            }
+                            disabled={busy}
+                          />
+                        </label>
+                        <label>
+                          <span>Telefone (planilha)</span>
+                          <input
+                            inputMode="numeric"
+                            autoComplete="tel"
+                            placeholder="(00) 00000-0000"
+                            value={form.acafAssociate.contactPhone}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: { ...form.acafAssociate, contactPhone: e.target.value },
+                              })
+                            }
+                            disabled={busy}
+                          />
+                        </label>
+                        <label className="field-span-2">
+                          <span>Complemento (cadastro fiscal)</span>
+                          <input
+                            value={form.acafAssociate.complement ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: { ...form.acafAssociate, complement: e.target.value },
+                              })
+                            }
+                            disabled={busy}
+                          />
+                        </label>
+                        <div className="field-span-2">
+                          <span className="field-label-block">Catálogo do app</span>
+                          <p className="muted unit-tab-help">
+                            Desligar só oculta no app; o cadastro interno permanece (útil após remoção na
+                            planilha).
+                          </p>
+                          <div className="toggle-row">
+                            <button
+                              type="button"
+                              className={form.acafAssociate.listed ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
+                              onClick={() =>
+                                setForm({
+                                  ...form,
+                                  acafAssociate: { ...form.acafAssociate, listed: true },
+                                })
+                              }
+                              disabled={busy}
+                            >
+                              No app
+                            </button>
+                            <button
+                              type="button"
+                              className={!form.acafAssociate.listed ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
+                              onClick={() =>
+                                setForm({
+                                  ...form,
+                                  acafAssociate: { ...form.acafAssociate, listed: false },
+                                })
+                              }
+                              disabled={busy}
+                            >
+                              Fora do app
+                            </button>
+                          </div>
+                        </div>
+                        <p className="muted field-span-2 acaf-import-foot">
+                          Última importação do arquivo:{' '}
+                          {unit.acafAssociate.importedAt
+                            ? new Date(unit.acafAssociate.importedAt).toLocaleString('pt-BR')
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                   <label className="field-span-2">
                     <span>Descrição</span>
                     <textarea
@@ -207,13 +425,83 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                       </button>
                     </div>
                   </label>
+                  <div className="field-span-full network-platform-fees" style={{ marginTop: 16 }}>
+                    <h3 className="section-subtitle">Taxa da plataforma (unidade)</h3>
+                    <div className="network-platform-fees-layout">
+                      <p className="network-platform-fees-intro muted unit-tab-help">
+                        Ordem de aplicação: <strong>unidade</strong> → <strong>rede</strong> → padrão global (
+                        <strong>Sistema → Configurações</strong>: planos {formatPercentPtBr(platformDefaults.connectFeePercent)}{' '}
+                        · diárias {formatPercentPtBr(platformDefaults.dailyFeePercent)}). Deixe em branco para herdar da
+                        rede / global. Use vírgula ou ponto nas decimais.
+                      </p>
+                      <div className="network-platform-fees-cards">
+                        <div className="network-platform-fee-card">
+                          <div className="network-platform-fee-card-head">
+                            <span className="network-platform-fee-card-title">Planos de assinatura</span>
+                            <span
+                              className={`network-platform-fee-badge ${
+                                String(connectOverrideInput).trim() ? 'network-platform-fee-badge--fixed' : ''
+                              }`}
+                            >
+                              {String(connectOverrideInput).trim() ? 'Só esta unidade' : 'Herdando'}
+                            </span>
+                          </div>
+                          <label className="network-platform-fee-field">
+                            <span>Percentual (opcional)</span>
+                            <input
+                              className="input"
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              spellCheck={false}
+                              placeholder={`Rede / padrão ${formatPercentPtBr(platformDefaults.connectFeePercent)}`}
+                              value={connectOverrideInput}
+                              onChange={(e) => setConnectOverrideInput(e.target.value)}
+                              disabled={busy}
+                            />
+                          </label>
+                        </div>
+                        <div className="network-platform-fee-card">
+                          <div className="network-platform-fee-card-head">
+                            <span className="network-platform-fee-card-title">Diárias avulsas</span>
+                            <span
+                              className={`network-platform-fee-badge ${
+                                String(dailyOverrideInput).trim() ? 'network-platform-fee-badge--fixed' : ''
+                              }`}
+                            >
+                              {String(dailyOverrideInput).trim() ? 'Só esta unidade' : 'Herdando'}
+                            </span>
+                          </div>
+                          <label className="network-platform-fee-field">
+                            <span>Percentual (opcional)</span>
+                            <input
+                              className="input"
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              spellCheck={false}
+                              placeholder={`Rede / padrão ${formatPercentPtBr(platformDefaults.dailyFeePercent)}`}
+                              value={dailyOverrideInput}
+                              onChange={(e) => setDailyOverrideInput(e.target.value)}
+                              disabled={busy}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
               <div className="field-span-full form-actions panel-actions">
-                <button type="submit" className="btn-primary" disabled={busy}>
-                  {busy ? 'Salvando…' : 'Salvar alterações'}
-                </button>
+                <CrudFormActions
+                  busy={busy}
+                  onCancel={onBack.toNetwork}
+                  submitLabel="Salvar alterações"
+                  onDelete={removeUnit}
+                  showDelete
+                  deleteLabel="Excluir unidade"
+                />
               </div>
             </form>
           ) : null}

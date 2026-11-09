@@ -23,10 +23,10 @@ function slugifyPlanId(name, existingIds) {
     .slice(0, 32);
   if (!base) base = 'novo';
 
-  let id = `connect-${base}`;
+  let id = `plan-${base}`;
   let suffix = 2;
   while (existingIds.has(id)) {
-    id = `connect-${base}-${suffix}`;
+    id = `plan-${base}-${suffix}`;
     suffix += 1;
   }
   return id;
@@ -204,7 +204,7 @@ export function ConnectPlansPage() {
     return (
       <ConnectPlanForm
         title="Adicionar plano"
-        subtitle="Cadastre um plano de assinatura Connect."
+        subtitle="Cadastre um plano de assinatura."
         breadcrumbs={[{ label: 'Planos', onClick: router.goToList }, { label: 'Novo' }]}
         initial={{
           name: '',
@@ -321,7 +321,7 @@ export function ConnectPlansPage() {
           {
             key: 'id',
             label: 'ID',
-            render: (row) => <code className="connect-plan-id">{row.id}</code>,
+            render: (row) => <code className="subscription-plan-id">{row.id}</code>,
           },
           { key: 'name', label: 'Plano', render: (row) => <strong>{row.name}</strong> },
           { key: 'priceLabel', label: 'Preço/mês' },

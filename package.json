@@ -1,6 +1,6 @@
 {
   "name": "connect-adm",
-  "description": "Painel administrativo interno do ecossistema Connect (React + Vite).",
+  "description": "Painel administrativo interno da plataforma (React + Vite).",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

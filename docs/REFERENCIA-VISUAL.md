@@ -17,7 +17,7 @@ O connect-adm é um **console operacional enterprise**: denso o suficiente para 
 | Princípio | O que significa na prática |
 |-----------|----------------------------|
 | **Clareza operacional** | Títulos diretos, ações primárias evidentes, dados tabulares legíveis. |
-| **Hierarquia modular** | Sidebar = módulos; topbar interna = itens do módulo; conteúdo = tarefa atual. |
+| **Hierarquia modular** | Sidebar = módulos; ao selecionar um módulo, os itens aparecem logo abaixo na mesma coluna; conteúdo = tarefa atual. |
 | **Consistência antes de criatividade** | Reutilizar componentes e classes existentes antes de inventar layout novo. |
 | **Escalabilidade** | Padrões que funcionam com 5 ou 500 telas: tokens, grid, tabelas, formulários repetíveis. |
 | **Confiança** | Feedback explícito (sucesso/erro/carregando), estados vazios orientados, confirmação em ações destrutivas. |
@@ -46,25 +46,23 @@ O connect-adm é um **console operacional enterprise**: denso o suficiente para 
 ```mermaid
 flowchart TB
   subgraph shell [Admin Shell]
-    Sidebar["Sidebar escura\nMódulos + ícone + descrição"]
+    Sidebar["Sidebar escura\nMódulos + ícone"]
     subgraph main [Área principal]
       Topbar["Topbar global\nTítulo + usuário + logout"]
-      ModuleNav["Topnav do módulo\nTabs horizontais"]
       Content["Conteúdo\nmax-width 1440px"]
     end
   end
   Sidebar --> main
-  Topbar --> ModuleNav --> Content
+  Topbar --> Content
 ```
 
 | Zona | Largura / comportamento | Responsabilidade |
 |------|-------------------------|------------------|
-| Sidebar | 280px fixo (desktop) | Troca de **módulo** |
-| Topbar global | 64px altura | Contexto da página + conta |
-| Topnav módulo | scroll horizontal se necessário | Troca de **item** dentro do módulo |
+| Sidebar | ~260px fixo (desktop); lista rolável | Módulos; ao ativar um módulo, **itens** aparecem indentados abaixo |
+| Topbar global | ~64px altura | Contexto da página + conta |
 | Conteúdo | `max-width: 1440px`, padding 32px | Formulários, tabelas, dashboards |
 
-**Referência de código:** [`AdminLayout.jsx`](../src/layout/AdminLayout.jsx), [`ModuleSidebar.jsx`](../src/layout/ModuleSidebar.jsx), [`ModuleTopNav.jsx`](../src/layout/ModuleTopNav.jsx)
+**Referência de código:** [`AdminLayout.jsx`](../src/layout/AdminLayout.jsx), [`ModuleSidebar.jsx`](../src/layout/ModuleSidebar.jsx)
 
 ### 2.2 Hierarquia de título (dentro do conteúdo)
 
@@ -319,7 +317,7 @@ Referência: [`ModulesPage.jsx`](../src/pages/ModulesPage.jsx)
 ## 6. Navegação e permissões
 
 - Sidebar exibe **somente módulos** com ao menos 1 item permitido ao usuário.
-- Topnav exibe **somente itens** do módulo ativo permitidos.
+- Ao **ativar** um módulo (clique ou rota), a sidebar mostra **somente os itens** desse módulo, indentados logo abaixo do cabeçalho do módulo (sem segunda faixa de navegação em cima do conteúdo).
 - Rotas: `/m/:modulo/:item` — ao criar módulo/item, seguir este padrão.
 - Ações de escrita: proteger com [`PermissionGate`](../src/components/PermissionGate.jsx) + permissão `.manage`.
 - Após alterar módulos: chamar `reloadNavigation()` no [`NavigationContext`](../src/navigation/NavigationContext.jsx).
@@ -328,12 +326,12 @@ Referência: [`ModulesPage.jsx`](../src/pages/ModulesPage.jsx)
 
 ## 7. Responsividade
 
-Breakpoint principal: **960px** (sidebar passa a bloco superior).
+Breakpoint principal: **960px** (sidebar vira drawer).
 
 | Viewport | Comportamento |
 |----------|---------------|
-| ≥960px | Sidebar fixa 280px + conteúdo fluido |
-| <960px | Sidebar horizontal/wrap; padding reduzido; tabelas com scroll |
+| ≥960px | Sidebar fixa (~260px) + conteúdo fluido |
+| <960px | Drawer lateral (mesma árvore módulo → itens); padding reduzido; tabelas com scroll |
 
 Form grids: **2 colunas** (721px+), **3 colunas** (≥ 1200px), **1 coluna** abaixo de **720px** (`.form-grid`).
 
@@ -395,7 +393,7 @@ Painéis      .panel, .panel-header, .panel-body, .card
 Tabelas      .data-table, .data-table-enterprise, .table-empty
 Status       .badge-*, .status-pill-*, .alert-*
 Dashboard    .stat-grid, .stat-panel, .metric-card
-Módulos      .module-sidebar-*, .module-top-nav-*
+Módulos      .module-sidebar-*
 CRUD         .app-loading, .crud-list-toolbar, .crud-pagination-wrap, .table-wrap-responsive, .data-table (100% width), .crud-row-actions
 Financeiro   .flow-in, .flow-out, formatMoney (utils)
 ```
@@ -414,4 +412,4 @@ Ordem sugerida para profissionalizar sem reescrever tudo:
 
 ---
 
-*Última atualização: agosto/2026 — alinhado ao layout modular (sidebar de módulos + topnav interna).*
+*Última atualização: novembro/2026 — layout modular (sidebar: módulo expandido com itens na mesma coluna).*

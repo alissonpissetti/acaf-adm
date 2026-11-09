@@ -4,6 +4,14 @@ export function getAdminOverview() {
   return fetchApi('/api/admin/overview');
 }
 
+/** Padrões globais de taxa (Sistema → Configurações). */
+export function getPlatformFeeDefaults() {
+  return getAdminOverview().then((o) => ({
+    connectFeePercent: o.connectFeePercent ?? 20,
+    dailyFeePercent: o.dailyFeePercent ?? o.connectFeePercent ?? 20,
+  }));
+}
+
 export function getNetworks() {
   return fetchApi('/api/admin/networks');
 }
@@ -26,6 +34,48 @@ export function deleteNetwork(id) {
   return fetchApi(`/api/admin/networks/${id}`, {
     method: 'DELETE',
   });
+}
+
+/** Une várias redes: unidades passam para `keeperNetworkId`; as demais redes somem da lista. */
+export function mergeNetworks(payload) {
+  return fetchApi('/api/admin/networks/merge', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Uma rede por unidade selecionada (copia logo/links da rede de origem). */
+export function detachUnitsToOwnNetworks(networkId, unitIds) {
+  return fetchApi(`/api/admin/networks/${encodeURIComponent(networkId)}/detach-units`, {
+    method: 'POST',
+    body: JSON.stringify({ unitIds }),
+  });
+}
+
+/** Redes importadas pela planilha ACAF (`net_acaf_*`, p.ex. `net_acaf_grp_*`). Mesmas regras que deleteNetwork. */
+export function purgeAcafImportedNetworks() {
+  return fetchApi('/api/admin/networks/purge-acaf-import', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+/** Gera link de onboarding do portal parceiro (14 dias). */
+export function createPartnerOnboardingInvite(networkId) {
+  return fetchApi(`/api/admin/networks/${encodeURIComponent(networkId)}/partner-onboarding-invite`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function importAcafAssociates(file, { syncMissing = false, updateExisting = false } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const params = new URLSearchParams();
+  if (syncMissing) params.set('syncMissing', '1');
+  if (updateExisting) params.set('updateExisting', '1');
+  const q = params.toString();
+  return fetchApiUpload(`/api/admin/associates/import${q ? `?${q}` : ''}`, formData);
 }
 
 export function uploadNetworkLogo(id, file) {

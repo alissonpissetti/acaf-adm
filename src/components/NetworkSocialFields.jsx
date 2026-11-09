@@ -2,7 +2,7 @@ const SOCIAL_FIELDS = [
   { key: 'website', label: 'Site', placeholder: 'https://academia.com.br', span: 2 },
   { key: 'instagram', label: 'Instagram', placeholder: '@academia ou URL' },
   { key: 'facebook', label: 'Facebook', placeholder: 'facebook.com/academia' },
-  { key: 'whatsapp', label: 'WhatsApp', placeholder: '(41) 99999-9999' },
+  { key: 'whatsapp', label: 'Celular (mensagens)', placeholder: '(41) 99999-9999' },
   { key: 'tiktok', label: 'TikTok', placeholder: '@academia' },
   { key: 'youtube', label: 'YouTube', placeholder: 'youtube.com/@academia' },
   { key: 'linkedin', label: 'LinkedIn', placeholder: 'linkedin.com/company/academia' },

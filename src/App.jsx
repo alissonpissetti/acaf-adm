@@ -36,6 +36,7 @@ import { SupportQueuesPage } from './pages/SupportQueuesPage.jsx';
 import { UserGroupsPage } from './pages/UserGroupsPage.jsx';
 import { UsersPage } from './pages/UsersPage.jsx';
 import { LegacyRedirect } from './routing/LegacyRedirect.jsx';
+import { AcafAssociationRedirect } from './pages/AcafAssociationRedirect.jsx';
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="/m/plataforma/usuarios" element={<Navigate to="/m/operacao/usuarios" replace />} />
               <Route path="/m/plataforma/configuracoes" element={<Navigate to="/m/sistema/configuracoes" replace />} />
               <Route path="/m/corporativo/empresas" element={<CompaniesPage />} />
+              <Route path="/m/associacao/parceiros" element={<AcafAssociationRedirect />} />
               <Route path="/m/comercial/leads" element={<CommercialLeadsPage />} />
               <Route path="/m/comercial/funis" element={<CommercialFunnelsPage />} />
               <Route path="/m/marketing/painel" element={<MarketingDashboardPage />} />

@@ -14,11 +14,15 @@ let flashIdCounter = 0;
 
 const DEFAULT_DURATION = 4500;
 
-function FlashMessageHost({ items, onDismiss }) {
+function FlashMessageHost({ items, onDismiss, hostClassName = '' }) {
   if (!items.length) return null;
 
   return (
-    <div className="flash-message-host" aria-live="polite" aria-relevant="additions">
+    <div
+      className={`flash-message-host${hostClassName ? ` ${hostClassName}` : ''}`}
+      aria-live="polite"
+      aria-relevant="additions"
+    >
       {items.map((item) => (
         <div key={item.id} className={`flash-message flash-message-${item.type}`} role="status">
           <span className="flash-message-text">{item.text}</span>
@@ -36,7 +40,7 @@ function FlashMessageHost({ items, onDismiss }) {
   );
 }
 
-export function FlashMessageProvider({ children }) {
+export function FlashMessageProvider({ children, hostClassName }) {
   const [items, setItems] = useState([]);
   const timersRef = useRef(new Map());
 
@@ -70,7 +74,9 @@ export function FlashMessageProvider({ children }) {
   const flash = useMemo(
     () => ({
       success: (text, duration) => push('success', text, duration),
-      error: (text, duration) => push('error', text, duration),
+      error: (text, duration) => push('error', text, duration ?? 9000),
+      info: (text, duration) => push('info', text, duration),
+      warning: (text, duration) => push('warning', text, duration ?? 7000),
       dismiss,
     }),
     [push, dismiss],
@@ -79,7 +85,7 @@ export function FlashMessageProvider({ children }) {
   return (
     <FlashMessageContext.Provider value={flash}>
       {children}
-      <FlashMessageHost items={items} onDismiss={dismiss} />
+      <FlashMessageHost items={items} onDismiss={dismiss} hostClassName={hostClassName} />
     </FlashMessageContext.Provider>
   );
 }

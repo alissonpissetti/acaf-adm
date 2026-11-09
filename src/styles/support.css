@@ -32,11 +32,11 @@
   padding: 0.75rem 1rem;
   border: 0;
   border-radius: 999px;
-  background: var(--orange, #f97316);
+  background: var(--accent);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 700;
-  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.35);
+  box-shadow: 0 10px 30px rgba(117, 121, 229, 0.35);
 }
 
 .support-modal-backdrop {
@@ -149,8 +149,8 @@
 
 .support-stat-card:hover,
 .support-stat-card.is-active {
-  border-color: rgba(249, 115, 22, 0.45);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.08);
+  border-color: rgba(117, 121, 229, 0.45);
+  box-shadow: 0 0 0 3px rgba(117, 121, 229, 0.08);
 }
 
 .support-stat-value {
@@ -208,8 +208,8 @@
 }
 
 .support-queue-item.is-active {
-  background: rgba(249, 115, 22, 0.06);
-  box-shadow: inset 3px 0 0 var(--orange, #f97316);
+  background: rgba(117, 121, 229, 0.06);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .support-queue-item-head,
@@ -353,7 +353,7 @@
 }
 
 .support-ticket-row.is-active {
-  background: rgba(249, 115, 22, 0.06);
+  background: rgba(117, 121, 229, 0.06);
 }
 
 .support-status-badge,
@@ -446,7 +446,7 @@
 
 .support-message--internal {
   border-style: dashed;
-  background: #fff7ed;
+  background: #fefce8;
 }
 
 .support-message-head {

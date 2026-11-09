@@ -3,6 +3,7 @@ import { createUser } from '../api/users.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { PasswordInput } from '../components/PasswordInput.jsx';
 import {
   formatCpfInput,
   formatMobilePhoneInput,
@@ -104,10 +105,9 @@ export function UserCreateScreen({ onBack, onCreated }) {
 
             <label>
               <span>Senha inicial</span>
-              <input
-                type="password"
+              <PasswordInput
                 value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                onChange={(password) => setForm({ ...form, password })}
                 minLength={6}
                 required
               />

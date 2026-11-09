@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { getInitials } from '../utils/initials.js';
 import { getAvatarColorStyle, pickAvatarColor } from '../utils/avatarColors.js';
 
@@ -12,8 +13,15 @@ export function Avatar({ name, src, color, size = 'md', title, className = '' })
   const label = title ?? name ?? 'Avatar';
   const sizeClass = SIZE_CLASS[size] ?? SIZE_CLASS.md;
   const fallbackColor = color || pickAvatarColor(name || label);
+  const [broken, setBroken] = useState(false);
 
-  if (src) {
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
+
+  // Se a imagem falhar (URL expirada, arquivo removido), cai para as iniciais
+  // em vez de mostrar o texto alternativo quebrado.
+  if (src && !broken) {
     return (
       <img
         className={`avatar ${sizeClass} ${className}`.trim()}
@@ -21,6 +29,7 @@ export function Avatar({ name, src, color, size = 'md', title, className = '' })
         alt={label}
         title={label}
         draggable={false}
+        onError={() => setBroken(true)}
       />
     );
   }

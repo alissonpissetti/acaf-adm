@@ -8,9 +8,11 @@ export function CrudFormActions({
   onDelete,
   showDelete = false,
   deleteDisabled = false,
+  extraActions = null,
 }) {
   return (
     <div className="crud-form-actions">
+      {extraActions}
       <button type="submit" className="btn-primary" disabled={busy}>
         {busy ? busyLabel : submitLabel}
       </button>

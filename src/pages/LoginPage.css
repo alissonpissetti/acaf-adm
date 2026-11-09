@@ -1,20 +1,81 @@
+/* Login institucional: gradiente "blue sky" do manual, wordmark limão e assinatura */
 .login-page {
+  position: relative;
   min-height: 100vh;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
+  align-items: center;
+  gap: 2rem;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  background: var(--movly-sky-gradient);
+  overflow: hidden;
+}
+
+.login-page.movly-grain::after {
+  z-index: 0;
+}
+
+.login-hero {
+  position: relative;
+  z-index: 1;
+  align-self: stretch;
+  display: grid;
   place-items: center;
-  padding: 1.5rem;
-  background:
-    radial-gradient(circle at top right, rgba(232, 136, 28, 0.12), transparent 40%),
-    #eef0f4;
+  min-height: 320px;
+}
+
+.login-hero-logo.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(72%, 440px);
+  height: auto;
+  aspect-ratio: 791 / 387;
+}
+
+.login-hero-tagline {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.125rem, 2vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--movly-lime);
 }
 
 .login-card {
-  width: min(100%, 420px);
-  padding: 2rem;
-  border-radius: 1rem;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 2.25rem;
+  border-radius: 1.75rem;
   background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: 0 24px 48px rgba(28, 28, 30, 0.08);
+  border: none;
+  box-shadow: 0 30px 60px rgba(42, 37, 110, 0.18);
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 1.25rem;
+  }
+
+  .login-hero {
+    min-height: 0;
+    padding: 1.5rem 0 3rem;
+  }
+
+  .login-hero-logo.brand-logo {
+    width: min(60%, 260px);
+  }
+
+  .login-hero-tagline {
+    font-size: 1rem;
+  }
 }
 
 .login-brand {
@@ -27,8 +88,7 @@
 .login-brand strong {
   display: block;
   font-size: 1rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .login-brand span {
@@ -38,21 +98,13 @@
   margin-top: 0.125rem;
 }
 
-.login-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.875rem;
-  background: var(--brand-gradient);
-  color: #fff;
-  font-weight: 700;
-}
+
 
 .login-card h1 {
+  font-family: var(--font-display);
   font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  letter-spacing: -0.025em;
 }
 
 .login-subtitle {
@@ -76,17 +128,21 @@
 
 .login-form input {
   width: 100%;
-  padding: 0.75rem 0.875rem;
-  border: 1px solid var(--border);
-  border-radius: 0.625rem;
+  padding: 0.8125rem 1rem;
+  border: 1px solid #d5dae6;
+  border-radius: 0.75rem;
   font: inherit;
   background: var(--surface);
 }
 
 .login-form input:focus {
   outline: none;
-  border-color: var(--orange);
-  box-shadow: 0 0 0 3px var(--orange-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.login-form .password-input-wrap > input {
+  padding-right: 2.75rem;
 }
 
 .login-submit {
@@ -107,7 +163,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--orange);
+  color: var(--accent-strong);
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 500;

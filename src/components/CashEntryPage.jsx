@@ -738,6 +738,11 @@ function CashEntryForm({
                       ? `Criar ${form.recurrenceMonths} lançamentos`
                       : (form.submitLabel ?? 'Salvar')
                   }
+                  extraActions={
+                    extraActions ? (
+                      <PermissionGate permission={permissionManage}>{extraActions}</PermissionGate>
+                    ) : null
+                  }
                 />
               )}
             </div>
@@ -1024,8 +1029,9 @@ export function CashEntryPage({
       );
     }
 
+    /** Em `?id=` sem `mode=view` o router fica em edição — a baixa deve aparecer do mesmo jeito (não exige comprovante). */
     const settleButton =
-      canSettle(selected) && router.isViewing ? (
+      canSettle(selected) && (router.isViewing || router.isEditing) ? (
         <button
           type="button"
           className="btn-primary"
