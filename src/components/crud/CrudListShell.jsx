@@ -42,6 +42,7 @@ export function CrudListShell({
   rows = [],
   rowKey = 'id',
   onRowClick,
+  onOpen,
   onView,
   onEdit,
   onDuplicate,
@@ -56,7 +57,7 @@ export function CrudListShell({
   /** `{ selectedIds, onToggleRow, onTogglePage }` — checkbox na primeira coluna; não altera `onRowClick` nas outras células. */
   selection = null,
 }) {
-  const showActions = canManage && (onView || onEdit || onDuplicate || onDelete);
+  const showActions = Boolean(onView || onEdit || onDuplicate || onDelete || onOpen);
   const selectRowKey = selection?.rowKey ?? rowKey;
   const pageIds = rows.map((r) => r[selectRowKey]).filter(Boolean);
   const selectedOnPage = pageIds.filter((id) => selection?.selectedIds?.has(id));
@@ -161,8 +162,9 @@ export function CrudListShell({
                     {showActions ? (
                       <td className="table-actions col-actions">
                         <CrudRowActions
+                          onOpen={onOpen ? () => onOpen(row) : undefined}
                           onView={onView ? () => onView(row) : undefined}
-                          onEdit={onEdit ? () => onEdit(row) : undefined}
+                          onEdit={canManage && onEdit ? () => onEdit(row) : undefined}
                           onDuplicate={onDuplicate ? () => onDuplicate(row) : undefined}
                           onDelete={
                             onDelete && (!canDeleteRow || canDeleteRow(row))

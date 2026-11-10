@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchEvolutionConnectionStatus } from '../api/evolution.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 
@@ -16,6 +16,7 @@ function WhatsAppIcon() {
 
 export function WhatsAppNavButton({ className = '' }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasPermission } = useAuth();
   const canView = hasPermission('sistema.evolution') || hasPermission('comercial.leads');
 
@@ -64,10 +65,13 @@ export function WhatsAppNavButton({ className = '' }) {
       }
       aria-label={
         connected
-          ? 'WhatsApp: há instância conectada. Abrir instâncias.'
-          : 'WhatsApp: sem instância conectada. Abrir instâncias.'
+          ? 'WhatsApp: há instância conectada. Abrir conversas.'
+          : 'WhatsApp: sem instância conectada. Abrir conversas.'
       }
-      onClick={() => navigate('/m/comercial/whatsapp')}
+      onClick={() => {
+        if (location.pathname === '/m/comercial/whatsapp') return;
+        navigate('/m/comercial/whatsapp', { state: { returnTo: location.pathname } });
+      }}
       disabled={loading}
     >
       <WhatsAppIcon />

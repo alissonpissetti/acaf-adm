@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ChevronRight,
   LayoutGrid,
@@ -1127,6 +1127,8 @@ function LeadKanbanCard({
 }
 
 export function CommercialLeadsPage() {
+  const [searchParams] = useSearchParams();
+  const funnelIdFromUrl = searchParams.get('funnelId') ?? '';
   const { user, hasPermission } = useAuth();
   const flash = useFlashMessage();
   const canManage = hasPermission('comercial.leads.manage');
@@ -1142,7 +1144,7 @@ export function CommercialLeadsPage() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedFunnelId, setSelectedFunnelId] = useState('');
+  const [selectedFunnelId, setSelectedFunnelId] = useState(funnelIdFromUrl);
   const [activeStageId, setActiveStageId] = useState('');
   const [viewMode, setViewMode] = useState(() => (isMobile ? 'funnel' : 'kanban'));
   const [busyLeadId, setBusyLeadId] = useState('');
@@ -1153,6 +1155,12 @@ export function CommercialLeadsPage() {
   useEffect(() => {
     setViewMode(isMobile ? 'funnel' : viewMode === 'funnel' ? 'funnel' : 'kanban');
   }, [isMobile]);
+
+  useEffect(() => {
+    if (funnelIdFromUrl) {
+      setSelectedFunnelId(funnelIdFromUrl);
+    }
+  }, [funnelIdFromUrl]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1168,7 +1176,9 @@ export function CommercialLeadsPage() {
       setFunnelOptions(nextOptions);
       setUsers((userRows ?? []).filter((row) => row.active !== false));
 
+      const preferredFunnelId = funnelIdFromUrl || selectedFunnelId;
       const currentFunnel =
+        nextOptions.find((item) => item.id === preferredFunnelId) ??
         nextOptions.find((item) => item.id === selectedFunnelId) ??
         nextOptions.find((item) => item.isDefault) ??
         nextOptions[0] ??
@@ -1178,7 +1188,9 @@ export function CommercialLeadsPage() {
       const nextStages = currentFunnel?.stages ?? [];
       setStages(nextStages);
 
-      if (funnelId && funnelId !== selectedFunnelId) {
+      if (funnelId && !funnelIdFromUrl && !selectedFunnelId) {
+        setSelectedFunnelId(funnelId);
+      } else if (funnelId && funnelIdFromUrl && funnelId !== selectedFunnelId) {
         setSelectedFunnelId(funnelId);
       }
 
@@ -1208,7 +1220,7 @@ export function CommercialLeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFunnelId, user?.id]);
+  }, [funnelIdFromUrl, selectedFunnelId, user?.id]);
 
   useEffect(() => {
     if (user?.id) load();

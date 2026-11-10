@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   createCommercialFunnel,
   deactivateCommercialFunnel,
@@ -477,8 +477,10 @@ function FunnelFormScreen({
 }
 
 export function CommercialFunnelsPage() {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const canManage = hasPermission('comercial.funis.manage');
+  const canOpenLeadsBoard = hasPermission('comercial.leads');
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get('id');
   const mode = searchParams.get('mode');
@@ -535,6 +537,10 @@ export function CommercialFunnelsPage() {
   const goToCreate = () => setSearchParams({ new: '1' });
   const goToView = (id) => setSearchParams({ id, mode: 'view' });
   const goToEdit = (id) => setSearchParams({ id });
+
+  const openFunnelBoard = (row) => {
+    navigate(`/m/comercial/leads?funnelId=${encodeURIComponent(row.id)}`);
+  };
 
   const buildPayload = (form) => ({
     name: form.name.trim(),
@@ -654,7 +660,25 @@ export function CommercialFunnelsPage() {
         emptyMessage="Nenhum funil cadastrado."
         rows={list.rows}
         columns={[
-          { key: 'name', label: 'Funil', render: (row) => row.name },
+          {
+            key: 'name',
+            label: 'Funil',
+            render: (row) =>
+              canOpenLeadsBoard ? (
+                <button
+                  type="button"
+                  className="crud-link-btn"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openFunnelBoard(row);
+                  }}
+                >
+                  {row.name}
+                </button>
+              ) : (
+                row.name
+              ),
+          },
           { key: 'slug', label: 'Slug', render: (row) => row.slug },
           {
             key: 'stageCount',
@@ -679,8 +703,9 @@ export function CommercialFunnelsPage() {
             render: (row) => (row.isDefault ? 'Sim' : '—'),
           },
         ]}
+        onOpen={canOpenLeadsBoard ? openFunnelBoard : undefined}
         onView={(row) => goToView(row.id)}
-        onRowClick={(row) => goToView(row.id)}
+        onRowClick={canOpenLeadsBoard ? openFunnelBoard : (row) => goToView(row.id)}
         canManage={canManage}
         onEdit={(row) => goToEdit(row.id)}
       />

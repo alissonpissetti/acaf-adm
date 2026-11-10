@@ -53,6 +53,7 @@ export default function App() {
                   <Route path="/f/go/:slug" element={<MarketingGoPage />} />
                   <Route path="/f/:slug" element={<MarketingFormPage />} />
                   <Route element={<ProtectedRoute />}>
+                    <Route path="/m/comercial/whatsapp" element={<WhatsAppInboxPage />} />
                     <Route element={<AdminLayout />}>
               <Route path="/m/operacao/dashboard" element={<DashboardPage />} />
               <Route path="/m/operacao/redes" element={<NetworksPage />} />
@@ -68,7 +69,6 @@ export default function App() {
               <Route path="/m/associacao/parceiros" element={<AcafAssociationRedirect />} />
               <Route path="/m/comercial/leads" element={<CommercialLeadsPage />} />
               <Route path="/m/comercial/funis" element={<CommercialFunnelsPage />} />
-              <Route path="/m/comercial/whatsapp" element={<WhatsAppInboxPage />} />
               <Route path="/m/marketing/painel" element={<MarketingDashboardPage />} />
               <Route path="/m/marketing/campanhas" element={<MarketingCampaignsPage />} />
               <Route path="/m/marketing/formularios" element={<MarketingLandingPagesPage />} />

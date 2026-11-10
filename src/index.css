@@ -5372,6 +5372,33 @@ input.input-disabled:disabled {
   color: #dc2626;
 }
 
+.crud-icon-btn-accent {
+  color: var(--accent);
+}
+
+.crud-icon-btn-accent:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--select-soft);
+  color: var(--accent);
+}
+
+.crud-link-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.crud-link-btn:hover {
+  color: var(--accent-strong, var(--accent));
+}
+
 .crud-form-actions {
   display: flex;
   gap: 0.75rem;

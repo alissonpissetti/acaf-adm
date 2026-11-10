@@ -1,8 +1,31 @@
-import { Copy, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Columns3, Copy, Eye, Pencil, Trash2 } from 'lucide-react';
 
-export function CrudRowActions({ onView, onEdit, onDuplicate, onDelete, disabled = false }) {
+export function CrudRowActions({
+  onOpen,
+  openLabel = 'Abrir funil',
+  onView,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  disabled = false,
+}) {
   return (
     <div className="crud-row-actions">
+      {onOpen ? (
+        <button
+          type="button"
+          className="crud-icon-btn crud-icon-btn-accent"
+          disabled={disabled}
+          aria-label={openLabel}
+          title={openLabel}
+          onClick={(ev) => {
+            ev.stopPropagation();
+            onOpen();
+          }}
+        >
+          <Columns3 size={15} strokeWidth={2} aria-hidden="true" />
+        </button>
+      ) : null}
       {onView ? (
         <button
           type="button"
