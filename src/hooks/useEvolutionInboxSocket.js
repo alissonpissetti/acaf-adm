@@ -14,6 +14,8 @@ export function useEvolutionInboxSocket({ enabled, instanceFilter, activeThread,
   const [connected, setConnected] = useState(false);
   const handlersRef = useRef({ onThreadsUpdated, onThreadActivity });
   handlersRef.current = { onThreadsUpdated, onThreadActivity };
+  const instanceFilterRef = useRef(instanceFilter);
+  instanceFilterRef.current = instanceFilter;
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -28,10 +30,16 @@ export function useEvolutionInboxSocket({ enabled, instanceFilter, activeThread,
       auth: { token },
       reconnection: true,
       reconnectionAttempts: Infinity,
+      reconnectionDelay: 800,
+      reconnectionDelayMax: 5_000,
     });
     socketRef.current = socket;
 
-    const onConnect = () => setConnected(true);
+    const onConnect = () => {
+      setConnected(true);
+      const instanceId = instanceFilterRef.current?.trim() || null;
+      socket.emit('subscribe_inbox', { instanceId });
+    };
     const onDisconnect = () => setConnected(false);
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);

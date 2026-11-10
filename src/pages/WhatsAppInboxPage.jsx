@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { X, Search, RefreshCw, ImageIcon } from 'lucide-react';
+import { Archive, ArchiveRestore, X, Search, RefreshCw, Smartphone } from 'lucide-react';
 import {
-  fetchEvolutionInstances,
   fetchEvolutionOverview,
+  fetchWhatsAppInboxInstances,
   fetchWhatsAppInboxThreads,
   fetchWhatsAppThreadMessages,
   markWhatsAppThreadRead,
-  syncEvolutionInbox,
-  syncEvolutionAvatars,
+  setWhatsAppThreadArchived,
 } from '../api/evolution.js';
-import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
+import { WhatsAppThreadListSkeleton } from '../components/WhatsAppThreadListSkeleton.jsx';
+import { WhatsAppMessagesSkeleton } from '../components/WhatsAppMessagesSkeleton.jsx';
 import { WhatsAppMessageMedia } from '../components/WhatsAppMessageMedia.jsx';
 import { WhatsAppMessageBody } from '../components/WhatsAppMessageBody.jsx';
+import { WhatsAppMessageQuote } from '../components/WhatsAppMessageQuote.jsx';
 import { WhatsAppContactAvatar } from '../components/WhatsAppContactAvatar.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import {
@@ -87,15 +88,68 @@ function MessageReactions({ reactions }) {
 }
 
 const WHATSAPP_ROUTE = '/m/comercial/whatsapp';
+const THREADS_SOCKET_DEBOUNCE_MS = 1_200;
+const THREADS_MIN_INTERVAL_MS = 8_000;
+const MESSAGES_BACKGROUND_MIN_MS = 45_000;
+const MESSAGES_OPEN_CHAT_MIN_MS = 3_500;
+const OPEN_CHAT_POLL_MS = 12_000;
+
+function contactKeysFromActivity(payload) {
+  return new Set(
+    [payload?.contactPhone, ...(payload?.contactPhones ?? [])]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean),
+  );
+}
+
+function digitsOnly(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits.length >= 8 ? digits : '';
+}
+
+function groupKeyDigits(value) {
+  const text = String(value ?? '').trim();
+  if (!text.startsWith('group:')) return '';
+  return text.slice(6).replace(/\D/g, '');
+}
+
+function contactKeysEquivalent(a, b) {
+  const left = String(a ?? '').trim();
+  const right = String(b ?? '').trim();
+  if (!left || !right) return false;
+  if (left === right) return true;
+
+  const groupLeft = groupKeyDigits(left);
+  const groupRight = groupKeyDigits(right);
+  if (groupLeft && groupRight) {
+    if (groupLeft === groupRight) return true;
+    const minLen = Math.min(groupLeft.length, groupRight.length);
+    if (minLen >= 6) {
+      return groupLeft.endsWith(groupRight) || groupRight.endsWith(groupLeft);
+    }
+  }
+
+  const dLeft = digitsOnly(left);
+  const dRight = digitsOnly(right);
+  return Boolean(dLeft && dRight && dLeft === dRight);
+}
+
+function threadRowMatchesContactKeys(thread, instanceId, keys) {
+  if (!thread || thread.instanceId !== instanceId) return false;
+  const contact = String(thread.contactPhone ?? '').trim();
+  if (keys.has(contact)) return true;
+  for (const key of keys) {
+    if (contactKeysEquivalent(contact, key)) return true;
+  }
+  return false;
+}
 
 export function WhatsAppInboxPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasPermission } = useAuth();
   const canView = hasPermission('comercial.leads') || hasPermission('sistema.evolution');
-  const canSync =
-    hasPermission('sistema.evolution.manage') || hasPermission('comercial.leads');
-
+  const canOpenEvolutionAdmin = hasPermission('sistema.evolution');
   const [instances, setInstances] = useState([]);
   const [instanceFilter, setInstanceFilter] = useState('');
   const [threads, setThreads] = useState([]);
@@ -105,40 +159,94 @@ export function WhatsAppInboxPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [syncingAvatars, setSyncingAvatars] = useState(false);
   const [syncHint, setSyncHint] = useState('');
   const [threadQuery, setThreadQuery] = useState('');
   const [threadKind, setThreadKind] = useState('all');
 
-  const loadThreads = useCallback(async ({ background = false } = {}) => {
+  const instancesFetchInFlightRef = useRef(false);
+
+  const loadInboxInstances = useCallback(async () => {
+    if (instancesFetchInFlightRef.current) return;
+    instancesFetchInFlightRef.current = true;
+    try {
+      const rows = await fetchWhatsAppInboxInstances();
+      setInstances(rows ?? []);
+    } catch {
+      /* mantém lista anterior */
+    } finally {
+      instancesFetchInFlightRef.current = false;
+    }
+  }, []);
+
+  const inboxListView = threadKind === 'archived' ? 'archived' : 'active';
+
+  const threadsFetchInFlightRef = useRef(false);
+  const messagesFetchInFlightRef = useRef(false);
+  const threadsLastFetchAtRef = useRef(0);
+  const threadsPendingAfterFlightRef = useRef(false);
+
+  const loadThreads = useCallback(async ({ background = false, light = false, urgent = false } = {}) => {
     const silent = Boolean(background);
+    const now = Date.now();
+    if (silent && !urgent && now - threadsLastFetchAtRef.current < THREADS_MIN_INTERVAL_MS) {
+      threadsPendingAfterFlightRef.current = true;
+      return;
+    }
+    if (threadsFetchInFlightRef.current) {
+      threadsPendingAfterFlightRef.current = true;
+      return;
+    }
+    threadsFetchInFlightRef.current = true;
     if (!silent) {
       setLoadingThreads(true);
     }
-    setError('');
+    if (!silent) setError('');
     try {
-      const rows = await fetchWhatsAppInboxThreads(instanceFilter || undefined);
+      const rows = await fetchWhatsAppInboxThreads(instanceFilter || undefined, {
+        view: inboxListView,
+        light: silent || light,
+      });
       setThreads(rows ?? []);
+      threadsLastFetchAtRef.current = Date.now();
     } catch (err) {
-      setError(err.message);
       if (!silent) {
+        setError(err.message);
         setThreads([]);
       }
     } finally {
+      threadsFetchInFlightRef.current = false;
       if (!silent) {
         setLoadingThreads(false);
       }
+      if (threadsPendingAfterFlightRef.current) {
+        threadsPendingAfterFlightRef.current = false;
+        window.setTimeout(() => void loadThreads({ background: true, light: true, urgent: true }), 400);
+      }
     }
-  }, [instanceFilter]);
+  }, [instanceFilter, inboxListView]);
 
   const loadMessagesRequestRef = useRef(0);
+  const messagesLastBackgroundAtRef = useRef(0);
+  const messagesPendingAfterFlightRef = useRef(null);
 
-  const loadMessages = useCallback(async (thread, { background = false } = {}) => {
+  const loadMessages = useCallback(async (thread, { background = false, force = false, realtime = false } = {}) => {
     if (!thread?.instanceId || !String(thread.contactPhone ?? '').trim()) {
       setMessages([]);
       return;
     }
+    if (messagesFetchInFlightRef.current) {
+      messagesPendingAfterFlightRef.current = { thread, background, force };
+      if (force) {
+        loadMessagesRequestRef.current += 1;
+      }
+      return;
+    }
+    if (background) {
+      const minGap = realtime ? MESSAGES_OPEN_CHAT_MIN_MS : MESSAGES_BACKGROUND_MIN_MS;
+      const since = Date.now() - messagesLastBackgroundAtRef.current;
+      if (since < minGap) return;
+    }
+    messagesFetchInFlightRef.current = true;
     const threadKey = thread.threadKey;
     const requestId = ++loadMessagesRequestRef.current;
     const silent = Boolean(background);
@@ -146,12 +254,17 @@ export function WhatsAppInboxPage() {
     if (!silent) {
       setLoadingMessages(true);
     }
-    setError('');
+    if (!silent) setError('');
     try {
-      const rows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone);
+      const rows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone, {
+        syncRemote: !silent,
+      });
       if (requestId !== loadMessagesRequestRef.current) return;
       if (activeThreadRef.current?.threadKey !== threadKey) return;
       setMessages(rows ?? []);
+      if (background) {
+        messagesLastBackgroundAtRef.current = Date.now();
+      }
       setThreads((prev) =>
         prev.map((t) => (t.threadKey === threadKey ? { ...t, unreadCount: 0 } : t)),
       );
@@ -163,8 +276,16 @@ export function WhatsAppInboxPage() {
         setMessages([]);
       }
     } finally {
-      if (requestId === loadMessagesRequestRef.current && !silent) {
-        setLoadingMessages(false);
+      if (requestId === loadMessagesRequestRef.current) {
+        messagesFetchInFlightRef.current = false;
+        if (!silent) {
+          setLoadingMessages(false);
+        }
+        const pending = messagesPendingAfterFlightRef.current;
+        if (pending) {
+          messagesPendingAfterFlightRef.current = null;
+          window.setTimeout(() => void loadMessages(pending.thread, pending), 80);
+        }
       }
     }
   }, []);
@@ -192,20 +313,19 @@ export function WhatsAppInboxPage() {
   }, [closeFullscreen]);
 
   useEffect(() => {
-    void fetchEvolutionInstances(true)
-      .then((rows) => setInstances((rows ?? []).filter((row) => row.active !== false)))
-      .catch(() => {});
+    void loadInboxInstances();
     void fetchEvolutionOverview()
       .then((data) => setWebhookUrl(data?.webhookUrl?.trim() ?? ''))
       .catch(() => {});
-  }, []);
+  }, [loadInboxInstances]);
 
   useEffect(() => {
-    const background = threadsCountRef.current > 0;
-    void loadThreads({ background });
-    const timer = window.setInterval(() => void loadThreads({ background: true }), 30_000);
-    return () => window.clearInterval(timer);
-  }, [loadThreads]);
+    if (!instanceFilter) return;
+    if (!instances.some((row) => row.id === instanceFilter)) {
+      setInstanceFilter('');
+      setSelected(null);
+    }
+  }, [instances, instanceFilter]);
 
   useEffect(() => {
     const pickable = (thread) =>
@@ -253,20 +373,46 @@ export function WhatsAppInboxPage() {
     }
     threadsRefreshTimerRef.current = window.setTimeout(() => {
       threadsRefreshTimerRef.current = null;
-      void loadThreads({ background: true });
-    }, 250);
+      void loadThreads({ background: true, light: true, urgent: true });
+    }, THREADS_SOCKET_DEBOUNCE_MS);
   }, [loadThreads]);
+
+  const patchThreadFromActivity = useCallback((payload) => {
+    const incoming = payload?.message;
+    if (!incoming?.id || !payload?.instanceId) return false;
+    const keys = contactKeysFromActivity(payload);
+    const preview =
+      incoming.body?.trim() ||
+      (incoming.mediaKind ? `[${incoming.mediaKind}]` : '');
+    const instanceId = payload.instanceId;
+    const at = incoming.messageAt ?? new Date().toISOString();
+    let touched = false;
+
+    setThreads((prev) => {
+      const next = prev.map((t) => {
+        if (!threadRowMatchesContactKeys(t, instanceId, keys)) return t;
+        touched = true;
+        const open = activeThreadRef.current;
+        const isOpen = open && threadRowMatchesContactKeys(open, instanceId, keys);
+        return {
+          ...t,
+          lastMessagePreview: preview || t.lastMessagePreview,
+          lastMessageAt: at || t.lastMessageAt,
+          lastDirection: incoming.direction ?? t.lastDirection,
+          unreadCount: isOpen ? 0 : Math.max(1, Number(t.unreadCount ?? 0)),
+        };
+      });
+      if (!touched) return prev;
+      return [...next].sort(
+        (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+      );
+    });
+    return touched;
+  }, []);
 
   const threadMatchesActivity = useCallback((thread, payload) => {
     if (!thread || !payload?.instanceId) return false;
-    if (payload.instanceId !== thread.instanceId) return false;
-    const keys = new Set(
-      [payload.contactPhone, ...(payload.contactPhones ?? [])]
-        .map((value) => String(value ?? '').trim())
-        .filter(Boolean),
-    );
-    if (keys.has(String(thread.contactPhone ?? '').trim())) return true;
-    return payload.contactPhone === thread.contactPhone;
+    return threadRowMatchesContactKeys(thread, payload.instanceId, contactKeysFromActivity(payload));
   }, []);
 
   const onThreadsUpdated = useCallback(
@@ -282,20 +428,25 @@ export function WhatsAppInboxPage() {
   const onThreadActivity = useCallback(
     (payload) => {
       if (!payload?.instanceId) return;
-
-      scheduleLoadThreads();
+      if (instanceFilter && payload.instanceId !== instanceFilter) return;
 
       const open = activeThreadRef.current;
-      if (!open || !threadMatchesActivity(open, payload)) return;
-
       const incoming = payload.message;
-      if (incoming?.id) {
-        if (incoming.mediaKind === 'reaction' || isReactionPlaceholderBody(incoming.body)) {
-          void loadMessages(open, { background: true });
-          return;
-        }
+      const matchesOpen = open && threadMatchesActivity(open, payload);
+
+      if (
+        matchesOpen &&
+        incoming?.id &&
+        incoming.mediaKind !== 'reaction' &&
+        !isReactionPlaceholderBody(incoming.body)
+      ) {
         setMessages((prev) => {
-          if (prev.some((row) => row.id === incoming.id)) return prev;
+          const idx = prev.findIndex((row) => row.id === incoming.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...incoming };
+            return next;
+          }
           return [...prev, incoming];
         });
         setThreads((prev) =>
@@ -318,9 +469,24 @@ export function WhatsAppInboxPage() {
         return;
       }
 
-      void loadMessages(open, { background: true });
+      if (matchesOpen) {
+        void loadMessages(open, { background: true, realtime: true });
+        patchThreadFromActivity(payload);
+        return;
+      }
+
+      if (patchThreadFromActivity(payload)) return;
+
+      scheduleLoadThreads();
     },
-    [loadMessages, scheduleLoadThreads, threadMatchesActivity, scrollMessagesToBottom],
+    [
+      instanceFilter,
+      loadMessages,
+      patchThreadFromActivity,
+      scheduleLoadThreads,
+      threadMatchesActivity,
+      scrollMessagesToBottom,
+    ],
   );
 
   const renderMessageReactions = (msg) => <MessageReactions reactions={msg.reactions} />;
@@ -332,6 +498,24 @@ export function WhatsAppInboxPage() {
     onThreadsUpdated,
     onThreadActivity,
   });
+
+  useEffect(() => {
+    const background = threadsCountRef.current > 0;
+    void loadThreads({ background });
+  }, [loadThreads]);
+
+  useEffect(() => {
+    const intervalMs = inboxSocketConnected ? 120_000 : 25_000;
+    const timer = window.setInterval(
+      () => void loadThreads({ background: true, light: true }),
+      intervalMs,
+    );
+    const instancesTimer = window.setInterval(() => void loadInboxInstances(), 180_000);
+    return () => {
+      window.clearInterval(timer);
+      window.clearInterval(instancesTimer);
+    };
+  }, [loadThreads, loadInboxInstances, inboxSocketConnected]);
 
   const selectThread = useCallback(
     (thread) => {
@@ -349,23 +533,30 @@ export function WhatsAppInboxPage() {
     if (!activeThread?.threadKey) {
       setMessages([]);
       setLoadingMessages(false);
+      messagesPendingAfterFlightRef.current = null;
       return undefined;
     }
 
-    const threadKey = activeThread.threadKey;
-    void loadMessages(activeThread);
+    void loadMessages(activeThread, { force: true });
 
-    const pollMs = inboxSocketConnected ? 120_000 : 12_000;
+    return () => {
+      loadMessagesRequestRef.current += 1;
+      messagesPendingAfterFlightRef.current = null;
+    };
+  }, [activeThread?.threadKey, loadMessages]);
+
+  useEffect(() => {
+    if (!activeThread?.threadKey) return undefined;
+
+    const threadKey = activeThread.threadKey;
+    const pollMs = inboxSocketConnected ? OPEN_CHAT_POLL_MS : 20_000;
     const timer = window.setInterval(() => {
       const open = activeThreadRef.current;
       if (open?.threadKey !== threadKey) return;
-      void loadMessages(open, { background: true });
+      void loadMessages(open, { background: true, realtime: true });
     }, pollMs);
 
-    return () => {
-      window.clearInterval(timer);
-      loadMessagesRequestRef.current += 1;
-    };
+    return () => window.clearInterval(timer);
   }, [activeThread?.threadKey, loadMessages, inboxSocketConnected]);
 
   useEffect(() => {
@@ -389,6 +580,7 @@ export function WhatsAppInboxPage() {
 
   const visibleThreads = useMemo(() => {
     const byKind = threads.filter((thread) => {
+      if (threadKind === 'archived') return true;
       const isGroup = Boolean(thread.isGroupThread) || String(thread.contactPhone).startsWith('group:');
       if (threadKind === 'groups') return isGroup;
       if (threadKind === 'direct') return !isGroup;
@@ -422,49 +614,28 @@ export function WhatsAppInboxPage() {
     return `Webhook registrado: ${webhookUrl} — a Evolution precisa alcançar esse endereço. Se EVOLUTION_WEBHOOK_SECRET estiver no .env, o mesmo valor precisa estar no webhook da instância (Atualizar status).`;
   }, [webhookUrl]);
 
-  async function handleSyncAvatars() {
-    const targetId = instanceFilter || instances[0]?.id;
-    if (!targetId) {
-      setError('Selecione uma instância para verificar as fotos.');
-      return;
-    }
-    setSyncingAvatars(true);
+  async function handleToggleArchive() {
+    if (!activeThread?.instanceId || !activeThread?.contactPhone) return;
+    const archive = !Boolean(activeThread.isArchived);
     setError('');
-    setSyncHint('');
     try {
-      const result = await syncEvolutionAvatars(targetId);
-      if (result?.message) {
-        setSyncHint(result.message);
+      const result = await setWhatsAppThreadArchived(
+        activeThread.instanceId,
+        activeThread.contactPhone,
+        archive,
+      );
+      if (result?.warning) {
+        setSyncHint(result.warning);
+      } else {
+        setSyncHint('');
+      }
+      if (archive) {
+        setSelected(null);
+        setMessages([]);
       }
       await loadThreads({ background: true });
     } catch (err) {
       setError(err.message);
-    } finally {
-      setSyncingAvatars(false);
-    }
-  }
-
-  async function handleSyncInbox() {
-    const targetId = instanceFilter || instances[0]?.id;
-    if (!targetId) {
-      setError('Selecione uma instância para sincronizar.');
-      return;
-    }
-    setSyncing(true);
-    setError('');
-    setSyncHint('');
-    try {
-      const result = await syncEvolutionInbox(targetId);
-      if (!result?.ok && result?.message) {
-        setError(result.message);
-      } else if (result?.message) {
-        setSyncHint(result.message);
-      }
-      await loadThreads({ background: true });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSyncing(false);
     }
   }
 
@@ -503,6 +674,11 @@ export function WhatsAppInboxPage() {
                 <X size={20} aria-hidden="true" />
               </button>
               <span className="whatsapp-wa-sidebar__title">WhatsApp</span>
+              {!inboxSocketConnected ? (
+                <span className="whatsapp-wa-realtime-hint" title="Atualização automática a cada poucos segundos">
+                  sincronizando…
+                </span>
+              ) : null}
               {totalUnread > 0 ? (
                 <span className="whatsapp-wa-sidebar__unread-pill">
                   {totalUnread > 99 ? '99+' : totalUnread}
@@ -538,23 +714,39 @@ export function WhatsAppInboxPage() {
           </header>
 
           <div className="whatsapp-wa-sidebar__filters">
-            <div className="whatsapp-wa-search">
-              <Search size={18} className="whatsapp-wa-search__icon" aria-hidden="true" />
+            <div className="whatsapp-wa-search" role="search">
+              <span className="whatsapp-wa-search__icon-wrap" aria-hidden="true">
+                <Search size={17} strokeWidth={2.25} />
+              </span>
               <input
                 className="whatsapp-wa-search__input"
-                type="search"
+                type="text"
+                inputMode="search"
+                enterKeyHint="search"
                 aria-label="Buscar conversa"
-                placeholder="Pesquisar ou selecionar conversa"
+                placeholder="Pesquisar conversa"
                 value={threadQuery}
                 onChange={(ev) => setThreadQuery(ev.target.value)}
                 autoComplete="off"
+                spellCheck={false}
               />
+              {threadQuery.trim() ? (
+                <button
+                  type="button"
+                  className="whatsapp-wa-search__clear"
+                  aria-label="Limpar busca"
+                  onClick={() => setThreadQuery('')}
+                >
+                  <X size={18} strokeWidth={2.25} aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
             <div className="whatsapp-wa-kind-tabs" role="tablist" aria-label="Tipo de conversa">
               {[
                 { id: 'all', label: 'Todas' },
                 { id: 'direct', label: 'Diretas' },
                 { id: 'groups', label: 'Grupos' },
+                { id: 'archived', label: 'Arquivadas' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -572,14 +764,14 @@ export function WhatsAppInboxPage() {
 
           <div className="whatsapp-wa-chat-list">
             {loadingThreads && threads.length === 0 ? (
-              <AppLoadingPanel label="Carregando conversas…" />
+              <WhatsAppThreadListSkeleton />
             ) : threads.length === 0 ? (
               <div className="whatsapp-inbox-empty muted">
                 <p>Nenhuma mensagem salva ainda.</p>
                 <p>{webhookHint}</p>
                 <p>
-                  Envie uma mensagem de teste ou use &quot;Sincronizar&quot; na barra inferior para importar o
-                  histórico.
+                  Novas mensagens entram pelo webhook e pela atualização automática ao abrir conversas. Se nada
+                  aparecer em alguns minutos, confira o webhook abaixo.
                 </p>
               </div>
             ) : visibleThreads.length === 0 ? (
@@ -612,6 +804,17 @@ export function WhatsAppInboxPage() {
                         />
                         <span className="whatsapp-wa-chat-item__body">
                           <span className="whatsapp-wa-chat-item__name">{contact.title}</span>
+                          {contact.phoneLine &&
+                          contact.phoneLine !== contact.title &&
+                          !/^whatsapp\s*···/i.test(contact.title) ? (
+                            <span className="whatsapp-wa-chat-item__meta">{contact.phoneLine}</span>
+                          ) : contact.nameLine && contact.nameLine !== contact.title ? (
+                            <span className="whatsapp-wa-chat-item__meta">{contact.nameLine}</span>
+                          ) : /^whatsapp\s*···/i.test(thread.contactDisplayName ?? '') && contact.subtitle ? (
+                            <span className="whatsapp-wa-chat-item__meta" title="Sem nome no WhatsApp">
+                              {contact.subtitle.replace(/\s*·\s*[^·]+$/, '').trim() || 'Número não sincronizado'}
+                            </span>
+                          ) : null}
                           <time className="whatsapp-wa-chat-item__time" dateTime={thread.lastMessageAt}>
                             {formatThreadTime(thread.lastMessageAt)}
                           </time>
@@ -635,34 +838,20 @@ export function WhatsAppInboxPage() {
             )}
           </div>
 
-          {canSync ? (
+          {canOpenEvolutionAdmin ? (
             <footer className="whatsapp-wa-sidebar__foot">
-              <button
-                type="button"
-                className="whatsapp-wa-foot-btn"
-                disabled={syncingAvatars || syncing}
-                onClick={() => void handleSyncAvatars()}
-              >
-                <ImageIcon size={16} aria-hidden="true" />
-                {syncingAvatars ? 'Fotos…' : 'Atualizar fotos'}
-              </button>
-              <button
-                type="button"
+              <Link
                 className="whatsapp-wa-foot-btn whatsapp-wa-foot-btn--primary"
-                disabled={syncing || syncingAvatars}
-                onClick={() => void handleSyncInbox()}
+                to="/m/sistema/evolution"
+                state={{ returnTo: WHATSAPP_ROUTE }}
+                title="Adicionar, conectar ou remover instâncias WhatsApp"
               >
-                {syncing ? 'Sincronizando…' : 'Sincronizar conversas'}
-              </button>
-              <button
-                type="button"
-                className="whatsapp-wa-foot-btn whatsapp-wa-foot-btn--link"
-                onClick={() => navigate('/m/sistema/evolution')}
-              >
+                <Smartphone size={16} aria-hidden="true" />
                 Instâncias
-              </button>
+              </Link>
             </footer>
           ) : null}
+
         </aside>
 
         <main className="whatsapp-wa-main" aria-live="polite">
@@ -694,6 +883,24 @@ export function WhatsAppInboxPage() {
                   />
                 </div>
                 <div className="whatsapp-wa-chat-head__actions">
+                  <button
+                    type="button"
+                    className="whatsapp-wa-head-link whatsapp-wa-head-link--btn"
+                    title={activeThread.isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
+                    onClick={() => void handleToggleArchive()}
+                  >
+                    {activeThread.isArchived ? (
+                      <>
+                        <ArchiveRestore size={16} aria-hidden="true" />
+                        <span>Desarquivar</span>
+                      </>
+                    ) : (
+                      <>
+                        <Archive size={16} aria-hidden="true" />
+                        <span>Arquivar</span>
+                      </>
+                    )}
+                  </button>
                   {activeThread.leadId ? (
                     <Link className="whatsapp-wa-head-link" to="/m/comercial/leads">
                       Lead
@@ -704,7 +911,7 @@ export function WhatsAppInboxPage() {
 
               <div className="whatsapp-wa-messages" ref={messagesScrollRef}>
                 {loadingMessages && messages.length === 0 ? (
-                  <AppLoadingPanel label="Carregando mensagens…" />
+                  <WhatsAppMessagesSkeleton />
                 ) : (
                   messages.map((msg) => {
                     if (msg.mediaKind === 'reaction' || isReactionPlaceholderBody(msg.body)) return null;
@@ -731,12 +938,16 @@ export function WhatsAppInboxPage() {
                       </p>
                     ) : null;
 
-                        const bodyBlock =
-                          msg.body?.trim() &&
-                          !isReactionPlaceholderBody(msg.body) &&
-                          !(shouldRenderWhatsAppMedia(msg) && isMediaPlaceholderBody(msg.body)) ? (
-                            <WhatsAppMessageBody body={msg.body} />
-                          ) : null;
+                    const quoteBlock = msg.quote ? (
+                      <WhatsAppMessageQuote quote={msg.quote} isOutgoing={isOut} />
+                    ) : null;
+
+                    const bodyBlock =
+                      msg.body?.trim() &&
+                      !isReactionPlaceholderBody(msg.body) &&
+                      !(shouldRenderWhatsAppMedia(msg) && isMediaPlaceholderBody(msg.body)) ? (
+                        <WhatsAppMessageBody body={msg.body} />
+                      ) : null;
 
                     const timeEl = (
                       <time className="whatsapp-wa-bubble__time" dateTime={msg.messageAt}>
@@ -754,10 +965,11 @@ export function WhatsAppInboxPage() {
                           />
                           <div className={bubbleClass}>
                             <span className="whatsapp-wa-bubble__sender">{msg.senderName}</span>
+                            {quoteBlock}
                             {mediaBlock}
                             {bodyBlock}
-                            {renderMessageReactions(msg)}
                             <footer className="whatsapp-wa-bubble__foot">{timeEl}</footer>
+                            {renderMessageReactions(msg)}
                           </div>
                         </article>
                       );
@@ -765,10 +977,11 @@ export function WhatsAppInboxPage() {
 
                     return (
                       <article key={msg.id} className={bubbleClass}>
+                        {quoteBlock}
                         {mediaBlock}
                         {bodyBlock}
-                        {renderMessageReactions(msg)}
                         <footer className="whatsapp-wa-bubble__foot">{timeEl}</footer>
+                        {renderMessageReactions(msg)}
                       </article>
                     );
                   })

@@ -77,9 +77,33 @@ export function syncEvolutionMedia(id) {
   });
 }
 
-export function fetchWhatsAppInboxThreads(instanceId) {
-  const query = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : '';
+export function fetchWhatsAppInboxInstances() {
+  return fetchApi('/api/admin/evolution/inbox/instances');
+}
+
+export function fetchWhatsAppInboxThreads(instanceId, options = {}) {
+  const params = new URLSearchParams();
+  if (instanceId) params.set('instanceId', String(instanceId));
+  if (options.view) params.set('view', String(options.view));
+  if (options.light) params.set('light', '1');
+  const query = params.toString() ? `?${params.toString()}` : '';
   return fetchApi(`/api/admin/evolution/inbox/threads${query}`);
+}
+
+export function setWhatsAppThreadArchived(instanceId, contactPhone, archive = true) {
+  const phone = String(contactPhone ?? '').trim();
+  const instance = String(instanceId ?? '').trim();
+  if (!instance || !phone) {
+    return Promise.reject(new Error('Conversa inválida.'));
+  }
+  const segment = archive ? 'archive' : 'unarchive';
+  return fetchApi(
+    `/api/admin/evolution/inbox/threads/${encodeURIComponent(instance)}/${encodeURIComponent(phone)}/${segment}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ archive, syncWhatsApp: true }),
+    },
+  );
 }
 
 export function fetchYouTubeLinkPreview(url) {
@@ -104,14 +128,17 @@ export function markWhatsAppThreadRead(instanceId, contactPhone) {
   );
 }
 
-export function fetchWhatsAppThreadMessages(instanceId, contactPhone, limit = 300) {
+export function fetchWhatsAppThreadMessages(instanceId, contactPhone, options = {}) {
   const phone = String(contactPhone ?? '').trim();
   const instance = String(instanceId ?? '').trim();
   if (!instance || !phone) {
     return Promise.reject(new Error('Conversa inválida (contato sem identificação).'));
   }
+  const params = new URLSearchParams();
+  params.set('limit', String(options.limit ?? 300));
+  if (options.syncRemote === false) params.set('remote', '0');
   return fetchApi(
-    `/api/admin/evolution/inbox/threads/${encodeURIComponent(instance)}/${encodeURIComponent(phone)}/messages?limit=${limit}`,
+    `/api/admin/evolution/inbox/threads/${encodeURIComponent(instance)}/${encodeURIComponent(phone)}/messages?${params.toString()}`,
   );
 }
 

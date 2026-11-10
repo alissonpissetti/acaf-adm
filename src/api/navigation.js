@@ -15,14 +15,11 @@ function normalizeNavigationModules(modules) {
       LEGACY_MODULE_NAMES.has(module.name);
 
     if (!isAssociationModule) {
-      const items = (module.items ?? []).filter((item) => item.slug !== 'evolution');
-      return items.length === (module.items ?? []).length ? module : { ...module, items };
+      return module;
     }
 
     const name = 'Associações';
-    const items = (module.items ?? [])
-      .filter((item) => item.slug !== 'evolution')
-      .map((item) => {
+    const items = (module.items ?? []).map((item) => {
         if (!ACAF_ITEM_SLUGS.has(item.slug) && !LEGACY_ITEM_LABELS.has(item.label)) {
           return item;
         }

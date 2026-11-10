@@ -540,6 +540,12 @@ export function EvolutionInstancesPage() {
     }
   };
 
+  const removeInstance = async (item) => {
+    const result = await deleteEvolutionInstance(item.id);
+    setMessage(result?.warning ?? 'Instância removida.');
+    await load();
+  };
+
   const handleRefresh = async (row) => {
     setBusyId(row.id);
     setError('');
@@ -596,9 +602,8 @@ export function EvolutionInstancesPage() {
           canManage
             ? async () => {
                 if (!(await confirmCrudDelete(selected.name))) return;
-                await deleteEvolutionInstance(selected.id);
+                await removeInstance(selected);
                 router.goToList();
-                await load();
               }
             : undefined
         }
@@ -687,9 +692,7 @@ export function EvolutionInstancesPage() {
                   onEdit={(item) => router.goToEdit(item.id)}
                   onRemove={async (item) => {
                     if (!(await confirmCrudDelete(item.name))) return;
-                    await deleteEvolutionInstance(item.id);
-                    setMessage('Instância removida.');
-                    await load();
+                    await removeInstance(item);
                   }}
                 />
               ))

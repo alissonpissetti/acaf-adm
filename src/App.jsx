@@ -18,6 +18,7 @@ import { SuppliersPage } from './pages/SuppliersPage.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
 import { DepartmentsPage } from './pages/DepartmentsPage.jsx';
 import { EvolutionInstancesPage } from './pages/EvolutionInstancesPage.jsx';
+import { ChangelogPage } from './pages/ChangelogPage.jsx';
 import { JobPositionsPage } from './pages/JobPositionsPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
 import { ModalitiesPage } from './pages/ModalitiesPage.jsx';
@@ -83,6 +84,7 @@ export default function App() {
               <Route path="/m/sistema/departamentos" element={<DepartmentsPage />} />
               <Route path="/m/sistema/cargos" element={<JobPositionsPage />} />
               <Route path="/m/sistema/evolution" element={<EvolutionInstancesPage />} />
+              <Route path="/m/sistema/atualizacoes" element={<ChangelogPage />} />
               <Route path="/m/atendimento/filas" element={<SupportQueuesPage />} />
               <Route path="/m/atendimento/chamados" element={<SupportTicketsPage />} />
               <Route path="/m/notificacoes" element={<NotificationsPage />} />

@@ -11,7 +11,11 @@ export function resolveWhatsAppContact(thread) {
   const kind = isGroup ? 'named' : thread?.contactKind || inferKind(thread, title, phoneLine, nameLine);
   const isPrivate = !isGroup && (Boolean(thread?.isPrivateContact) || kind === 'private');
 
-  const primaryTitle = title || nameLine || phoneLine || 'Contato WhatsApp';
+  let primaryTitle = title || nameLine || phoneLine || 'Contato WhatsApp';
+  if (/^whatsapp\s*···\d+$/i.test(primaryTitle)) {
+    if (nameLine) primaryTitle = nameLine;
+    else if (phoneLine) primaryTitle = phoneLine;
+  }
   const normalizedNameLine =
     nameLine && nameLine !== primaryTitle && !isGroup ? nameLine : null;
   const normalizedPhoneLine =
