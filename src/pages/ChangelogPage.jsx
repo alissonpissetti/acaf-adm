@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Sparkles } from 'lucide-react';
-import { fetchChangelog } from '../api/changelog.js';
+import { Download, RefreshCw, Search } from 'lucide-react';
+import { fetchChangelog, syncChangelogFromGit } from '../api/changelog.js';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { PermissionGate } from '../components/PermissionGate.jsx';
 import '../styles/changelog.css';
@@ -25,10 +26,25 @@ function formatDayLabel(iso) {
   });
 }
 
-function formatTime(iso) {
+function formatScheduleStamp(iso) {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (Number.isNaN(d.getTime())) {
+    return { time: '—', dateShort: '—', dateLong: 'Data inválida', title: '' };
+  }
+  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const dateShort = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  const dateLong = d.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  return {
+    time,
+    dateShort,
+    dateLong,
+    title: `${dateLong} às ${time}`,
+  };
 }
 
 function groupByDay(entries) {
@@ -53,6 +69,8 @@ export function ChangelogPage() {
   const [total, setTotal] = useState(0);
   const [areas, setAreas] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncNotice, setSyncNotice] = useState('');
 
   const [area, setArea] = useState('');
   const [category, setCategory] = useState('');
@@ -101,130 +119,210 @@ export function ChangelogPage() {
 
   const grouped = useMemo(() => groupByDay(items), [items]);
 
+  const syncFromGit = useCallback(async () => {
+    setSyncing(true);
+    setSyncNotice('');
+    try {
+      const result = await syncChangelogFromGit();
+      const added = Number(result?.added ?? 0);
+      setSyncNotice(
+        added > 0
+          ? `${added} entrada(s) importada(s) do Git.`
+          : 'Nenhuma entrada nova para importar.',
+      );
+      await load({ append: false, offset: 0 });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }, [load]);
+
   return (
     <PermissionGate
       permission="sistema.changelog"
       fallback={<p className="muted">Sem permissão para ver o histórico de atualizações.</p>}
     >
-      <div className="changelog-page">
+      <div className="page-stack changelog-page">
         <PageHeader
           title="Atualizações"
-          description="Novidades e correções do projeto — alimentado pelos commits e pelo hook Git."
-          icon={<Sparkles size={22} aria-hidden="true" />}
+          subtitle="Cronograma de novidades e correções, com data e hora de cada registro."
         />
 
-        <p className="changelog-hint">
-          Para registrar automaticamente a cada commit, rode{' '}
-          <code>./scripts/install-git-hooks.sh</code> na raiz do repositório. Use a seção{' '}
-          <strong>Changelog:</strong> para bullets amigáveis. Os <strong>ambientes</strong> (admin, API,
-          parceiro, app, corporativo, site) vêm das pastas alteradas, do escopo do commit{' '}
-          <code>feat(adm):</code> ou da linha <code>Ambientes: adm, api</code>. Commits com{' '}
-          <code>[skip changelog]</code> são ignorados.
-        </p>
+        <CrudAlerts error={error} message={syncNotice} />
 
-        <div className="changelog-toolbar" role="search">
-          <input
-            type="search"
-            placeholder="Buscar no histórico…"
-            value={query}
-            onChange={(ev) => setQuery(ev.target.value)}
-            aria-label="Buscar atualizações"
-          />
-          <select value={area} onChange={(ev) => setArea(ev.target.value)} aria-label="Filtrar por ambiente">
-            <option value="">Todos os ambientes</option>
-            {areas.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={category}
-            onChange={(ev) => setCategory(ev.target.value)}
-            aria-label="Filtrar por tipo"
-          >
-            <option value="">Todos os tipos</option>
-            {categories.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.label}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn-ghost" onClick={() => void load()} title="Atualizar lista">
-            <RefreshCw size={18} aria-hidden="true" />
-            <span className="sr-only">Atualizar</span>
-          </button>
-        </div>
+        <section className="panel changelog-panel" aria-label="Histórico de atualizações">
+          <div className="panel-header panel-header--meta-only">
+            <span className="panel-meta">
+              {loading && items.length === 0 ? 'Carregando…' : `${total} registro(s)`}
+            </span>
+          </div>
 
-        {error ? <p className="form-error">{error}</p> : null}
+          <div className="panel-body changelog-panel__body">
+            <div className="changelog-toolbar" role="search">
+              <label className="changelog-search">
+                <Search size={16} aria-hidden="true" />
+                <input
+                  className="changelog-search__input"
+                  type="search"
+                  placeholder="Buscar…"
+                  value={query}
+                  onChange={(ev) => setQuery(ev.target.value)}
+                  aria-label="Buscar atualizações"
+                />
+              </label>
 
-        {loading && items.length === 0 ? (
-          <AppLoadingPanel label="Carregando atualizações…" />
-        ) : items.length === 0 ? (
-          <p className="muted">Nenhuma entrada ainda. Faça um commit com o hook ativo ou edite changelog/changelog.json.</p>
-        ) : (
-          <>
-            {grouped.map(([dayKey, dayItems]) => (
-              <section key={dayKey} className="changelog-day" aria-labelledby={`changelog-day-${dayKey}`}>
-                <h2 id={`changelog-day-${dayKey}`} className="changelog-day__title">
-                  {formatDayLabel(dayItems[0]?.committedAt)}
-                </h2>
-                <ul className="changelog-list">
-                  {dayItems.map((entry) => (
-                    <li key={entry.id}>
-                      <article className="changelog-card">
-                        <header className="changelog-card__head">
-                          <h3 className="changelog-card__title">{entry.title}</h3>
-                          <div className="changelog-card__meta">
-                            <span className={categoryPillClass(entry.category)}>{entry.categoryLabel}</span>
-                            <time dateTime={entry.committedAt}>{formatTime(entry.committedAt)}</time>
-                          </div>
-                        </header>
-                        {entry.summary ? <p className="changelog-card__summary">{entry.summary}</p> : null}
-                        {entry.highlights?.length ? (
-                          <ul className="changelog-card__highlights">
-                            {entry.highlights.map((line) => (
-                              <li key={line}>{line}</li>
-                            ))}
-                          </ul>
-                        ) : null}
-                        {entry.areas?.length ? (
-                          <div className="changelog-areas" aria-label="Ambientes afetados">
-                            {entry.areas.map((areaRow) => (
-                              <span key={areaRow.id} className="changelog-area-tag">
-                                {areaRow.label}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                        <footer className="changelog-card__foot">
-                          {entry.author ? <span>{entry.author}</span> : null}
-                          {entry.commitSha ? (
-                            <span title={entry.commitSha}>
-                              Commit {entry.commitSha.slice(0, 7)}
-                            </span>
-                          ) : null}
-                        </footer>
-                      </article>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-            {hasMore ? (
-              <div className="changelog-more">
+              <select
+                className="changelog-filter"
+                value={area}
+                onChange={(ev) => setArea(ev.target.value)}
+                aria-label="Ambiente"
+              >
+                <option value="">Ambiente</option>
+                {areas.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="changelog-filter"
+                value={category}
+                onChange={(ev) => setCategory(ev.target.value)}
+                aria-label="Tipo"
+              >
+                <option value="">Tipo</option>
+                {categories.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.label}
+                  </option>
+                ))}
+              </select>
+
+              <div className="changelog-toolbar__actions">
                 <button
                   type="button"
-                  className="btn-secondary"
-                  disabled={loadingMore}
-                  onClick={() => void load({ append: true, offset: items.length })}
+                  className="btn-ghost btn-sm changelog-toolbar__btn"
+                  onClick={() => void load()}
+                  disabled={loading}
+                  title="Atualizar lista"
                 >
-                  {loadingMore ? 'Carregando…' : 'Carregar mais'}
+                  <RefreshCw size={16} aria-hidden="true" />
+                  <span>Atualizar</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary btn-sm changelog-toolbar__btn"
+                  disabled={syncing}
+                  onClick={() => void syncFromGit()}
+                  title="Gravar entradas faltantes a partir do Git"
+                >
+                  <Download size={16} aria-hidden="true" />
+                  <span>{syncing ? 'Importando…' : 'Importar do Git'}</span>
                 </button>
               </div>
-            ) : null}
-          </>
-        )}
+            </div>
+
+            {loading && items.length === 0 ? (
+              <AppLoadingPanel label="Carregando atualizações…" />
+            ) : items.length === 0 ? (
+              <p className="changelog-empty muted">Nenhuma atualização encontrada.</p>
+            ) : (
+              <div className="changelog-feed changelog-cronograma">
+                {grouped.map(([dayKey, dayItems]) => (
+                  <section key={dayKey} className="changelog-day" aria-labelledby={`changelog-day-${dayKey}`}>
+                    <h2 id={`changelog-day-${dayKey}`} className="changelog-day__title">
+                      {formatDayLabel(dayItems[0]?.committedAt)}
+                    </h2>
+                    <ol className="changelog-timeline">
+                      {dayItems.map((entry) => {
+                        const stamp = formatScheduleStamp(entry.committedAt);
+                        return (
+                          <li key={entry.id} className="changelog-timeline__row">
+                            <div
+                              className="changelog-timeline__stamp"
+                              aria-label={stamp.title}
+                              title={stamp.title}
+                            >
+                              <time dateTime={entry.committedAt}>
+                                <span className="changelog-timeline__time">{stamp.time}</span>
+                                <span className="changelog-timeline__date">{stamp.dateShort}</span>
+                              </time>
+                            </div>
+                            <div className="changelog-timeline__rail" aria-hidden="true">
+                              <span className="changelog-timeline__dot" />
+                            </div>
+                            <article className="changelog-card">
+                              <header className="changelog-card__head">
+                                <div className="changelog-card__head-main">
+                                  <time
+                                    className="changelog-card__when"
+                                    dateTime={entry.committedAt}
+                                    title={stamp.title}
+                                  >
+                                    <span className="changelog-card__when-date">{stamp.dateLong}</span>
+                                    <span className="changelog-card__when-sep" aria-hidden="true">
+                                      ·
+                                    </span>
+                                    <span className="changelog-card__when-time">{stamp.time}</span>
+                                  </time>
+                                  <h3 className="changelog-card__title">{entry.title}</h3>
+                                </div>
+                                <span className={categoryPillClass(entry.category)}>{entry.categoryLabel}</span>
+                              </header>
+                            {entry.summary ? <p className="changelog-card__summary">{entry.summary}</p> : null}
+                            {entry.highlights?.length ? (
+                              <ul className="changelog-card__highlights">
+                                {entry.highlights.map((line) => (
+                                  <li key={line}>{line}</li>
+                                ))}
+                              </ul>
+                            ) : null}
+                            {entry.areas?.length ? (
+                              <div className="changelog-areas" aria-label="Ambientes afetados">
+                                {entry.areas.map((areaRow) => (
+                                  <span key={areaRow.id} className="changelog-area-tag">
+                                    {areaRow.label}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                            <footer className="changelog-card__foot">
+                              {entry.author ? <span>{entry.author}</span> : null}
+                              {entry.repository ? <span>{entry.repository}</span> : null}
+                              {entry.source === 'git' ? (
+                                <span className="changelog-card__git" title="Ainda não gravado no JSON">
+                                  Git
+                                </span>
+                              ) : null}
+                              {entry.commitSha ? (
+                                <span title={entry.commitSha}>{entry.commitSha.slice(0, 7)}</span>
+                              ) : null}
+                            </footer>
+                            </article>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </section>
+                ))}
+                {hasMore ? (
+                  <div className="changelog-more">
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      disabled={loadingMore}
+                      onClick={() => void load({ append: true, offset: items.length })}
+                    >
+                      {loadingMore ? 'Carregando…' : 'Carregar mais'}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </PermissionGate>
   );

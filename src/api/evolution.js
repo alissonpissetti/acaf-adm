@@ -86,6 +86,8 @@ export function fetchWhatsAppInboxThreads(instanceId, options = {}) {
   if (instanceId) params.set('instanceId', String(instanceId));
   if (options.view) params.set('view', String(options.view));
   if (options.light) params.set('light', '1');
+  if (options.limit != null) params.set('limit', String(options.limit));
+  if (options.offset != null) params.set('offset', String(options.offset));
   const query = params.toString() ? `?${params.toString()}` : '';
   return fetchApi(`/api/admin/evolution/inbox/threads${query}`);
 }
@@ -136,10 +138,18 @@ export function fetchWhatsAppThreadMessages(instanceId, contactPhone, options = 
   }
   const params = new URLSearchParams();
   params.set('limit', String(options.limit ?? 300));
-  if (options.syncRemote === false) params.set('remote', '0');
+  if (options.syncRemote === true) params.set('remote', '1');
+  else if (options.syncRemote === false) params.set('remote', '0');
   return fetchApi(
     `/api/admin/evolution/inbox/threads/${encodeURIComponent(instance)}/${encodeURIComponent(phone)}/messages?${params.toString()}`,
   );
+}
+
+export function fetchWhatsAppAvatarsBatch(items) {
+  return fetchApi('/api/admin/evolution/inbox/avatars/batch', {
+    method: 'POST',
+    body: JSON.stringify({ items: items ?? [] }),
+  });
 }
 
 export async function fetchWhatsAppContactAvatarBlob(instanceId, contactPhone) {

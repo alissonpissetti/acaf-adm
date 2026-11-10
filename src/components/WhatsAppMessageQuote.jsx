@@ -1,8 +1,19 @@
+const MEDIA_LABELS = {
+  image: '[imagem]',
+  video: '[vídeo]',
+  audio: '[áudio]',
+  document: '[documento]',
+  sticker: '[figurinha]',
+};
+
 export function WhatsAppMessageQuote({ quote, isOutgoing = false }) {
-  if (!quote?.body?.trim()) return null;
+  if (!quote) return null;
 
   const author = String(quote.author ?? '').trim();
-  const body = String(quote.body ?? '').trim();
+  const mediaKind = String(quote.mediaKind ?? '').trim();
+  const rawBody = String(quote.body ?? '').trim();
+  const body = rawBody || (mediaKind ? MEDIA_LABELS[mediaKind] ?? '[mídia]' : '');
+  if (!body) return null;
 
   return (
     <blockquote

@@ -229,6 +229,18 @@
   background: #fff;
 }
 
+.whatsapp-contact-avatar-host {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.whatsapp-wa-chat-list__more {
+  margin: 0;
+  padding: 0.75rem 1rem 1rem;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
 .whatsapp-wa-skeleton {
   display: block;
   border-radius: 6px;

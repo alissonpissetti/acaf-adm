@@ -17,3 +17,7 @@ export function fetchChangelog({
   if (q.trim()) params.set('q', q.trim());
   return fetchApi(`/api/admin/changelog?${params.toString()}`);
 }
+
+export function syncChangelogFromGit() {
+  return fetchApi('/api/admin/changelog/sync', { method: 'POST' });
+}
