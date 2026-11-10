@@ -6,6 +6,7 @@ import { NavigationProvider, useActiveModuleItem } from '../navigation/Navigatio
 import { ModuleSidebar } from './ModuleSidebar.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { NotificationBell } from '../components/NotificationBell.jsx';
+import { WhatsAppNavButton } from '../components/WhatsAppNavButton.jsx';
 import { UserProfilePanel } from '../components/UserProfilePanel.jsx';
 import { MOVLY_WORDMARK } from '../brand/displayName.js';
 import { BrandLogo } from '../components/BrandLogo.jsx';
@@ -15,7 +16,7 @@ import './AdminLayout.css';
 function AdminLayoutInner() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, avatarImageVersion } = useAuth();
   const { module, item } = useActiveModuleItem(location.pathname);
   const topTitle = item?.label ?? module?.name ?? `${MOVLY_WORDMARK} Admin`;
   const [navOpen, setNavOpen] = useState(false);
@@ -70,6 +71,7 @@ function AdminLayoutInner() {
           {module && !item ? <div className="admin-mobile-bar-meta">{module.name}</div> : null}
         </div>
 
+        <WhatsAppNavButton className="whatsapp-nav-btn--compact" />
         <button type="button" className="admin-mobile-logout btn-ghost btn-sm" onClick={onLogout}>
           Sair
         </button>
@@ -112,7 +114,13 @@ function AdminLayoutInner() {
 
         <footer className="admin-sidebar-footer">
           <div className="admin-sidebar-user-card">
-            <Avatar name={user?.name} src={user?.avatarUrl} color={user?.avatarColor} size="sm" />
+            <Avatar
+              name={user?.name}
+              src={user?.avatarUrl}
+              color={user?.avatarColor}
+              size="sm"
+              cacheBust={avatarImageVersion}
+            />
             <div className="admin-sidebar-user-text">
               {user?.name ? <div className="admin-sidebar-user-name">{user.name}</div> : null}
               <div className="admin-env-badge">Sessão ativa</div>
@@ -128,6 +136,7 @@ function AdminLayoutInner() {
             {module && !item ? <div className="admin-topbar-meta">{module.name}</div> : null}
           </div>
           <div className="admin-topbar-actions">
+            <WhatsAppNavButton className="whatsapp-nav-btn--topbar" />
             <NotificationBell />
             <div className="admin-user-menu" ref={profileRef}>
               <button
@@ -137,7 +146,13 @@ function AdminLayoutInner() {
                 aria-haspopup="dialog"
                 onClick={() => setProfileOpen((open) => !open)}
               >
-                <Avatar name={user?.name} src={user?.avatarUrl} color={user?.avatarColor} size="sm" />
+                <Avatar
+                  name={user?.name}
+                  src={user?.avatarUrl}
+                  color={user?.avatarColor}
+                  size="sm"
+                  cacheBust={avatarImageVersion}
+                />
                 <span>{user?.name}</span>
               </button>
 

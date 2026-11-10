@@ -126,6 +126,7 @@ export function AvatarCropModal({ file, onCancel, onConfirm }) {
       await onConfirm?.(cropped);
     } catch (err) {
       setError(err.message);
+    } finally {
       setBusy(false);
     }
   };

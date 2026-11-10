@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchNavigation } from '../api/navigation.js';
+import { isExternalRoute } from './routeUtils.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 
 const NavigationContext = createContext(null);
@@ -52,8 +53,9 @@ export function useActiveModuleItem(pathname) {
   const { modules } = useNavigation();
 
   for (const module of modules) {
-    const item = module.items.find((entry) =>
-      pathname.startsWith(entry.route.split('?')[0]),
+    const item = module.items.find(
+      (entry) =>
+        !isExternalRoute(entry.route) && pathname.startsWith(entry.route.split('?')[0]),
     );
     if (item) {
       return { module, item };

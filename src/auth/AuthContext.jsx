@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [avatarImageVersion, setAvatarImageVersion] = useState(0);
 
   const applyProfile = (profile) => {
     setUser(profile);
@@ -70,6 +71,10 @@ export function AuthProvider({ children }) {
     return profile;
   };
 
+  const bumpAvatarImage = () => {
+    setAvatarImageVersion(Date.now());
+  };
+
   const hasPermission = (key) => permissions.includes(key);
 
   const value = useMemo(
@@ -86,8 +91,10 @@ export function AuthProvider({ children }) {
       resetPasswordWithOtp,
       logout,
       refreshProfile,
+      avatarImageVersion,
+      bumpAvatarImage,
     }),
-    [user, permissions, loading],
+    [user, permissions, loading, avatarImageVersion],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

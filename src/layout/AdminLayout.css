@@ -47,6 +47,64 @@
   border-bottom: 1px solid var(--sidebar-border);
 }
 
+.whatsapp-nav-btn {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.375rem;
+  height: 2.375rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: #1f1f1f;
+  cursor: pointer;
+  filter: grayscale(1);
+  opacity: 0.82;
+  transition:
+    color 0.15s ease,
+    filter 0.15s ease,
+    opacity 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.whatsapp-nav-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--surface-muted);
+}
+
+.whatsapp-nav-btn.is-connected {
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.08);
+  filter: none;
+  opacity: 1;
+}
+
+.whatsapp-nav-btn.is-idle {
+  color: #2a2a2a;
+}
+
+.whatsapp-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+.whatsapp-nav-btn--topbar,
+.whatsapp-nav-btn--compact {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.admin-topbar-actions .whatsapp-nav-btn:hover:not(:disabled) {
+  border-color: var(--select-border);
+  background: var(--select-soft);
+}
+
 .admin-brand {
   display: flex;
   flex-direction: row;
@@ -307,6 +365,22 @@
   padding: 0.25rem 0 0.5rem 0.25rem;
   margin: 0 0 0 0.25rem;
   border-left: 1px solid var(--sidebar-border);
+}
+
+.module-sidebar-child-link--external {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.module-sidebar-external-icon {
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.5;
+}
+
+.module-sidebar-child-link--external:hover .module-sidebar-external-icon {
+  opacity: 0.85;
 }
 
 .module-sidebar-child-link {

@@ -30,7 +30,7 @@ function personFieldsFromUser(user) {
 }
 
 export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdated, onDeleted }) {
-  const { user: currentUser, refreshProfile } = useAuth();
+  const { user: currentUser, refreshProfile, bumpAvatarImage } = useAuth();
   const [form, setForm] = useState(() => personFieldsFromUser(user));
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? null);
   const [avatarColor, setAvatarColor] = useState(user.avatarColor ?? null);
@@ -82,7 +82,10 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
       }
       await updateUser(user.id, patch);
       setForm((current) => ({ ...current, password: '' }));
-      setMessage('Usuário atualizado.');
+      setMessage(isSelf ? 'Seus dados foram atualizados.' : 'Usuário atualizado.');
+      if (isSelf) {
+        await refreshProfile();
+      }
       onUpdated?.();
     } catch (err) {
       setError(err.message);
@@ -146,6 +149,7 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
                   setAvatarUrl(nextUrl);
                   if (nextColor) setAvatarColor(nextColor);
                   await refreshProfile();
+                  bumpAvatarImage();
                 }}
                 onColorChange={async (nextColor) => {
                   await updateMyProfile({ avatarColor: nextColor });

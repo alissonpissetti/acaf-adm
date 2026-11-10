@@ -1,18 +1,43 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Pencil } from 'lucide-react';
 import { updateMyProfile } from '../api/auth.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { UserAvatarField } from './UserAvatarField.jsx';
 import { ModalCloseButton } from './ModalCloseButton.jsx';
 
+const MY_ACCOUNT_EDIT_PATH = '/m/operacao/usuarios';
+
 export function UserProfilePanel({ onClose }) {
-  const { user, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const { user, refreshProfile, bumpAvatarImage } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? null);
+  const [avatarColor, setAvatarColor] = useState(user?.avatarColor ?? null);
   const [busyColor, setBusyColor] = useState('');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    setAvatarUrl(user?.avatarUrl ?? null);
+    setAvatarColor(user?.avatarColor ?? null);
+  }, [user?.avatarUrl, user?.avatarColor]);
+
   if (!user) return null;
 
-  const onAvatarChange = async () => {
-    await refreshProfile();
+  const onAvatarChange = async (nextUrl, nextColor) => {
+    setAvatarUrl(nextUrl ?? null);
+    if (nextColor) setAvatarColor(nextColor);
+    bumpAvatarImage();
+    setError('');
+    try {
+      await refreshProfile();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const goToAccountEdit = () => {
+    onClose?.();
+    navigate(`${MY_ACCOUNT_EDIT_PATH}?id=${encodeURIComponent(user.id)}`);
   };
 
   const onColorChange = async (colorId) => {
@@ -34,7 +59,7 @@ export function UserProfilePanel({ onClose }) {
       <header className="user-profile-panel-head">
         <div>
           <h2>Meu perfil</h2>
-          <p>Gerencie sua foto e a cor do avatar.</p>
+          <p>Foto, cor do avatar e dados cadastrais da sua conta.</p>
         </div>
         <ModalCloseButton onClick={onClose} />
       </header>
@@ -44,23 +69,36 @@ export function UserProfilePanel({ onClose }) {
 
         <UserAvatarField
           name={user.name}
-          avatarUrl={user.avatarUrl}
-          avatarColor={user.avatarColor}
+          avatarUrl={avatarUrl}
+          avatarColor={avatarColor ?? user.avatarColor}
           onChange={onAvatarChange}
           onColorChange={onColorChange}
           busyColor={busyColor}
         />
 
-        <dl className="user-profile-meta">
-          <div>
-            <dt>Nome</dt>
-            <dd>{user.name}</dd>
+        <div className="user-profile-meta-section">
+          <div className="user-profile-meta-head">
+            <span className="field-label">Dados cadastrais</span>
+            <button
+              type="button"
+              className="btn-ghost btn-sm user-profile-edit-data"
+              onClick={goToAccountEdit}
+            >
+              <Pencil size={14} aria-hidden="true" />
+              Editar dados
+            </button>
           </div>
-          <div>
-            <dt>E-mail</dt>
-            <dd>{user.email}</dd>
-          </div>
-        </dl>
+          <dl className="user-profile-meta">
+            <div>
+              <dt>Nome</dt>
+              <dd>{user.name}</dd>
+            </div>
+            <div>
+              <dt>E-mail</dt>
+              <dd>{user.email}</dd>
+            </div>
+          </dl>
+        </div>
       </div>
     </div>
   );

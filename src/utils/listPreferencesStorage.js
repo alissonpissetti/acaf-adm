@@ -22,6 +22,7 @@ export const LIST_PREFERENCE_KEYS = {
   jobPositions: 'config.cargos',
   departments: 'config.departamentos',
   platformSettings: 'config.parametros-plataforma',
+  evolutionInstances: 'config.evolution-instancias',
   supportQueues: 'atendimento.filas',
 };
 

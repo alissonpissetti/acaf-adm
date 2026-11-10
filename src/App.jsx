@@ -9,6 +9,7 @@ import { AdminLayout } from './layout/AdminLayout.jsx';
 import { CashFlowPage } from './pages/CashFlowPage.jsx';
 import { CommercialFunnelsPage } from './pages/CommercialFunnelsPage.jsx';
 import { CommercialLeadsPage } from './pages/CommercialLeadsPage.jsx';
+import { WhatsAppInboxPage } from './pages/WhatsAppInboxPage.jsx';
 import { CompaniesPage } from './pages/CompaniesPage.jsx';
 import { ConnectPlansPage } from './pages/ConnectPlansPage.jsx';
 import { CostCentersPage } from './pages/CostCentersPage.jsx';
@@ -16,6 +17,7 @@ import { AccountPlansPage } from './pages/AccountPlansPage.jsx';
 import { SuppliersPage } from './pages/SuppliersPage.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
 import { DepartmentsPage } from './pages/DepartmentsPage.jsx';
+import { EvolutionInstancesPage } from './pages/EvolutionInstancesPage.jsx';
 import { JobPositionsPage } from './pages/JobPositionsPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
 import { ModalitiesPage } from './pages/ModalitiesPage.jsx';
@@ -66,6 +68,7 @@ export default function App() {
               <Route path="/m/associacao/parceiros" element={<AcafAssociationRedirect />} />
               <Route path="/m/comercial/leads" element={<CommercialLeadsPage />} />
               <Route path="/m/comercial/funis" element={<CommercialFunnelsPage />} />
+              <Route path="/m/comercial/whatsapp" element={<WhatsAppInboxPage />} />
               <Route path="/m/marketing/painel" element={<MarketingDashboardPage />} />
               <Route path="/m/marketing/campanhas" element={<MarketingCampaignsPage />} />
               <Route path="/m/marketing/formularios" element={<MarketingLandingPagesPage />} />
@@ -79,6 +82,7 @@ export default function App() {
               <Route path="/m/sistema/grupos" element={<UserGroupsPage />} />
               <Route path="/m/sistema/departamentos" element={<DepartmentsPage />} />
               <Route path="/m/sistema/cargos" element={<JobPositionsPage />} />
+              <Route path="/m/sistema/evolution" element={<EvolutionInstancesPage />} />
               <Route path="/m/atendimento/filas" element={<SupportQueuesPage />} />
               <Route path="/m/atendimento/chamados" element={<SupportTicketsPage />} />
               <Route path="/m/notificacoes" element={<NotificationsPage />} />

@@ -30,6 +30,7 @@ export function UserAvatarField({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [cropFile, setCropFile] = useState(null);
+  const [imageBust, setImageBust] = useState(0);
 
   const pickFile = () => {
     if (!disabled && !busy) inputRef.current?.click();
@@ -38,13 +39,21 @@ export function UserAvatarField({
   const uploadFile = async (file) => {
     setBusy(true);
     setError('');
+    let profile = null;
     try {
-      const profile = await uploadMyAvatar(file);
-      onChange?.(profile.avatarUrl ?? null, profile.avatarColor ?? avatarColor);
+      profile = await uploadMyAvatar(file);
+      setImageBust(Date.now());
     } catch (err) {
       setError(normalizeUploadError(err.message));
     } finally {
       setBusy(false);
+    }
+    if (profile) {
+      try {
+        await onChange?.(profile.avatarUrl ?? null, profile.avatarColor ?? avatarColor);
+      } catch (err) {
+        setError(normalizeUploadError(err.message));
+      }
     }
   };
 
@@ -73,20 +82,31 @@ export function UserAvatarField({
   };
 
   const onCropConfirm = async (file) => {
-    await uploadFile(file);
-    setCropFile(null);
+    try {
+      await uploadFile(file);
+    } finally {
+      setCropFile(null);
+    }
   };
 
   const onRemove = async () => {
     setBusy(true);
     setError('');
+    let profile = null;
     try {
-      const profile = await removeMyAvatar();
-      onChange?.(profile.avatarUrl ?? null, profile.avatarColor ?? avatarColor);
+      profile = await removeMyAvatar();
+      setImageBust(Date.now());
     } catch (err) {
       setError(normalizeUploadError(err.message));
     } finally {
       setBusy(false);
+    }
+    if (profile) {
+      try {
+        await onChange?.(profile.avatarUrl ?? null, profile.avatarColor ?? avatarColor);
+      } catch (err) {
+        setError(normalizeUploadError(err.message));
+      }
     }
   };
 
@@ -108,7 +128,7 @@ export function UserAvatarField({
           disabled={disabled || busy}
           aria-label="Alterar foto de perfil"
         >
-          <Avatar name={name} src={avatarUrl} color={avatarColor} size="lg" />
+          <Avatar name={name} src={avatarUrl} color={avatarColor} size="lg" cacheBust={imageBust} />
         </button>
 
         <div className="user-avatar-copy">
