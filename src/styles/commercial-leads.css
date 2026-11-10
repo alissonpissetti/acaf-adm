@@ -2158,7 +2158,9 @@ body.whatsapp-fullscreen-open {
 
 .whatsapp-inbox-media {
   display: block;
-  max-width: min(320px, 100%);
+  min-width: min(260px, 100%);
+  min-height: 160px;
+  max-width: min(420px, 100%);
   width: auto;
   max-height: 360px;
   border-radius: var(--radius-md);

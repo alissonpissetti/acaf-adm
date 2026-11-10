@@ -6,18 +6,20 @@ import {
   fetchEvolutionOverview,
   fetchWhatsAppInboxThreads,
   fetchWhatsAppThreadMessages,
+  markWhatsAppThreadRead,
   syncEvolutionInbox,
   syncEvolutionAvatars,
 } from '../api/evolution.js';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { WhatsAppMessageMedia } from '../components/WhatsAppMessageMedia.jsx';
+import { WhatsAppMessageBody } from '../components/WhatsAppMessageBody.jsx';
 import { WhatsAppContactAvatar } from '../components/WhatsAppContactAvatar.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import {
   WhatsAppContactIdentity,
   whatsAppContactAvatarLabel,
 } from '../components/WhatsAppContactIdentity.jsx';
-import { resolveWhatsAppContact } from '../utils/whatsappContactDisplay.js';
+import { isReactionPlaceholderBody, resolveWhatsAppContact } from '../utils/whatsappContactDisplay.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { useEvolutionInboxSocket } from '../hooks/useEvolutionInboxSocket.js';
@@ -53,7 +55,35 @@ function isMediaPlaceholderBody(body) {
 }
 
 function shouldRenderWhatsAppMedia(msg) {
-  return Boolean(msg?.mediaKind && msg?.hasMedia);
+  return Boolean(msg?.mediaKind && msg?.hasMedia && msg.mediaKind !== 'reaction');
+}
+
+function groupMessageReactions(reactions) {
+  if (!Array.isArray(reactions) || !reactions.length) return [];
+  const byEmoji = new Map();
+  for (const row of reactions) {
+    const emoji = String(row?.emoji ?? '').trim();
+    if (!emoji) continue;
+    const current = byEmoji.get(emoji) ?? { emoji, count: 0 };
+    current.count += 1;
+    byEmoji.set(emoji, current);
+  }
+  return [...byEmoji.values()];
+}
+
+function MessageReactions({ reactions }) {
+  const chips = groupMessageReactions(reactions);
+  if (!chips.length) return null;
+  return (
+    <div className="whatsapp-wa-reactions" aria-label="Reações">
+      {chips.map((chip) => (
+        <span key={chip.emoji} className="whatsapp-wa-reactions__chip" title={`Reação ${chip.emoji}`}>
+          <span className="whatsapp-wa-reactions__emoji">{chip.emoji}</span>
+          {chip.count > 1 ? <span className="whatsapp-wa-reactions__count">{chip.count}</span> : null}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 const WHATSAPP_ROUTE = '/m/comercial/whatsapp';
@@ -81,38 +111,61 @@ export function WhatsAppInboxPage() {
   const [threadQuery, setThreadQuery] = useState('');
   const [threadKind, setThreadKind] = useState('all');
 
-  const loadThreads = useCallback(async () => {
-    setLoadingThreads(true);
+  const loadThreads = useCallback(async ({ background = false } = {}) => {
+    const silent = Boolean(background);
+    if (!silent) {
+      setLoadingThreads(true);
+    }
     setError('');
     try {
       const rows = await fetchWhatsAppInboxThreads(instanceFilter || undefined);
       setThreads(rows ?? []);
     } catch (err) {
       setError(err.message);
-      setThreads([]);
+      if (!silent) {
+        setThreads([]);
+      }
     } finally {
-      setLoadingThreads(false);
+      if (!silent) {
+        setLoadingThreads(false);
+      }
     }
   }, [instanceFilter]);
 
-  const loadMessages = useCallback(async (thread) => {
+  const loadMessagesRequestRef = useRef(0);
+
+  const loadMessages = useCallback(async (thread, { background = false } = {}) => {
     if (!thread?.instanceId || !String(thread.contactPhone ?? '').trim()) {
       setMessages([]);
       return;
     }
-    setLoadingMessages(true);
+    const threadKey = thread.threadKey;
+    const requestId = ++loadMessagesRequestRef.current;
+    const silent = Boolean(background);
+
+    if (!silent) {
+      setLoadingMessages(true);
+    }
     setError('');
     try {
       const rows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone);
+      if (requestId !== loadMessagesRequestRef.current) return;
+      if (activeThreadRef.current?.threadKey !== threadKey) return;
       setMessages(rows ?? []);
       setThreads((prev) =>
-        prev.map((t) => (t.threadKey === thread.threadKey ? { ...t, unreadCount: 0 } : t)),
+        prev.map((t) => (t.threadKey === threadKey ? { ...t, unreadCount: 0 } : t)),
       );
     } catch (err) {
+      if (requestId !== loadMessagesRequestRef.current) return;
+      if (activeThreadRef.current?.threadKey !== threadKey) return;
       setError(err.message);
-      setMessages([]);
+      if (!silent) {
+        setMessages([]);
+      }
     } finally {
-      setLoadingMessages(false);
+      if (requestId === loadMessagesRequestRef.current && !silent) {
+        setLoadingMessages(false);
+      }
     }
   }, []);
 
@@ -148,8 +201,9 @@ export function WhatsAppInboxPage() {
   }, []);
 
   useEffect(() => {
-    void loadThreads();
-    const timer = window.setInterval(() => void loadThreads(), 30_000);
+    const background = threadsCountRef.current > 0;
+    void loadThreads({ background });
+    const timer = window.setInterval(() => void loadThreads({ background: true }), 30_000);
     return () => window.clearInterval(timer);
   }, [loadThreads]);
 
@@ -169,7 +223,9 @@ export function WhatsAppInboxPage() {
   const selectedKey = selected?.threadKey ?? '';
   const activeThread = useMemo(() => {
     if (!selectedKey) return null;
-    return threads.find((thread) => thread.threadKey === selectedKey) ?? selected;
+    const fromList = threads.find((thread) => thread.threadKey === selectedKey);
+    if (fromList) return fromList;
+    return selected?.threadKey === selectedKey ? selected : null;
   }, [threads, selectedKey, selected]);
 
   const isGroupChat =
@@ -177,6 +233,11 @@ export function WhatsAppInboxPage() {
     String(activeThread?.contactPhone ?? '').startsWith('group:');
 
   const messagesScrollRef = useRef(null);
+  const activeThreadRef = useRef(null);
+  const threadsRefreshTimerRef = useRef(null);
+  const threadsCountRef = useRef(0);
+  threadsCountRef.current = threads.length;
+  activeThreadRef.current = activeThread;
 
   const scrollMessagesToBottom = useCallback(() => {
     const el = messagesScrollRef.current;
@@ -186,26 +247,83 @@ export function WhatsAppInboxPage() {
     });
   }, []);
 
+  const scheduleLoadThreads = useCallback(() => {
+    if (threadsRefreshTimerRef.current) {
+      window.clearTimeout(threadsRefreshTimerRef.current);
+    }
+    threadsRefreshTimerRef.current = window.setTimeout(() => {
+      threadsRefreshTimerRef.current = null;
+      void loadThreads({ background: true });
+    }, 250);
+  }, [loadThreads]);
+
+  const threadMatchesActivity = useCallback((thread, payload) => {
+    if (!thread || !payload?.instanceId) return false;
+    if (payload.instanceId !== thread.instanceId) return false;
+    const keys = new Set(
+      [payload.contactPhone, ...(payload.contactPhones ?? [])]
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean),
+    );
+    if (keys.has(String(thread.contactPhone ?? '').trim())) return true;
+    return payload.contactPhone === thread.contactPhone;
+  }, []);
+
   const onThreadsUpdated = useCallback(
     (payload) => {
       if (instanceFilter && payload?.instanceId && payload.instanceId !== instanceFilter) {
         return;
       }
-      void loadThreads();
+      scheduleLoadThreads();
     },
-    [instanceFilter, loadThreads],
+    [instanceFilter, scheduleLoadThreads],
   );
 
   const onThreadActivity = useCallback(
     (payload) => {
-      if (!activeThread || !payload) return;
-      if (payload.instanceId !== activeThread.instanceId) return;
-      if (payload.contactPhone !== activeThread.contactPhone) return;
-      void loadMessages(activeThread);
-      void loadThreads();
+      if (!payload?.instanceId) return;
+
+      scheduleLoadThreads();
+
+      const open = activeThreadRef.current;
+      if (!open || !threadMatchesActivity(open, payload)) return;
+
+      const incoming = payload.message;
+      if (incoming?.id) {
+        if (incoming.mediaKind === 'reaction' || isReactionPlaceholderBody(incoming.body)) {
+          void loadMessages(open, { background: true });
+          return;
+        }
+        setMessages((prev) => {
+          if (prev.some((row) => row.id === incoming.id)) return prev;
+          return [...prev, incoming];
+        });
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.threadKey === open.threadKey
+              ? {
+                  ...t,
+                  unreadCount: 0,
+                  lastMessagePreview:
+                    incoming.body?.trim() ||
+                    (incoming.mediaKind ? `[${incoming.mediaKind}]` : t.lastMessagePreview),
+                  lastMessageAt: incoming.messageAt ?? t.lastMessageAt,
+                  lastDirection: incoming.direction ?? t.lastDirection,
+                }
+              : t,
+          ),
+        );
+        void markWhatsAppThreadRead(open.instanceId, open.contactPhone).catch(() => {});
+        requestAnimationFrame(() => scrollMessagesToBottom());
+        return;
+      }
+
+      void loadMessages(open, { background: true });
     },
-    [activeThread, loadMessages, loadThreads],
+    [loadMessages, scheduleLoadThreads, threadMatchesActivity, scrollMessagesToBottom],
   );
+
+  const renderMessageReactions = (msg) => <MessageReactions reactions={msg.reactions} />;
 
   const { connected: inboxSocketConnected } = useEvolutionInboxSocket({
     enabled: canView,
@@ -215,17 +333,40 @@ export function WhatsAppInboxPage() {
     onThreadActivity,
   });
 
-  useEffect(() => {
-    if (!activeThread) {
+  const selectThread = useCallback(
+    (thread) => {
+      if (!thread?.threadKey) return;
+      if (thread.threadKey === selectedKey) return;
+      loadMessagesRequestRef.current += 1;
       setMessages([]);
+      setLoadingMessages(true);
+      setSelected(thread);
+    },
+    [selectedKey],
+  );
+
+  useEffect(() => {
+    if (!activeThread?.threadKey) {
+      setMessages([]);
+      setLoadingMessages(false);
       return undefined;
     }
-    const pullMessages = () => void loadMessages(activeThread);
-    pullMessages();
-    const pollMs = inboxSocketConnected ? 45_000 : 12_000;
-    const timer = window.setInterval(pullMessages, pollMs);
-    return () => window.clearInterval(timer);
-  }, [activeThread, loadMessages, inboxSocketConnected]);
+
+    const threadKey = activeThread.threadKey;
+    void loadMessages(activeThread);
+
+    const pollMs = inboxSocketConnected ? 120_000 : 12_000;
+    const timer = window.setInterval(() => {
+      const open = activeThreadRef.current;
+      if (open?.threadKey !== threadKey) return;
+      void loadMessages(open, { background: true });
+    }, pollMs);
+
+    return () => {
+      window.clearInterval(timer);
+      loadMessagesRequestRef.current += 1;
+    };
+  }, [activeThread?.threadKey, loadMessages, inboxSocketConnected]);
 
   useEffect(() => {
     scrollMessagesToBottom();
@@ -295,7 +436,7 @@ export function WhatsAppInboxPage() {
       if (result?.message) {
         setSyncHint(result.message);
       }
-      await loadThreads();
+      await loadThreads({ background: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -319,7 +460,7 @@ export function WhatsAppInboxPage() {
       } else if (result?.message) {
         setSyncHint(result.message);
       }
-      await loadThreads();
+      await loadThreads({ background: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -389,7 +530,7 @@ export function WhatsAppInboxPage() {
                 className="whatsapp-wa-icon-btn"
                 aria-label="Atualizar lista"
                 title="Atualizar"
-                onClick={() => void loadThreads()}
+                onClick={() => void loadThreads({ background: true })}
               >
                 <RefreshCw size={18} aria-hidden="true" />
               </button>
@@ -430,7 +571,7 @@ export function WhatsAppInboxPage() {
           </div>
 
           <div className="whatsapp-wa-chat-list">
-            {loadingThreads ? (
+            {loadingThreads && threads.length === 0 ? (
               <AppLoadingPanel label="Carregando conversas…" />
             ) : threads.length === 0 ? (
               <div className="whatsapp-inbox-empty muted">
@@ -459,7 +600,7 @@ export function WhatsAppInboxPage() {
                         className={`whatsapp-wa-chat-item${active ? ' is-active' : ''}${
                           isUnread ? ' is-unread' : ''
                         }`}
-                        onClick={() => setSelected(thread)}
+                        onClick={() => selectThread(thread)}
                       >
                         <WhatsAppContactAvatar
                           className="whatsapp-wa-chat-item__avatar"
@@ -470,23 +611,21 @@ export function WhatsAppInboxPage() {
                           size="md"
                         />
                         <span className="whatsapp-wa-chat-item__body">
-                          <span className="whatsapp-wa-chat-item__row">
-                            <span className="whatsapp-wa-chat-item__name">{contact.title}</span>
-                            <time className="whatsapp-wa-chat-item__time" dateTime={thread.lastMessageAt}>
-                              {formatThreadTime(thread.lastMessageAt)}
-                            </time>
+                          <span className="whatsapp-wa-chat-item__name">{contact.title}</span>
+                          <time className="whatsapp-wa-chat-item__time" dateTime={thread.lastMessageAt}>
+                            {formatThreadTime(thread.lastMessageAt)}
+                          </time>
+                          <span className="whatsapp-wa-chat-item__preview">
+                            {thread.lastDirection === 'out' ? 'Você: ' : ''}
+                            {thread.lastMessagePreview}
                           </span>
-                          <span className="whatsapp-wa-chat-item__row whatsapp-wa-chat-item__row--preview">
-                            <span className="whatsapp-wa-chat-item__preview">
-                              {thread.lastDirection === 'out' ? 'Você: ' : ''}
-                              {thread.lastMessagePreview}
+                          {isUnread ? (
+                            <span className="whatsapp-wa-chat-item__badge" aria-label={`${unreadCount} não lidas`}>
+                              {unreadCount > 99 ? '99+' : unreadCount}
                             </span>
-                            {isUnread ? (
-                              <span className="whatsapp-wa-chat-item__badge" aria-label={`${unreadCount} não lidas`}>
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                              </span>
-                            ) : null}
-                          </span>
+                          ) : (
+                            <span className="whatsapp-wa-chat-item__badge-spacer" aria-hidden="true" />
+                          )}
                         </span>
                       </button>
                     </li>
@@ -547,13 +686,12 @@ export function WhatsAppInboxPage() {
                   size="lg"
                 />
                 <div className="whatsapp-wa-chat-head__info">
-                  <WhatsAppContactIdentity thread={activeThread} variant="header" showBadge={false} />
-                  <p className="whatsapp-wa-chat-head__meta">
-                    {activeThread.instanceName}
-                    {resolveWhatsAppContact(activeThread).phoneLine
-                      ? ` · ${resolveWhatsAppContact(activeThread).phoneLine}`
-                      : ''}
-                  </p>
+                  <WhatsAppContactIdentity
+                    thread={activeThread}
+                    variant="header"
+                    showBadge={false}
+                    showInstance={false}
+                  />
                 </div>
                 <div className="whatsapp-wa-chat-head__actions">
                   {activeThread.leadId ? (
@@ -569,6 +707,7 @@ export function WhatsAppInboxPage() {
                   <AppLoadingPanel label="Carregando mensagens…" />
                 ) : (
                   messages.map((msg) => {
+                    if (msg.mediaKind === 'reaction' || isReactionPlaceholderBody(msg.body)) return null;
                     const showGroupSender =
                       isGroupChat && msg.direction === 'in' && Boolean(msg.senderName?.trim());
                     const isOut = msg.direction === 'out';
@@ -592,11 +731,12 @@ export function WhatsAppInboxPage() {
                       </p>
                     ) : null;
 
-                    const bodyBlock =
-                      msg.body?.trim() &&
-                      !(shouldRenderWhatsAppMedia(msg) && isMediaPlaceholderBody(msg.body)) ? (
-                        <p className="whatsapp-wa-bubble__text">{msg.body}</p>
-                      ) : null;
+                        const bodyBlock =
+                          msg.body?.trim() &&
+                          !isReactionPlaceholderBody(msg.body) &&
+                          !(shouldRenderWhatsAppMedia(msg) && isMediaPlaceholderBody(msg.body)) ? (
+                            <WhatsAppMessageBody body={msg.body} />
+                          ) : null;
 
                     const timeEl = (
                       <time className="whatsapp-wa-bubble__time" dateTime={msg.messageAt}>
@@ -616,6 +756,7 @@ export function WhatsAppInboxPage() {
                             <span className="whatsapp-wa-bubble__sender">{msg.senderName}</span>
                             {mediaBlock}
                             {bodyBlock}
+                            {renderMessageReactions(msg)}
                             <footer className="whatsapp-wa-bubble__foot">{timeEl}</footer>
                           </div>
                         </article>
@@ -626,6 +767,7 @@ export function WhatsAppInboxPage() {
                       <article key={msg.id} className={bubbleClass}>
                         {mediaBlock}
                         {bodyBlock}
+                        {renderMessageReactions(msg)}
                         <footer className="whatsapp-wa-bubble__foot">{timeEl}</footer>
                       </article>
                     );

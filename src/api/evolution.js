@@ -82,6 +82,28 @@ export function fetchWhatsAppInboxThreads(instanceId) {
   return fetchApi(`/api/admin/evolution/inbox/threads${query}`);
 }
 
+export function fetchYouTubeLinkPreview(url) {
+  const raw = String(url ?? '').trim();
+  if (!raw) {
+    return Promise.reject(new Error('Link inválido.'));
+  }
+  return fetchApi(
+    `/api/admin/evolution/inbox/link-preview/youtube?url=${encodeURIComponent(raw)}`,
+  );
+}
+
+export function markWhatsAppThreadRead(instanceId, contactPhone) {
+  const phone = String(contactPhone ?? '').trim();
+  const instance = String(instanceId ?? '').trim();
+  if (!instance || !phone) {
+    return Promise.reject(new Error('Conversa inválida.'));
+  }
+  return fetchApi(
+    `/api/admin/evolution/inbox/threads/${encodeURIComponent(instance)}/${encodeURIComponent(phone)}/read`,
+    { method: 'POST' },
+  );
+}
+
 export function fetchWhatsAppThreadMessages(instanceId, contactPhone, limit = 300) {
   const phone = String(contactPhone ?? '').trim();
   const instance = String(instanceId ?? '').trim();

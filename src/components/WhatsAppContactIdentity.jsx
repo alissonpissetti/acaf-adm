@@ -22,16 +22,30 @@ export function WhatsAppContactIdentity({
   }, [contact.phoneLine]);
 
   const isHeader = variant === 'header';
+  const isGroup =
+    Boolean(thread?.isGroupThread) || String(thread?.contactPhone ?? '').startsWith('group:');
   const TitleTag = isHeader ? 'h2' : 'span';
   const titleClass = isHeader ? 'whatsapp-contact-identity__title--lg' : 'whatsapp-contact-identity__title';
 
-  const instanceName = thread?.instanceName?.trim();
-  const metaLine =
-    showInstance && contact.subtitle
-      ? contact.subtitle
-      : !showInstance && contact.phoneLine && contact.nameLine
-        ? contact.phoneLine
-        : null;
+  const metaLine = (() => {
+    if (isHeader && isGroup) {
+      return contact.subtitle || 'Grupo';
+    }
+    if (isHeader && !isGroup) {
+      const instance = thread?.instanceName?.trim();
+      if (contact.phoneLine) return instance || null;
+      return contact.subtitle || instance || null;
+    }
+    if (showInstance && contact.subtitle) {
+      return contact.subtitle;
+    }
+    if (!showInstance && contact.phoneLine && contact.nameLine) {
+      return contact.phoneLine;
+    }
+    return null;
+  })();
+
+  const showPhoneRow = isHeader && !isGroup && Boolean(contact.phoneLine);
 
   return (
     <div
@@ -47,7 +61,7 @@ export function WhatsAppContactIdentity({
         ) : null}
       </div>
 
-      {isHeader && contact.nameLine && contact.phoneLine ? (
+      {showPhoneRow ? (
         <p className="whatsapp-contact-identity__phone-row">
           <span className="whatsapp-contact-identity__phone">{contact.phoneLine}</span>
           <button

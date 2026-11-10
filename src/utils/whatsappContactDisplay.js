@@ -12,21 +12,43 @@ export function resolveWhatsAppContact(thread) {
   const isPrivate = !isGroup && (Boolean(thread?.isPrivateContact) || kind === 'private');
 
   const primaryTitle = title || nameLine || phoneLine || 'Contato WhatsApp';
+  const normalizedNameLine =
+    nameLine && nameLine !== primaryTitle && !isGroup ? nameLine : null;
+  const normalizedPhoneLine =
+    phoneLine && phoneLine !== primaryTitle && !isGroup ? phoneLine : null;
 
   const digitHints = [thread?.contactPhone, phoneLine, thread?.contactPhoneLabel]
     .map((value) => String(value ?? '').replace(/\D/g, ''))
     .filter((digits) => digits.length >= 4);
 
+  if (isGroup) {
+    const instance = String(thread?.instanceName ?? '').trim();
+    return {
+      kind: 'named',
+      title: primaryTitle,
+      nameLine: null,
+      phoneLine: null,
+      subtitle: instance ? `Grupo · ${instance}` : subtitle || 'Grupo',
+      badge: 'Grupo',
+      isPrivate: false,
+      avatarName: primaryTitle,
+      searchText: [primaryTitle, subtitle, instance, thread?.contactPhone, ...digitHints]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase(),
+    };
+  }
+
   return {
     kind,
     title: primaryTitle,
-    nameLine,
-    phoneLine,
+    nameLine: normalizedNameLine,
+    phoneLine: normalizedPhoneLine,
     subtitle,
-    badge: isGroup ? (thread?.contactBadge || 'Grupo') : badge,
+    badge,
     isPrivate,
-    avatarName: nameLine || phoneLine || primaryTitle,
-    searchText: [primaryTitle, nameLine, phoneLine, subtitle, thread?.contactPhone, ...digitHints]
+    avatarName: normalizedNameLine || normalizedPhoneLine || primaryTitle,
+    searchText: [primaryTitle, normalizedNameLine, normalizedPhoneLine, subtitle, thread?.contactPhone, ...digitHints]
       .filter(Boolean)
       .join(' ')
       .toLowerCase(),
@@ -39,6 +61,15 @@ function inferKind(thread, title, phoneLine, nameLine) {
   if (phoneLine || /^\(\d{2}\)/.test(title)) return 'phone';
   if (/^whatsapp\s*···/i.test(title)) return 'private';
   return 'unknown';
+}
+
+export function isReactionPlaceholderBody(body) {
+  const text = String(body ?? '').trim();
+  if (!text) return false;
+  if (/^rea[cç][aã]o:\s*.+/i.test(text)) return true;
+  if (/^reaction:\s*.+/i.test(text)) return true;
+  if (/^[^:\n]{2,48}:\s*rea[cç][aã]o:\s*.+/i.test(text)) return true;
+  return false;
 }
 
 export function phoneDigitsForCopy(phoneLine) {
