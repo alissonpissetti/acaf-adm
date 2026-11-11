@@ -77,8 +77,38 @@ export function syncEvolutionMedia(id) {
   });
 }
 
+export function fetchEvolutionLeadIgnoreContacts(instanceId) {
+  return fetchApi(
+    `/api/admin/evolution/instances/${encodeURIComponent(instanceId)}/lead-ignore-contacts`,
+  );
+}
+
+export function addEvolutionLeadIgnoreContact(instanceId, body) {
+  return fetchApi(
+    `/api/admin/evolution/instances/${encodeURIComponent(instanceId)}/lead-ignore-contacts`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function removeEvolutionLeadIgnoreContact(instanceId, ignoreId) {
+  return fetchApi(
+    `/api/admin/evolution/instances/${encodeURIComponent(instanceId)}/lead-ignore-contacts/${encodeURIComponent(ignoreId)}`,
+    { method: 'DELETE' },
+  );
+}
+
 export function fetchWhatsAppInboxInstances() {
   return fetchApi('/api/admin/evolution/inbox/instances');
+}
+
+export function fetchCommercialLeadWhatsAppHistory(leadId, options = {}) {
+  const limit = options.limit ?? 150;
+  return fetchApi(
+    `/api/admin/evolution/inbox/leads/${encodeURIComponent(leadId)}/whatsapp?limit=${encodeURIComponent(String(limit))}`,
+  );
 }
 
 export function fetchWhatsAppInboxThreads(instanceId, options = {}) {
@@ -140,6 +170,7 @@ export function fetchWhatsAppThreadMessages(instanceId, contactPhone, options = 
   params.set('limit', String(options.limit ?? 300));
   if (options.syncRemote === true) params.set('remote', '1');
   else if (options.syncRemote === false) params.set('remote', '0');
+  if (options.watch) params.set('watch', '1');
   return fetchApi(
     `/api/admin/evolution/inbox/threads/${encodeURIComponent(instance)}/${encodeURIComponent(phone)}/messages?${params.toString()}`,
   );

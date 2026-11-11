@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Archive, ArchiveRestore, X, Search, RefreshCw, Smartphone } from 'lucide-react';
 import {
-  fetchEvolutionOverview,
   fetchWhatsAppInboxInstances,
   fetchWhatsAppInboxThreads,
   fetchWhatsAppThreadMessages,
@@ -14,6 +13,7 @@ import { WhatsAppMessagesSkeleton } from '../components/WhatsAppMessagesSkeleton
 import { WhatsAppMessageMedia } from '../components/WhatsAppMessageMedia.jsx';
 import { WhatsAppMessageBody } from '../components/WhatsAppMessageBody.jsx';
 import { WhatsAppMessageQuote } from '../components/WhatsAppMessageQuote.jsx';
+import { WhatsAppMessageAck } from '../components/WhatsAppMessageAck.jsx';
 import { WhatsAppContactAvatar } from '../components/WhatsAppContactAvatar.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import {
@@ -39,21 +39,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { useEvolutionInboxSocket } from '../hooks/useEvolutionInboxSocket.js';
 import '../styles/commercial-leads.css';
 import '../styles/whatsapp-wa.css';
-
-function formatThreadTime(iso) {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const now = new Date();
-  const sameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-  if (sameDay) {
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
+import { formatBrazilThreadTime, parseApiDateTime } from '../utils/brazilDateTime.js';
 
 function isHumanLeadTitle(title, displayName) {
   const value = String(title ?? '').trim();
@@ -86,10 +72,10 @@ function mergeMessagesById(prev, incoming) {
     next[idx] = { ...next[idx], ...incoming };
     return next;
   }
-  const at = incoming.messageAt ? new Date(incoming.messageAt).getTime() : 0;
+  const at = incoming.messageAt ? parseApiDateTime(incoming.messageAt)?.getTime() ?? 0 : 0;
   let insertAt = prev.length;
   for (let i = 0; i < prev.length; i += 1) {
-    const rowAt = prev[i]?.messageAt ? new Date(prev[i].messageAt).getTime() : 0;
+    const rowAt = prev[i]?.messageAt ? parseApiDateTime(prev[i].messageAt)?.getTime() ?? 0 : 0;
     if (at < rowAt) {
       insertAt = i;
       break;
@@ -133,12 +119,13 @@ function MessageReactions({ reactions }) {
 }
 
 const WHATSAPP_ROUTE = '/m/comercial/whatsapp';
-const THREADS_SOCKET_DEBOUNCE_MS = 1_200;
-const THREADS_MIN_INTERVAL_MS = 8_000;
+const THREADS_SOCKET_DEBOUNCE_MS = 600;
+const THREADS_MIN_INTERVAL_MS = 5_000;
 const MESSAGES_BACKGROUND_MIN_MS = 45_000;
-const MESSAGES_OPEN_CHAT_MIN_MS = 3_500;
-const MESSAGES_REALTIME_URGENT_MIN_MS = 750;
-const OPEN_CHAT_POLL_MS = 8_000;
+const MESSAGES_OPEN_CHAT_MIN_MS = 2_500;
+const MESSAGES_REALTIME_URGENT_MIN_MS = 400;
+const OPEN_CHAT_POLL_MS = 5_000;
+const OPEN_CHAT_POLL_NO_SOCKET_MS = 12_000;
 
 function contactKeysFromActivity(payload) {
   return new Set(
@@ -207,7 +194,6 @@ export function WhatsAppInboxPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [syncingMessages, setSyncingMessages] = useState(false);
   const [error, setError] = useState('');
-  const [webhookUrl, setWebhookUrl] = useState('');
   const [syncHint, setSyncHint] = useState('');
   const [threadQuery, setThreadQuery] = useState('');
   const [threadKind, setThreadKind] = useState('all');
@@ -382,15 +368,18 @@ export function WhatsAppInboxPage() {
         }
         setError('');
       }
+      const watchThread = Boolean(background && (realtime || urgent));
+      const useBlockingRemote = Boolean(force);
       try {
         const localRows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone, {
-          syncRemote: false,
+          syncRemote: watchThread ? 'auto' : false,
+          watch: watchThread,
         });
         if (requestId !== loadMessagesRequestRef.current) return;
         if (activeThreadRef.current?.threadKey !== threadKey) return;
         applyThreadMessages(threadKey, localRows);
         messagesLastBackgroundAtRef.current = Date.now();
-        if (background) {
+        if (background && !useBlockingRemote) {
           setLoadingMessages(false);
           setSyncingMessages(false);
           return;
@@ -419,7 +408,7 @@ export function WhatsAppInboxPage() {
         }
       }
 
-      if (silent || requestId !== loadMessagesRequestRef.current) return;
+      if ((silent && !useBlockingRemote) || requestId !== loadMessagesRequestRef.current) return;
       if (activeThreadRef.current?.threadKey !== threadKey) return;
 
       setSyncingMessages(true);
@@ -427,6 +416,7 @@ export function WhatsAppInboxPage() {
       try {
         const remoteRows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone, {
           syncRemote: true,
+          watch: watchThread,
         });
         if (remoteRequestId !== loadMessagesRequestRef.current) return;
         if (activeThreadRef.current?.threadKey !== threadKey) return;
@@ -470,9 +460,6 @@ export function WhatsAppInboxPage() {
 
   useEffect(() => {
     void loadInboxInstances();
-    void fetchEvolutionOverview()
-      .then((data) => setWebhookUrl(data?.webhookUrl?.trim() ?? ''))
-      .catch(() => {});
   }, [loadInboxInstances]);
 
   useEffect(() => {
@@ -745,7 +732,7 @@ export function WhatsAppInboxPage() {
     if (!activeThread?.threadKey) return undefined;
 
     const threadKey = activeThread.threadKey;
-    const pollMs = inboxSocketConnected ? OPEN_CHAT_POLL_MS : 20_000;
+    const pollMs = inboxSocketConnected ? OPEN_CHAT_POLL_MS : OPEN_CHAT_POLL_NO_SOCKET_MS;
     const timer = window.setInterval(() => {
       const open = activeThreadRef.current;
       if (open?.threadKey !== threadKey) return;
@@ -800,15 +787,15 @@ export function WhatsAppInboxPage() {
     [visibleThreads],
   );
 
-  const webhookHint = useMemo(() => {
-    if (!webhookUrl) {
-      return 'Configure em Sistema → Configurações a URL pública (ou API_PUBLIC_URL no servidor) e reinicie a API. Depois, em Instâncias, use “Atualizar status” para reaplicar o webhook.';
+  const inboxListEmptyMessage = useMemo(() => {
+    if (!instances.length) {
+      if (canOpenEvolutionAdmin) {
+        return 'Nenhum WhatsApp conectado. Use Instâncias, no rodapé desta tela, para vincular seu número.';
+      }
+      return 'Nenhum WhatsApp conectado ainda. Peça a um administrador para vincular uma instância.';
     }
-    if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(webhookUrl)) {
-      return `A URL do webhook (${webhookUrl}) não é acessível pela Evolution na internet. Use um domínio ou túnel público (HTTPS).`;
-    }
-    return `Webhook registrado: ${webhookUrl} — a Evolution precisa alcançar esse endereço. Se EVOLUTION_WEBHOOK_SECRET estiver no .env, o mesmo valor precisa estar no webhook da instância (Atualizar status).`;
-  }, [webhookUrl]);
+    return 'Nenhuma conversa ainda. Quando chegar mensagem no WhatsApp conectado, ela aparece aqui.';
+  }, [canOpenEvolutionAdmin, instances.length]);
 
   async function handleToggleArchive() {
     if (!activeThread?.instanceId || !activeThread?.contactPhone) return;
@@ -902,9 +889,13 @@ export function WhatsAppInboxPage() {
                 className="whatsapp-wa-icon-btn"
                 aria-label="Atualizar lista"
                 title="Atualizar"
-                onClick={() =>
-                  void loadThreads({ background: false, light: false, replace: true, offset: 0, force: true })
-                }
+                onClick={() => {
+                  void loadThreads({ background: false, light: false, replace: true, offset: 0, force: true });
+                  const open = activeThreadRef.current;
+                  if (open?.instanceId && String(open.contactPhone ?? '').trim()) {
+                    void loadMessages(open, { force: true, urgent: true });
+                  }
+                }}
               >
                 <RefreshCw size={18} aria-hidden="true" />
               </button>
@@ -965,12 +956,7 @@ export function WhatsAppInboxPage() {
               <WhatsAppThreadListSkeleton />
             ) : threads.length === 0 ? (
               <div className="whatsapp-inbox-empty muted">
-                <p>Nenhuma mensagem salva ainda.</p>
-                <p>{webhookHint}</p>
-                <p>
-                  Novas mensagens entram pelo webhook e pela atualização automática ao abrir conversas. Se nada
-                  aparecer em alguns minutos, confira o webhook abaixo.
-                </p>
+                <p>{inboxListEmptyMessage}</p>
               </div>
             ) : visibleThreads.length === 0 ? (
               <div className="whatsapp-inbox-empty muted">
@@ -1017,7 +1003,7 @@ export function WhatsAppInboxPage() {
                             </span>
                           ) : null}
                           <time className="whatsapp-wa-chat-item__time" dateTime={thread.lastMessageAt}>
-                            {formatThreadTime(thread.lastMessageAt)}
+                            {formatBrazilThreadTime(thread.lastMessageAt)}
                           </time>
                           <span className="whatsapp-wa-chat-item__preview">
                             {thread.lastDirection === 'out' ? 'Você: ' : ''}
@@ -1065,7 +1051,7 @@ export function WhatsAppInboxPage() {
               <div className="whatsapp-wa-welcome__icon" aria-hidden="true" />
               <h2>Conversas WhatsApp</h2>
               <p className="muted">
-                Selecione um chat à esquerda para ver o histórico sincronizado da Evolution.
+                Selecione um chat à esquerda para ver o histórico das suas conversas.
               </p>
             </div>
           ) : (
@@ -1161,9 +1147,12 @@ export function WhatsAppInboxPage() {
                       ) : null;
 
                     const timeEl = (
-                      <time className="whatsapp-wa-bubble__time" dateTime={msg.messageAt}>
-                        {formatThreadTime(msg.messageAt)}
-                      </time>
+                      <>
+                        <time className="whatsapp-wa-bubble__time" dateTime={msg.messageAt}>
+                          {formatBrazilThreadTime(msg.messageAt)}
+                        </time>
+                        {isOut ? <WhatsAppMessageAck status={msg.deliveryStatus} /> : null}
+                      </>
                     );
 
                     if (showGroupSender) {

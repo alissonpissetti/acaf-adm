@@ -3,6 +3,25 @@ import { Plus, X } from 'lucide-react';
 import { Avatar } from './Avatar.jsx';
 
 function resolveOwnerProfiles(ownerUserIds, adminUsers, owners) {
+  if (Array.isArray(ownerUserIds)) {
+    return ownerUserIds
+      .map((userId) => {
+        const fromAdmin = adminUsers.find((user) => user.id === userId);
+        if (fromAdmin) {
+          return {
+            userId: fromAdmin.id,
+            name: fromAdmin.name,
+            avatarUrl: fromAdmin.avatarUrl ?? null,
+            avatarColor: fromAdmin.avatarColor ?? null,
+          };
+        }
+        const fromLead = owners?.find((owner) => owner.userId === userId);
+        if (fromLead) return fromLead;
+        return null;
+      })
+      .filter(Boolean);
+  }
+
   const fromForm = (ownerUserIds ?? [])
     .map((userId) => {
       const fromAdmin = adminUsers.find((user) => user.id === userId);
@@ -71,7 +90,10 @@ export function LeadOwnersField({
     <div className="commercial-lead-owners" ref={rootRef}>
       <span className="commercial-lead-owners-label">{label}</span>
       <div className="commercial-lead-owners-row">
-        <div className="commercial-lead-owners-stack" aria-label={label}>
+        <div
+          className="commercial-lead-owners-stack commercial-lead-owners-stack--editable"
+          aria-label={label}
+        >
           {selectedProfiles.map((owner) => (
             <div key={owner.userId} className="commercial-lead-owners-item">
               <Avatar
@@ -86,7 +108,11 @@ export function LeadOwnersField({
                   type="button"
                   className="commercial-lead-owners-remove"
                   aria-label={`Remover ${owner.name}`}
-                  onClick={() => removeUser(owner.userId)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    removeUser(owner.userId);
+                  }}
                 >
                   <X size={12} aria-hidden="true" />
                 </button>

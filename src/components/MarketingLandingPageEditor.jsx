@@ -28,8 +28,8 @@ const TABS = [
 
 const LEAD_TYPES = [
   { value: '', label: 'Detectar automaticamente' },
-  { value: 'partner', label: 'Academias / parceiros (kanban comercial)' },
-  { value: 'corporate', label: 'Corporativo (kanban comercial)' },
+  { value: 'partner', label: 'Academia (kanban comercial)' },
+  { value: 'corporate', label: 'Empresa (kanban comercial)' },
 ];
 
 function ColorField({ label, value, onChange, disabled }) {

@@ -9,6 +9,7 @@ import { AdminLayout } from './layout/AdminLayout.jsx';
 import { CashFlowPage } from './pages/CashFlowPage.jsx';
 import { CommercialFunnelsPage } from './pages/CommercialFunnelsPage.jsx';
 import { CommercialLeadsPage } from './pages/CommercialLeadsPage.jsx';
+import { CommercialLossReportPage } from './pages/CommercialLossReportPage.jsx';
 import { WhatsAppInboxPage } from './pages/WhatsAppInboxPage.jsx';
 import { CompaniesPage } from './pages/CompaniesPage.jsx';
 import { ConnectPlansPage } from './pages/ConnectPlansPage.jsx';
@@ -70,6 +71,7 @@ export default function App() {
               <Route path="/m/associacao/parceiros" element={<AcafAssociationRedirect />} />
               <Route path="/m/comercial/leads" element={<CommercialLeadsPage />} />
               <Route path="/m/comercial/funis" element={<CommercialFunnelsPage />} />
+              <Route path="/m/comercial/relatorio-perdas" element={<CommercialLossReportPage />} />
               <Route path="/m/marketing/painel" element={<MarketingDashboardPage />} />
               <Route path="/m/marketing/campanhas" element={<MarketingCampaignsPage />} />
               <Route path="/m/marketing/formularios" element={<MarketingLandingPagesPage />} />

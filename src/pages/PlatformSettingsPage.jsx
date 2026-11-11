@@ -39,18 +39,18 @@ const SYSTEM_VARIABLES = [
     id: 'evolutionApiBaseUrl',
     key: 'evolutionApiBaseUrl',
     kind: 'text',
-    name: 'Evolution API — URL base',
+    name: 'WhatsApp — URL do servidor',
     description:
-      'Endereço global da Evolution API usado por todas as instâncias WhatsApp (sem barra no final).',
+      'Endereço do servidor de integração usado por todas as instâncias WhatsApp (sem barra no final).',
     placeholder: 'https://evo.seudominio.com',
   },
   {
     id: 'evolutionApiKey',
     key: 'evolutionApiKey',
     kind: 'secret',
-    name: 'Evolution API — chave',
-    description: 'Chave global (apikey) da Evolution. Novas instâncias usam este valor automaticamente.',
-    placeholder: 'Informe a chave da Evolution',
+    name: 'WhatsApp — chave de integração',
+    description: 'Chave global (apikey) do servidor. Novas instâncias usam este valor automaticamente.',
+    placeholder: 'Informe a chave de integração',
   },
   {
     id: 'apiPublicBaseUrl',
@@ -58,7 +58,7 @@ const SYSTEM_VARIABLES = [
     kind: 'text',
     name: 'API pública — webhook WhatsApp',
     description:
-      'URL base da API acessível pela internet (sem barra no final). Ao criar instância, registramos na Evolution o webhook: {base}/api/public/evolution/webhook com os eventos de mensagem.',
+      'URL base da API acessível pela internet (sem barra no final). Ao criar instância, registramos o webhook de mensagens no servidor de integração.',
     placeholder: 'https://api.seudominio.com.br',
   },
 ];
@@ -134,7 +134,7 @@ function SettingForm({ title, subtitle, breadcrumbs, initial, message, onSubmit,
           await onSubmit({ ...form, value: null, skip: true });
           return;
         }
-        setError('Informe a chave da Evolution.');
+        setError('Informe a chave de integração WhatsApp.');
         return;
       }
       await onSubmit({ ...form, value: text || null });
@@ -380,7 +380,7 @@ export function PlatformSettingsPage() {
     <PermissionGate permission="plataforma.configuracoes">
       <CrudListShell
         title="Configurações"
-        subtitle="Variáveis globais salvas no banco do sistema (taxas, Evolution API / WhatsApp e demais parâmetros)."
+        subtitle="Variáveis globais salvas no banco do sistema (taxas, integração WhatsApp e demais parâmetros)."
         canAdd={false}
         loading={loading}
         error={error}

@@ -17,7 +17,7 @@ function AdminLayoutInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, avatarImageVersion } = useAuth();
-  const { module, item } = useActiveModuleItem(location.pathname);
+  const { module, item } = useActiveModuleItem(location.pathname, location.search);
   const topTitle = item?.label ?? module?.name ?? `${MOVLY_WORDMARK} Admin`;
   const [navOpen, setNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);

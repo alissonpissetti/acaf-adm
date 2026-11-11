@@ -10,6 +10,10 @@ import {
   testEvolutionConnection,
   testEvolutionPlatformConnection,
   updateEvolutionInstance,
+  fetchEvolutionLeadIgnoreContacts,
+  addEvolutionLeadIgnoreContact,
+  removeEvolutionLeadIgnoreContact,
+  fetchWhatsAppInboxThreads,
 } from '../api/evolution.js';
 import { fetchDepartments } from '../api/access-control.js';
 import { getUsers } from '../api/users.js';
@@ -86,7 +90,7 @@ function EvolutionCreateModal({ open, busy, error, onClose, onSubmit }) {
               disabled={busy}
             />
             <small className="muted">
-              URL e chave da Evolution vêm de Sistema → Configurações. O identificador técnico é gerado
+              URL e chave de integração vêm de Sistema → Configurações. O identificador técnico é gerado
               automaticamente.
             </small>
           </label>
@@ -104,6 +108,225 @@ function EvolutionCreateModal({ open, busy, error, onClose, onSubmit }) {
   );
 }
 
+const MATCH_KIND_LABELS = {
+  phone: 'Telefone',
+  contact_key: 'Chave de contato',
+  remote_jid: 'Remote Jid',
+};
+
+function LeadIgnoreContactsSection({ instanceId, readOnly, canManage }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [matchKind, setMatchKind] = useState('phone');
+  const [value, setValue] = useState('');
+  const [label, setLabel] = useState('');
+  const [note, setNote] = useState('');
+  const [threadPick, setThreadPick] = useState('');
+  const [threads, setThreads] = useState([]);
+
+  const load = async () => {
+    if (!instanceId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const list = await fetchEvolutionLeadIgnoreContacts(instanceId);
+      setRows(Array.isArray(list) ? list : []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [instanceId]);
+
+  useEffect(() => {
+    if (!instanceId || readOnly) return;
+    void fetchWhatsAppInboxThreads(instanceId, { light: 1, limit: 80 })
+      .then((page) => setThreads(page?.threads ?? []))
+      .catch(() => setThreads([]));
+  }, [instanceId, readOnly]);
+
+  useEffect(() => {
+    if (!threadPick) return;
+    setMatchKind('contact_key');
+    setValue(threadPick);
+  }, [threadPick]);
+
+  const add = async (ev) => {
+    ev.preventDefault();
+    if (!canManage) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await addEvolutionLeadIgnoreContact(instanceId, {
+        matchKind,
+        value: value.trim(),
+        label: label.trim() || null,
+        note: note.trim() || null,
+      });
+      setValue('');
+      setLabel('');
+      setNote('');
+      setThreadPick('');
+      setMessage('Contato adicionado à lista de exceção.');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (row) => {
+    if (!canManage) return;
+    if (!(await confirmCrudDelete(row.label || row.matchValue))) return;
+    setBusy(true);
+    setError('');
+    try {
+      await removeEvolutionLeadIgnoreContact(instanceId, row.id);
+      setMessage('Contato removido da lista de exceção.');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <h2>Exceções de lead (WhatsApp)</h2>
+      </div>
+      <div className="panel-body">
+        <p className="muted field-span-full">
+          Contatos nesta lista continuam no inbox, mas não geram lead comercial automaticamente nesta
+          instância.
+        </p>
+        <CrudAlerts error={error} message={message} />
+        {loading ? (
+          <p className="muted">Carregando exceções…</p>
+        ) : rows.length === 0 ? (
+          <p className="muted">Nenhum contato ignorado para criação de leads.</p>
+        ) : (
+          <div className="table-wrap field-span-full">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Identificação</th>
+                  <th>Tipo</th>
+                  <th>Etiqueta</th>
+                  <th>Nota</th>
+                  {canManage ? <th aria-label="Ações" /> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <code>{row.matchValue}</code>
+                    </td>
+                    <td>{MATCH_KIND_LABELS[row.matchKind] ?? row.matchKind}</td>
+                    <td>{row.label || '—'}</td>
+                    <td className="muted">{row.note || '—'}</td>
+                    {canManage ? (
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm is-danger"
+                          disabled={busy}
+                          onClick={() => void remove(row)}
+                        >
+                          Remover
+                        </button>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {canManage && !readOnly && (
+          <form className="form-grid field-span-full" onSubmit={add} style={{ marginTop: '1rem' }}>
+            <label className="field-span-2">
+              <span>Conversa existente (opcional)</span>
+              <select
+                className="input"
+                value={threadPick}
+                onChange={(ev) => setThreadPick(ev.target.value)}
+                disabled={busy}
+              >
+                <option value="">— digitar manualmente —</option>
+                {threads.map((thread) => (
+                  <option key={thread.threadKey} value={thread.contactPhone}>
+                    {thread.contactDisplayName || thread.contactPhone} ({thread.contactPhone})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Tipo de correspondência</span>
+              <select
+                className="input"
+                value={matchKind}
+                onChange={(ev) => setMatchKind(ev.target.value)}
+                disabled={busy}
+              >
+                <option value="phone">Telefone (só dígitos)</option>
+                <option value="contact_key">Chave (ex.: lid:… ou número)</option>
+                <option value="remote_jid">Remote Jid</option>
+              </select>
+            </label>
+            <label>
+              <span>Valor</span>
+              <input
+                className="input"
+                value={value}
+                onChange={(ev) => setValue(ev.target.value)}
+                placeholder="5511999999999 ou lid:…"
+                required
+                disabled={busy}
+              />
+            </label>
+            <label>
+              <span>Etiqueta (opcional)</span>
+              <input
+                className="input"
+                value={label}
+                onChange={(ev) => setLabel(ev.target.value)}
+                placeholder="Ex.: Matriz, suporte interno"
+                disabled={busy}
+              />
+            </label>
+            <label className="field-span-2">
+              <span>Nota (opcional)</span>
+              <input
+                className="input"
+                value={note}
+                onChange={(ev) => setNote(ev.target.value)}
+                disabled={busy}
+              />
+            </label>
+            <div className="field-span-full">
+              <button type="submit" className="btn-primary btn-sm" disabled={busy || !value.trim()}>
+                {busy ? 'Salvando…' : 'Adicionar exceção'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function InstanceForm({
   title,
   subtitle,
@@ -111,6 +334,8 @@ function InstanceForm({
   initial,
   departments,
   users,
+  instanceId,
+  canManageLeadIgnores,
   onSubmit,
   onCancel,
   onDelete,
@@ -184,7 +409,7 @@ function InstanceForm({
             </label>
             {form.instanceKey ? (
               <label className="field-span-2">
-                <span>Identificador na Evolution</span>
+                <span>Identificador no servidor</span>
                 <input className="input" value={form.instanceKey} disabled readOnly />
               </label>
             ) : null}
@@ -288,6 +513,13 @@ function InstanceForm({
           </form>
         </div>
       </section>
+      {instanceId && canManageLeadIgnores ? (
+        <LeadIgnoreContactsSection
+          instanceId={instanceId}
+          readOnly={Boolean(form.readOnly)}
+          canManage={Boolean(canManageLeadIgnores)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -490,7 +722,7 @@ export function EvolutionInstancesPage() {
     try {
       const result = await testEvolutionPlatformConnection();
       if (result?.ok) {
-        setMessage(result.message ?? 'Evolution API respondendo normalmente.');
+        setMessage(result.message ?? 'Servidor de integração respondendo normalmente.');
         await load();
       } else {
         setError(result?.message ?? 'Falha no teste da API.');
@@ -582,6 +814,8 @@ export function EvolutionInstancesPage() {
         breadcrumbs={[...breadcrumbsRoot, { label: selected.name, onClick: router.goToList }]}
         departments={departments}
         users={users}
+        instanceId={selected.id}
+        canManageLeadIgnores={canManage}
         initial={{
           name: selected.name,
           instanceKey: selected.instanceKey,
@@ -624,7 +858,7 @@ export function EvolutionInstancesPage() {
         <PageHeader
           breadcrumbs={breadcrumbsRoot}
           title="Instâncias"
-          subtitle="Gerencie números conectados à Evolution API e a criação automática de leads."
+          subtitle="Gerencie números conectados ao WhatsApp e a criação automática de leads."
           actions={
             <>
               <Link className="btn-ghost btn-sm" to="/m/comercial/whatsapp">
@@ -643,7 +877,7 @@ export function EvolutionInstancesPage() {
         <section className={`panel evolution-api-status${apiStatus.online ? ' is-online' : ''}`}>
           <div className="panel-body evolution-api-status__body">
             <div>
-              <p className="evolution-api-status__label">Evolution API</p>
+              <p className="evolution-api-status__label">Integração WhatsApp</p>
               <p className="evolution-api-status__state">
                 <span className={`badge ${apiStatus.online ? 'badge-success' : 'badge-muted'}`}>
                   {apiStatus.online ? 'Online' : 'Offline'}

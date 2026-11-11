@@ -1,4 +1,4 @@
-import { Mail, Phone, Plus, Star, X } from 'lucide-react';
+import { Plus, Star, X } from 'lucide-react';
 
 function normalizePhoneInput(value) {
   return String(value ?? '').replace(/\D/g, '').slice(0, 11);
@@ -15,10 +15,18 @@ function phoneDigits(phone) {
   return normalizePhoneInput(phone);
 }
 
-function whatsAppUrl(phone) {
-  const digits = phoneDigits(phone);
-  if (!digits) return null;
-  return `https://wa.me/55${digits}`;
+function phoneFromLead(lead) {
+  if (!lead) return '';
+  const fromField = lead.phone ? normalizePhoneInput(lead.phone) : '';
+  if (fromField.length >= 10) return fromField;
+
+  const key = String(lead.whatsappContactKey ?? '').trim();
+  if (key && !key.startsWith('lid:') && !key.startsWith('group:')) {
+    const fromKey = normalizePhoneInput(key);
+    if (fromKey.length >= 10) return fromKey;
+  }
+
+  return '';
 }
 
 function createEmptyContact(isPrimary = false) {
@@ -32,26 +40,41 @@ function createEmptyContact(isPrimary = false) {
   };
 }
 
+function withLeadPhoneOnPrimary(rows, leadPhone) {
+  if (!rows.length || !leadPhone) return rows;
+  const primaryIndex = rows.findIndex((contact) => contact.isPrimary);
+  const index = primaryIndex >= 0 ? primaryIndex : 0;
+  if (phoneDigits(rows[index].phone)) return rows;
+  return rows.map((contact, contactIndex) =>
+    contactIndex === index ? { ...contact, phone: leadPhone } : contact,
+  );
+}
+
 export function resolveLeadContactsForForm(lead) {
+  const leadPhone = phoneFromLead(lead);
+
   if (lead?.contacts?.length) {
-    return lead.contacts.map((contact) => ({
-      id: contact.id,
-      clientKey: contact.id,
-      name: contact.name ?? '',
-      role: contact.role ?? '',
-      phone: contact.phone ? normalizePhoneInput(contact.phone) : '',
-      email: contact.email ?? '',
-      isPrimary: Boolean(contact.isPrimary),
-    }));
+    return withLeadPhoneOnPrimary(
+      lead.contacts.map((contact) => ({
+        id: contact.id,
+        clientKey: contact.id,
+        name: contact.name ?? '',
+        role: contact.role ?? '',
+        phone: contact.phone ? normalizePhoneInput(contact.phone) : '',
+        email: contact.email ?? '',
+        isPrimary: Boolean(contact.isPrimary),
+      })),
+      leadPhone,
+    );
   }
 
-  if (lead?.contactName || lead?.phone || lead?.email) {
+  if (lead?.contactName || leadPhone || lead?.email) {
     return [
       {
         clientKey: 'legacy',
         name: lead.contactName ?? '',
         role: '',
-        phone: lead.phone ? normalizePhoneInput(lead.phone) : '',
+        phone: leadPhone,
         email: lead.email ?? '',
         isPrimary: true,
       },
@@ -62,7 +85,23 @@ export function resolveLeadContactsForForm(lead) {
 }
 
 export function getLeadContacts(lead) {
-  if (lead?.contacts?.length) return lead.contacts;
+  if (lead?.contacts?.length) {
+    const leadPhone = phoneFromLead(lead);
+    return withLeadPhoneOnPrimary(
+      lead.contacts.map((contact) => ({
+        id: contact.id,
+        name: contact.name,
+        role: contact.role || null,
+        phone: contact.phone ? normalizePhoneInput(contact.phone) : null,
+        email: contact.email || null,
+        isPrimary: contact.isPrimary,
+      })),
+      leadPhone,
+    ).map((contact) => ({
+      ...contact,
+      phone: contact.phone || null,
+    }));
+  }
   return resolveLeadContactsForForm(lead).map((contact) => ({
     id: contact.id,
     name: contact.name,
@@ -150,127 +189,88 @@ export function LeadContactsField({
   return (
     <div className="commercial-lead-contacts">
       {contacts.length ? (
-        <div className="commercial-lead-contacts-list">
+        <div className="commercial-lead-contacts-rows" role="group" aria-label="Contatos do lead">
+          <div className="commercial-lead-contact-row commercial-lead-contact-row--head" aria-hidden="true">
+            <span className="commercial-lead-contact-row__mark" />
+            <span>Nome</span>
+            <span>Função</span>
+            <span>Telefone</span>
+            <span>E-mail</span>
+            <span className="commercial-lead-contact-row__actions" />
+          </div>
           {contacts.map((contact, index) => (
-            <article
+            <div
               key={contact.clientKey || contact.id || index}
-              className={`commercial-lead-contact-card${contact.isPrimary ? ' commercial-lead-contact-card--primary' : ''}`}
+              className={`commercial-lead-contact-row${contact.isPrimary ? ' commercial-lead-contact-row--primary' : ''}`}
             >
-              <div className="commercial-lead-contact-card-head">
-                <div className="commercial-lead-contact-card-title">
-                  <strong>{contact.name.trim() || `Contato ${index + 1}`}</strong>
-                  {contact.isPrimary ? (
-                    <span className="commercial-lead-contact-badge">Principal</span>
-                  ) : null}
-                </div>
-                <div className="commercial-lead-contact-card-actions">
-                  {!contact.isPrimary && !disabled ? (
-                    <button
-                      type="button"
-                      className="commercial-lead-contact-action"
-                      onClick={() => setPrimary(index)}
-                      title="Definir como contato principal"
-                    >
-                      <Star size={14} aria-hidden="true" />
-                      Principal
-                    </button>
-                  ) : null}
-                  {!disabled ? (
-                    <button
-                      type="button"
-                      className="commercial-lead-contact-action commercial-lead-contact-action--danger"
-                      onClick={() => removeContact(index)}
-                      aria-label={`Remover ${contact.name.trim() || `contato ${index + 1}`}`}
-                    >
-                      <X size={14} aria-hidden="true" />
-                    </button>
-                  ) : null}
-                </div>
+              <div className="commercial-lead-contact-row__mark">
+                <button
+                  type="button"
+                  className={`commercial-lead-contact-primary${contact.isPrimary ? ' is-active' : ''}`}
+                  onClick={() => setPrimary(index)}
+                  disabled={disabled || contact.isPrimary}
+                  title={contact.isPrimary ? 'Contato principal' : 'Definir como principal'}
+                  aria-pressed={contact.isPrimary}
+                >
+                  <Star size={14} aria-hidden="true" />
+                  <span className="sr-only">
+                    {contact.isPrimary ? 'Principal' : 'Tornar principal'}
+                  </span>
+                </button>
               </div>
-
-              <div className="commercial-lead-modal-fields commercial-lead-modal-fields--grid">
-                <label className="field-block">
-                  <span className="field-label">Nome</span>
-                  <input
-                    type="text"
-                    className="input"
-                    value={contact.name}
-                    onChange={(ev) => updateContact(index, { name: ev.target.value })}
-                    disabled={disabled}
-                    placeholder="Ex.: Maria Silva"
-                    required={Boolean(contact.phone || contact.email || contact.role)}
-                  />
-                </label>
-                <label className="field-block">
-                  <span className="field-label">Função / identificação</span>
-                  <input
-                    type="text"
-                    className="input"
-                    value={contact.role}
-                    onChange={(ev) => updateContact(index, { role: ev.target.value })}
-                    disabled={disabled}
-                    placeholder="Ex.: Gerente comercial"
-                  />
-                </label>
-                <label className="field-block">
-                  <span className="field-label">Telefone</span>
-                  <input
-                    type="text"
-                    className="input"
-                    inputMode="tel"
-                    value={formatPhoneDisplay(contact.phone)}
-                    onChange={(ev) =>
-                      updateContact(index, { phone: normalizePhoneInput(ev.target.value) })
-                    }
-                    disabled={disabled}
-                    placeholder="(11) 99999-9999"
-                  />
-                </label>
-                <label className="field-block">
-                  <span className="field-label">E-mail</span>
-                  <input
-                    type="email"
-                    className="input"
-                    value={contact.email}
-                    onChange={(ev) => updateContact(index, { email: ev.target.value })}
-                    disabled={disabled}
-                    placeholder="contato@empresa.com"
-                  />
-                </label>
+              <input
+                type="text"
+                className="input"
+                value={contact.name}
+                onChange={(ev) => updateContact(index, { name: ev.target.value })}
+                disabled={disabled}
+                placeholder="Nome"
+                aria-label={`Nome do contato ${index + 1}`}
+                required={Boolean(contact.phone || contact.email || contact.role)}
+              />
+              <input
+                type="text"
+                className="input"
+                value={contact.role}
+                onChange={(ev) => updateContact(index, { role: ev.target.value })}
+                disabled={disabled}
+                placeholder="Função"
+                aria-label={`Função do contato ${index + 1}`}
+              />
+              <input
+                type="text"
+                className="input"
+                inputMode="tel"
+                value={formatPhoneDisplay(contact.phone)}
+                onChange={(ev) =>
+                  updateContact(index, { phone: normalizePhoneInput(ev.target.value) })
+                }
+                disabled={disabled}
+                placeholder="(11) 99999-9999"
+                aria-label={`Telefone do contato ${index + 1}`}
+              />
+              <input
+                type="email"
+                className="input"
+                value={contact.email}
+                onChange={(ev) => updateContact(index, { email: ev.target.value })}
+                disabled={disabled}
+                placeholder="E-mail"
+                aria-label={`E-mail do contato ${index + 1}`}
+              />
+              <div className="commercial-lead-contact-row__actions">
+                {!disabled ? (
+                  <button
+                    type="button"
+                    className="commercial-lead-contact-action commercial-lead-contact-action--danger"
+                    onClick={() => removeContact(index)}
+                    aria-label={`Remover contato ${index + 1}`}
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
-
-              {phoneDigits(contact.phone) || contact.email.trim() ? (
-                <div className="commercial-lead-modal-contact-actions">
-                  {phoneDigits(contact.phone) ? (
-                    <>
-                      <a
-                        className="commercial-action-btn"
-                        href={`tel:+55${phoneDigits(contact.phone)}`}
-                      >
-                        <Phone size={16} aria-hidden="true" />
-                        Ligar
-                      </a>
-                      {whatsAppUrl(contact.phone) ? (
-                        <a
-                          className="commercial-action-btn commercial-action-btn--mobile-chat"
-                          href={whatsAppUrl(contact.phone)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Celular
-                        </a>
-                      ) : null}
-                    </>
-                  ) : null}
-                  {contact.email.trim() ? (
-                    <a className="commercial-action-btn" href={`mailto:${contact.email.trim()}`}>
-                      <Mail size={16} aria-hidden="true" />
-                      E-mail
-                    </a>
-                  ) : null}
-                </div>
-              ) : null}
-            </article>
+            </div>
           ))}
         </div>
       ) : (

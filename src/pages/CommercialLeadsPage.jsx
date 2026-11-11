@@ -4,6 +4,8 @@ import {
   ChevronRight,
   LayoutGrid,
   Mail,
+  Maximize2,
+  Minimize2,
   Phone,
   Plus,
   TrendingUp,
@@ -13,8 +15,11 @@ import {
   addCommercialLeadInteraction,
   convertCommercialLead,
   createCommercialLead,
+  deleteCommercialLead,
   getCommercialFunnelOptions,
   getCommercialLeadInteractions,
+  getCommercialLeadSources,
+  getCommercialLossReasons,
   getCommercialLeads,
   recordCommercialLeadInteraction,
   updateCommercialLead,
@@ -34,9 +39,18 @@ import { ModalCloseButton } from '../components/ModalCloseButton.jsx';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
+import { appConfirm } from '../components/confirm/appConfirm.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { PermissionGate } from '../components/PermissionGate.jsx';
+import { LeadSourceBadge, LeadSourcesLegend } from '../components/LeadSourceBadge.jsx';
+import { LeadMarkLostModal } from '../components/LeadMarkLostModal.jsx';
+import { LeadAuditPanel } from '../components/LeadAuditPanel.jsx';
 import { formatRelativeTime } from '../utils/relativeTime.js';
+import { formatBrazilDateTime, formatBrazilTimeShort } from '../utils/brazilDateTime.js';
+import {
+  readKanbanFullscreenPreference,
+  writeKanbanFullscreenPreference,
+} from '../utils/commercialKanbanStorage.js';
 import '../styles/commercial-leads.css';
 
 const EMPTY_FORM = {
@@ -161,23 +175,24 @@ function getNextStage(stages, currentStageId) {
 }
 
 function formatDateTime(isoDate) {
-  if (!isoDate) return '';
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('pt-BR');
+  return formatBrazilDateTime(isoDate);
 }
 
-function LeadToolbarInteraction({ lead }) {
+function LeadToolbarInteraction({ lead, compact = false }) {
   const interactionLabel = formatRelativeTime(lead.lastInteractionAt, {
     emptyLabel: 'sem registro',
   });
 
   return (
     <span
-      className="commercial-lead-toolbar-interaction"
-      title={formatDateTime(lead.lastInteractionAt) || undefined}
+      className={`commercial-lead-toolbar-interaction${compact ? ' commercial-lead-toolbar-interaction--compact' : ''}`}
+      title={
+        lead.lastInteractionAt
+          ? `Última interação: ${formatDateTime(lead.lastInteractionAt)}`
+          : 'Sem interação registrada'
+      }
     >
-      Última interação: {interactionLabel}
+      {compact ? interactionLabel : `Última interação: ${interactionLabel}`}
     </span>
   );
 }
@@ -206,7 +221,7 @@ function LeadTemperaturePicker({ value, disabled, onChange }) {
   );
 }
 
-function LeadTimingMeta({ lead }) {
+function LeadTimingMeta({ lead, compact = false }) {
   const interactionLabel = formatRelativeTime(lead.lastInteractionAt, {
     emptyLabel: 'Sem interação',
   });
@@ -216,12 +231,16 @@ function LeadTimingMeta({ lead }) {
       : null;
 
   return (
-    <div className="commercial-lead-timing">
+    <div className={`commercial-lead-timing${compact ? ' commercial-lead-timing--compact' : ''}`}>
       <span
         className="commercial-lead-timing-item"
-        title={formatDateTime(lead.lastInteractionAt) || undefined}
+        title={
+          lead.lastInteractionAt
+            ? `Última interação: ${formatDateTime(lead.lastInteractionAt)}`
+            : 'Sem interação registrada'
+        }
       >
-        Última interação: {interactionLabel}
+        {compact ? interactionLabel : `Última interação: ${interactionLabel}`}
       </span>
       {lead.stageExpired ? (
         <span className="commercial-lead-badge commercial-lead-badge--expired">Expirado</span>
@@ -238,10 +257,11 @@ function LeadTimingMeta({ lead }) {
 }
 
 function formatInteractionDateTime(isoDate) {
-  if (!isoDate) return '—';
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('pt-BR');
+  return formatBrazilDateTime(isoDate) || '—';
+}
+
+function formatInteractionTimeShort(isoDate) {
+  return formatBrazilTimeShort(isoDate) || '—';
 }
 
 function interactionSourceLabel(source) {
@@ -300,7 +320,10 @@ function LeadInteractionsPanel({ leadId, lead, canManage, onLeadUpdated }) {
     <aside className="commercial-lead-modal-feed" aria-label="Interações do lead">
       <header className="commercial-lead-feed-head">
         <h3>Interações</h3>
-        <p>Anotações manuais e mensagens recebidas no celular em ordem cronológica.</p>
+        <p>
+          Anotações manuais e mensagens do WhatsApp (sincronizadas automaticamente). Conversa completa no{' '}
+          <Link to="/m/comercial/whatsapp">inbox</Link>.
+        </p>
       </header>
 
       <CrudAlerts error={error} />
@@ -341,6 +364,23 @@ function LeadInteractionsPanel({ leadId, lead, canManage, onLeadUpdated }) {
                 item.userName ||
                 'Celular'
               : item.userName ?? 'Usuário';
+
+            if (isMobileChat) {
+              return (
+                <article
+                  key={item.id}
+                  className={`commercial-lead-interaction-bubble commercial-lead-interaction-bubble--${bubbleVariant}`}
+                >
+                  <p className="commercial-lead-interaction-wa-body">{item.content}</p>
+                  <footer className="commercial-lead-interaction-wa-foot">
+                    <time dateTime={item.createdAt} title={formatInteractionDateTime(item.createdAt)}>
+                      {formatInteractionTimeShort(item.createdAt)}
+                    </time>
+                  </footer>
+                </article>
+              );
+            }
+
             return (
               <article
                 key={item.id}
@@ -348,22 +388,20 @@ function LeadInteractionsPanel({ leadId, lead, canManage, onLeadUpdated }) {
               >
                 <header className="commercial-lead-interaction-bubble-head">
                   <div className="commercial-lead-interaction-bubble-author">
-                    {!isMobileChat ? (
-                      <Avatar
-                        name={item.userName}
-                        src={item.userAvatarUrl}
-                        color={item.userAvatarColor}
-                        size="xs"
-                        title={item.userName}
-                      />
-                    ) : null}
+                    <Avatar
+                      name={item.userName}
+                      src={item.userAvatarUrl}
+                      color={item.userAvatarColor}
+                      size="xs"
+                      title={item.userName}
+                    />
                     <strong>{authorName}</strong>
                     <span className="commercial-lead-interaction-source">
                       {interactionSourceLabel(item.source)}
                     </span>
                   </div>
                   <time dateTime={item.createdAt} title={formatInteractionDateTime(item.createdAt)}>
-                    {formatInteractionDateTime(item.createdAt)}
+                    {formatRelativeTime(item.createdAt)}
                   </time>
                 </header>
                 <p>{item.content}</p>
@@ -376,7 +414,20 @@ function LeadInteractionsPanel({ leadId, lead, canManage, onLeadUpdated }) {
   );
 }
 
-function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunnelId, canManage, onClose, onSaved, onUpdated }) {
+function LeadModal({
+  mode,
+  lead,
+  stages,
+  adminUsers,
+  currentUserId,
+  defaultFunnelId,
+  canManage,
+  onClose,
+  onSaved,
+  onUpdated,
+  onDeleted,
+  onRequestMarkLost,
+}) {
   const flash = useFlashMessage();
   const isCreate = mode === 'create';
   const [form, setForm] = useState(() => {
@@ -402,6 +453,8 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [detailTab, setDetailTab] = useState('summary');
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   const readOnly = !canManage || lead?.converted;
   const canAddInteractions = canManage && !lead?.converted;
@@ -428,8 +481,34 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
   const applyUpdatedLead = (result) => {
     const updated = result?.lead ?? result;
     onUpdated?.(updated);
+    setForm((prev) => ({
+      ...prev,
+      ownerUserIds: resolveLeadOwnerUserIds(updated),
+      contacts: resolveLeadContactsForForm(updated),
+    }));
+    setAuditRefreshKey((value) => value + 1);
     return updated;
   };
+
+  async function persistLeadOwners(ownerUserIds) {
+    if (isCreate || readOnly || !lead?.id) {
+      setForm((prev) => ({ ...prev, ownerUserIds }));
+      return;
+    }
+    const filtered = ownerUserIds.filter(Boolean);
+    if (!filtered.length) {
+      setError('Informe ao menos um responsável.');
+      return;
+    }
+    setForm((prev) => ({ ...prev, ownerUserIds: filtered }));
+    setError('');
+    try {
+      const result = await updateCommercialLead(lead.id, { ownerUserIds: filtered });
+      applyUpdatedLead(result);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   const onSubmit = async (ev) => {
     ev.preventDefault();
@@ -475,6 +554,17 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
         flash.success('Lead cadastrado.');
         onSaved(created);
       } else {
+        const targetStage = stages.find((stage) => stage.id === form.stageId);
+        const enteringLost =
+          targetStage?.outcome === 'lost' &&
+          lead.stageOutcome !== 'lost' &&
+          form.stageId !== lead.stageId;
+        if (enteringLost) {
+          onRequestMarkLost?.(lead, form.stageId);
+          setBusy(false);
+          return;
+        }
+
         const result = await updateCommercialLead(lead.id, {
           ...payload,
           type: form.type || null,
@@ -513,6 +603,31 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
     }
   };
 
+  const onRemove = async () => {
+    if (!lead?.id || !canManage || lead.converted) return;
+
+    const label = form.title.trim() || lead.title || 'este lead';
+    const confirmed = await appConfirm({
+      title: 'Excluir lead',
+      message: `Excluir "${label}"? O registro será apagado de forma permanente, junto com todo o histórico (interações, aba Histórico e vínculo deste lead no WhatsApp). Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir lead',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    setBusy(true);
+    setError('');
+    try {
+      await deleteCommercialLead(lead.id);
+      flash.success('Lead excluído.');
+      onDeleted?.(lead.id);
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
   return (
     <div
       className={`commercial-lead-modal-backdrop${isCreate ? ' commercial-lead-modal-backdrop--centered' : ''}`}
@@ -528,12 +643,67 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
       >
         <ModalCloseButton onClick={onClose} className="commercial-lead-modal-close" />
         <div className="commercial-lead-modal-head">
-          <div className="commercial-lead-modal-head-main">
+          <div className="commercial-lead-modal-head-row">
             <h2 id="commercial-lead-modal-title">
               {isCreate ? 'Novo lead' : form.title.trim() || lead?.title || 'Lead'}
             </h2>
+            {!isCreate && lead ? (
+              <>
+                <div className="commercial-lead-modal-head-badges">
+                  {lead.typeLabel ? (
+                    <span
+                      className={`commercial-lead-badge commercial-lead-badge--${lead.type === 'partner' ? 'partner' : 'corporate'}`}
+                    >
+                      {lead.typeLabel}
+                    </span>
+                  ) : null}
+                  <LeadSourceBadge lead={lead} />
+                </div>
+                <div className="commercial-lead-toolbar-controls commercial-lead-toolbar-controls--head">
+                  <label className="commercial-lead-toolbar-field">
+                    <span>Etapa</span>
+                    <select
+                      className="input"
+                      value={form.stageId}
+                      onChange={(ev) => setForm((prev) => ({ ...prev, stageId: ev.target.value }))}
+                      disabled={readOnly}
+                      aria-label="Etapa do lead"
+                    >
+                      {stages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          {stageLabel(stage)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="commercial-lead-toolbar-field">
+                    <span>Tipo</span>
+                    <select
+                      className="input"
+                      value={form.type}
+                      onChange={(ev) => setForm((prev) => ({ ...prev, type: ev.target.value }))}
+                      disabled={readOnly}
+                      aria-label="Tipo do lead"
+                    >
+                      <option value="">Não definido</option>
+                      <option value="partner">Academia</option>
+                      <option value="corporate">Empresa</option>
+                    </select>
+                  </label>
+                  <LeadTemperaturePicker
+                    value={form.temperature}
+                    disabled={readOnly}
+                    onChange={(temperature) => setForm((prev) => ({ ...prev, temperature }))}
+                  />
+                </div>
+                <div className="commercial-lead-toolbar-meta commercial-lead-toolbar-meta--head">
+                  <span className="commercial-lead-toolbar-chip">{lead.funnelName ?? 'Funil'}</span>
+                  <LeadToolbarInteraction lead={lead} compact />
+                </div>
+              </>
+            ) : null}
             {!isCreate && lead?.converted ? (
-              <p className="page-subtitle">Lead convertido em cadastro.</p>
+              <p className="page-subtitle commercial-lead-modal-head-converted">Lead convertido em cadastro.</p>
             ) : null}
           </div>
           {!isCreate ? (
@@ -542,54 +712,10 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
               ownerUserIds={form.ownerUserIds}
               owners={lead?.owners}
               disabled={readOnly}
-              onChange={(ownerUserIds) => setForm((prev) => ({ ...prev, ownerUserIds }))}
+              onChange={persistLeadOwners}
             />
           ) : null}
         </div>
-
-        {!isCreate && lead ? (
-          <div className="commercial-lead-modal-toolbar">
-            <div className="commercial-lead-toolbar-controls">
-              <label className="commercial-lead-toolbar-field">
-                <span>Etapa</span>
-                <select
-                  className="input"
-                  value={form.stageId}
-                  onChange={(ev) => setForm((prev) => ({ ...prev, stageId: ev.target.value }))}
-                  disabled={readOnly}
-                >
-                  {stages.map((stage) => (
-                    <option key={stage.id} value={stage.id}>
-                      {stageLabel(stage)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="commercial-lead-toolbar-field">
-                <span>Tipo</span>
-                <select
-                  className="input"
-                  value={form.type}
-                  onChange={(ev) => setForm((prev) => ({ ...prev, type: ev.target.value }))}
-                  disabled={readOnly}
-                >
-                  <option value="">Não definido</option>
-                  <option value="partner">Academia parceira</option>
-                  <option value="corporate">Empresa corporativa</option>
-                </select>
-              </label>
-              <LeadTemperaturePicker
-                value={form.temperature}
-                disabled={readOnly}
-                onChange={(temperature) => setForm((prev) => ({ ...prev, temperature }))}
-              />
-            </div>
-            <div className="commercial-lead-toolbar-meta">
-              <span className="commercial-lead-toolbar-chip">{lead.funnelName ?? 'Funil'}</span>
-              <LeadToolbarInteraction lead={lead} />
-            </div>
-          </div>
-        ) : null}
 
         <form className="commercial-lead-modal-form" onSubmit={onSubmit}>
           <div className="commercial-lead-modal-body">
@@ -618,8 +744,8 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
                     onChange={(ev) => setForm((prev) => ({ ...prev, type: ev.target.value }))}
                   >
                     <option value="">Não definido</option>
-                    <option value="partner">Academia parceira</option>
-                    <option value="corporate">Empresa corporativa</option>
+                    <option value="partner">Academia</option>
+                    <option value="corporate">Empresa</option>
                   </select>
                 </label>
 
@@ -649,8 +775,23 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
               <div className="commercial-lead-modal-layout">
                 <div className="commercial-lead-modal-content">
                   <div className="commercial-lead-modal-tabs" role="tablist">
-                    <button type="button" className="commercial-lead-modal-tab commercial-lead-modal-tab--active" role="tab" aria-selected="true">
+                    <button
+                      type="button"
+                      className={`commercial-lead-modal-tab${detailTab === 'summary' ? ' commercial-lead-modal-tab--active' : ''}`}
+                      role="tab"
+                      aria-selected={detailTab === 'summary'}
+                      onClick={() => setDetailTab('summary')}
+                    >
                       Resumo
+                    </button>
+                    <button
+                      type="button"
+                      className={`commercial-lead-modal-tab${detailTab === 'history' ? ' commercial-lead-modal-tab--active' : ''}`}
+                      role="tab"
+                      aria-selected={detailTab === 'history'}
+                      onClick={() => setDetailTab('history')}
+                    >
+                      Histórico
                     </button>
                     <button type="button" className="commercial-lead-modal-tab" role="tab" aria-selected="false" disabled title="Em breve">
                       Proposta comercial
@@ -727,12 +868,16 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
                   </section>
                 </div>
 
-                <LeadInteractionsPanel
-                  leadId={lead.id}
-                  lead={lead}
-                  canManage={canAddInteractions}
-                  onLeadUpdated={applyUpdatedLead}
-                />
+                {detailTab === 'history' ? (
+                  <LeadAuditPanel leadId={lead.id} refreshKey={auditRefreshKey} />
+                ) : (
+                  <LeadInteractionsPanel
+                    leadId={lead.id}
+                    lead={lead}
+                    canManage={canAddInteractions}
+                    onLeadUpdated={applyUpdatedLead}
+                  />
+                )}
               </div>
             )}
 
@@ -762,6 +907,22 @@ function LeadModal({ mode, lead, stages, adminUsers, currentUserId, defaultFunne
           </div>
 
           <div className="commercial-lead-modal-actions">
+            {!isCreate && canManage && !lead?.converted ? (
+              <button
+                type="button"
+                className="btn-ghost btn-danger commercial-lead-modal-delete"
+                disabled={busy || converting}
+                onClick={(ev) => {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  void onRemove();
+                }}
+              >
+                Excluir lead
+              </button>
+            ) : null}
+            <span className="commercial-lead-modal-actions-spacer" aria-hidden="true" />
+
             {!isCreate && canManage && !lead?.converted && lead?.stageOutcome !== 'lost' ? (
               <button
                 type="button"
@@ -849,6 +1010,78 @@ function SalesFunnelOverview({ stages, leadsByStage, activeStageId, onSelectStag
   );
 }
 
+function LeadStageQuickControls({
+  lead,
+  stages,
+  canManage,
+  busyId,
+  onStageChange,
+  compact = false,
+}) {
+  const lostStage = getLostStage(stages);
+  const pipeline = getPipelineStages(stages);
+  const nextStage = getNextPipelineStage(stages, lead.stageId);
+  const isClosed = lead.stageOutcome === 'won' || lead.stageOutcome === 'lost' || lead.converted;
+  const isBusy = busyId === lead.id;
+
+  if (!canManage || isClosed) return null;
+
+  const stopBubble = (ev) => {
+    ev.stopPropagation();
+  };
+
+  return (
+    <div
+      className={`commercial-lead-stage-quick${compact ? ' commercial-lead-stage-quick--compact' : ''}`}
+      onClick={stopBubble}
+      onPointerDown={stopBubble}
+    >
+      <label className="commercial-lead-stage-quick-select-wrap">
+        <span className="sr-only">Etapa do funil</span>
+        <select
+          className="commercial-lead-stage-quick-select"
+          value={lead.stageId}
+          disabled={isBusy}
+          aria-label={`Etapa de ${lead.title}`}
+          onChange={(ev) => onStageChange(lead, ev.target.value)}
+        >
+          {pipeline.map((stage) => (
+            <option key={stage.id} value={stage.id}>
+              {stageLabel(stage)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {nextStage && lead.stageId !== nextStage.id ? (
+        <button
+          type="button"
+          className="commercial-lead-stage-quick-btn"
+          disabled={isBusy}
+          title={`Avançar: ${stageLabel(nextStage)}`}
+          aria-label={`Avançar para ${stageLabel(nextStage)}`}
+          onClick={() => onStageChange(lead, nextStage.id)}
+        >
+          <ChevronRight size={16} aria-hidden="true" />
+          {!compact ? <span>Avançar</span> : null}
+        </button>
+      ) : null}
+      {lostStage && lead.stageId !== lostStage.id ? (
+        <button
+          type="button"
+          className="commercial-lead-stage-quick-btn commercial-lead-stage-quick-btn--lost"
+          disabled={isBusy}
+          title="Marcar como perdido"
+          aria-label={`Marcar ${lead.title} como perdido`}
+          onClick={() => onStageChange(lead, lostStage.id)}
+        >
+          <X size={compact ? 14 : 16} aria-hidden="true" />
+          {!compact ? <span>Perdido</span> : null}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function StageTabBar({ stages, leadsByStage, activeStageId, onSelectStage }) {
   return (
     <div className="commercial-stage-tabs" role="tablist" aria-label="Etapas do funil">
@@ -888,8 +1121,6 @@ function LeadQuickActions({
   const email = primaryContact?.email ?? lead.email;
   const wa = whatsAppUrl(primaryContact?.phone ?? lead.phone);
   const contactsSummary = formatContactsSummary(lead);
-  const nextStage = getNextPipelineStage(stages, lead.stageId);
-  const lostStage = getLostStage(stages);
   const isClosed = lead.stageOutcome === 'won' || lead.stageOutcome === 'lost' || lead.converted;
   const isBusy = busyId === lead.id;
 
@@ -898,13 +1129,16 @@ function LeadQuickActions({
       <button type="button" className="commercial-funnel-lead-main" onClick={() => onOpen(lead)}>
         <div className="commercial-funnel-lead-head">
           <h3>{lead.title}</h3>
-          {lead.type ? (
-            <span
-              className={`commercial-lead-badge commercial-lead-badge--${lead.type === 'partner' ? 'partner' : 'corporate'}`}
-            >
-              {lead.type === 'partner' ? 'Parceiro' : 'Corporativo'}
-            </span>
-          ) : null}
+          <div className="commercial-lead-card-meta">
+            {lead.type ? (
+              <span
+                className={`commercial-lead-badge commercial-lead-badge--${lead.type === 'partner' ? 'partner' : 'corporate'}`}
+              >
+                {lead.type === 'partner' ? 'Academia' : 'Empresa'}
+              </span>
+            ) : null}
+            <LeadSourceBadge lead={lead} compact />
+          </div>
         </div>
         <LeadTimingMeta lead={lead} />
         {contactsSummary ? <p>{contactsSummary}</p> : null}
@@ -930,6 +1164,14 @@ function LeadQuickActions({
           <span className="commercial-lead-badge commercial-lead-badge--converted">Convertido</span>
         ) : null}
       </button>
+
+      <LeadStageQuickControls
+        lead={lead}
+        stages={stages}
+        canManage={canManage}
+        busyId={busyId}
+        onStageChange={onStageChange}
+      />
 
       <div className="commercial-funnel-lead-actions">
         {phone ? (
@@ -972,30 +1214,6 @@ function LeadQuickActions({
           </a>
         ) : null}
 
-        {canManage && !isClosed && nextStage ? (
-          <button
-            type="button"
-            className="commercial-action-btn commercial-action-btn--primary"
-            disabled={isBusy}
-            onClick={() => onStageChange(lead, nextStage.id)}
-          >
-            <ChevronRight size={18} aria-hidden="true" />
-            <span>{stageLabel(nextStage)}</span>
-          </button>
-        ) : null}
-
-        {canManage && !isClosed && lostStage ? (
-          <button
-            type="button"
-            className="commercial-action-btn commercial-action-btn--danger"
-            disabled={isBusy}
-            onClick={() => onStageChange(lead, lostStage.id)}
-          >
-            <X size={18} aria-hidden="true" />
-            <span>Perder</span>
-          </button>
-        ) : null}
-
         {canManage && !lead.converted && lead.stageOutcome !== 'lost' && lead.stageOutcome !== 'won' ? (
           <button
             type="button"
@@ -1013,10 +1231,13 @@ function LeadQuickActions({
 
 function LeadKanbanCard({
   lead,
+  stages,
   canManage,
+  busyId,
   dragging,
   dropStageId,
   onOpen,
+  onStageChange,
   onDragStart,
   onDragEnd,
   onColumnDragOver,
@@ -1045,7 +1266,7 @@ function LeadKanbanCard({
     onOpen(lead);
   };
 
-  const contactsSummary = formatContactsSummary(lead);
+  const sourceAccent = lead.sourceColor ?? 'var(--border)';
 
   return (
     <article
@@ -1059,6 +1280,7 @@ function LeadKanbanCard({
     >
       <div
         className="commercial-lead-card"
+        style={{ borderLeftColor: sourceAccent }}
         role="button"
         tabIndex={0}
         draggable={false}
@@ -1070,35 +1292,46 @@ function LeadKanbanCard({
           }
         }}
       >
-        <div className="commercial-lead-card-title">{lead.title}</div>
-        <div className="commercial-lead-card-meta">
+        <header className="commercial-lead-card-header commercial-lead-card-header--kanban">
+          <div className="commercial-lead-card-title" title={lead.title}>
+            {lead.title}
+          </div>
+          <LeadSourceBadge lead={lead} compact />
+        </header>
+        <div className="commercial-lead-card-meta commercial-lead-card-meta--kanban">
           {lead.typeLabel ? (
             <span
               className={`commercial-lead-badge commercial-lead-badge--${lead.type === 'partner' ? 'partner' : 'corporate'}`}
             >
-              {lead.typeLabel}
+              {lead.type === 'partner' ? 'Academia' : 'Empresa'}
             </span>
           ) : null}
+          <LeadTimingMeta lead={lead} compact />
           {lead.converted ? (
-            <span className="commercial-lead-badge commercial-lead-badge--converted">Convertido</span>
-          ) : null}
-          {lead.stageExpired ? (
-            <span className="commercial-lead-badge commercial-lead-badge--expired">Expirado</span>
+            <span className="commercial-lead-badge commercial-lead-badge--converted">Conv.</span>
           ) : null}
         </div>
-        <LeadTimingMeta lead={lead} />
-        {lead.latestInteractionContent ? (
-          <p className="commercial-lead-card-note-preview" title={lead.latestInteractionContent}>
-            {lead.latestInteractionContent.length > 90
-              ? `${lead.latestInteractionContent.slice(0, 90).trim()}…`
+        {lead.stageOutcome === 'lost' && lead.lossReasonLabel ? (
+          <p className="commercial-lead-card-snippet" title={lead.lossReasonLabel}>
+            {lead.lossReasonLabel.length > 56
+              ? `${lead.lossReasonLabel.slice(0, 56).trim()}…`
+              : lead.lossReasonLabel}
+          </p>
+        ) : lead.latestInteractionContent ? (
+          <p className="commercial-lead-card-snippet" title={lead.latestInteractionContent}>
+            {lead.latestInteractionContent.length > 56
+              ? `${lead.latestInteractionContent.slice(0, 56).trim()}…`
               : lead.latestInteractionContent}
           </p>
         ) : null}
-        {contactsSummary ? (
-          <div className="commercial-lead-card-detail">{contactsSummary}</div>
-        ) : null}
         {lead.owners?.length || lead.ownerName ? (
-          <div className="commercial-lead-card-owner">
+          <div
+            className="commercial-lead-card-owner commercial-lead-card-owner--avatars"
+            title={(lead.owners?.length ? lead.owners : [{ name: lead.ownerName }])
+              .map((owner) => owner.name)
+              .filter(Boolean)
+              .join(', ')}
+          >
             <LeadOwnersStack
               owners={
                 lead.owners?.length
@@ -1113,15 +1346,17 @@ function LeadKanbanCard({
               size="xs"
               max={3}
             />
-            <span>
-              {(lead.owners?.length ? lead.owners : [{ name: lead.ownerName }])
-                .map((owner) => owner.name)
-                .filter(Boolean)
-                .join(', ')}
-            </span>
           </div>
         ) : null}
       </div>
+      <LeadStageQuickControls
+        lead={lead}
+        stages={stages}
+        canManage={canManage}
+        busyId={busyId}
+        onStageChange={onStageChange}
+        compact
+      />
     </article>
   );
 }
@@ -1129,6 +1364,7 @@ function LeadKanbanCard({
 export function CommercialLeadsPage() {
   const [searchParams] = useSearchParams();
   const funnelIdFromUrl = searchParams.get('funnelId') ?? '';
+  const leadIdFromUrl = searchParams.get('leadId') ?? '';
   const { user, hasPermission } = useAuth();
   const flash = useFlashMessage();
   const canManage = hasPermission('comercial.leads.manage');
@@ -1147,14 +1383,58 @@ export function CommercialLeadsPage() {
   const [selectedFunnelId, setSelectedFunnelId] = useState(funnelIdFromUrl);
   const [activeStageId, setActiveStageId] = useState('');
   const [viewMode, setViewMode] = useState(() => (isMobile ? 'funnel' : 'kanban'));
+  const [kanbanFullscreen, setKanbanFullscreen] = useState(() => readKanbanFullscreenPreference());
   const [busyLeadId, setBusyLeadId] = useState('');
   const [draggingLeadId, setDraggingLeadId] = useState('');
   const [dragOverStageId, setDragOverStageId] = useState('');
   const [modal, setModal] = useState(null);
+  const [leadSources, setLeadSources] = useState([]);
+  const [lossReasons, setLossReasons] = useState([]);
+  const [markLostModal, setMarkLostModal] = useState(null);
+  const kanbanShellRef = useRef(null);
 
   useEffect(() => {
     setViewMode(isMobile ? 'funnel' : viewMode === 'funnel' ? 'funnel' : 'kanban');
   }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile && kanbanFullscreen) {
+      setKanbanFullscreen(false);
+      writeKanbanFullscreenPreference(false);
+    }
+  }, [isMobile, kanbanFullscreen]);
+
+  const toggleKanbanFullscreen = useCallback(() => {
+    setKanbanFullscreen((current) => {
+      const next = !current;
+      writeKanbanFullscreenPreference(next);
+      return next;
+    });
+  }, []);
+
+  const kanbanFullscreenActive =
+    kanbanFullscreen && viewMode === 'kanban' && !isMobile;
+  const kanbanLayoutActive = viewMode === 'kanban' && !isMobile && !loading;
+
+  useEffect(() => {
+    if (!kanbanFullscreenActive) return undefined;
+    const onKey = (ev) => {
+      if (ev.key !== 'Escape') return;
+      setKanbanFullscreen(false);
+      writeKanbanFullscreenPreference(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [kanbanFullscreenActive]);
+
+  useEffect(() => {
+    if (!kanbanFullscreenActive) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [kanbanFullscreenActive]);
 
   useEffect(() => {
     if (funnelIdFromUrl) {
@@ -1162,19 +1442,50 @@ export function CommercialLeadsPage() {
     }
   }, [funnelIdFromUrl]);
 
+  useEffect(() => {
+    if (!kanbanLayoutActive) return undefined;
+    const shell = kanbanShellRef.current;
+    if (!shell) return undefined;
+
+    const onWheel = (event) => {
+      if (shell.scrollWidth <= shell.clientWidth + 1) return;
+
+      let delta = 0;
+      if (event.shiftKey && event.deltaY !== 0) {
+        delta = event.deltaY;
+      } else if (Math.abs(event.deltaX) > 2 && Math.abs(event.deltaX) >= Math.abs(event.deltaY)) {
+        delta = event.deltaX;
+      } else {
+        return;
+      }
+
+      const before = shell.scrollLeft;
+      shell.scrollLeft += delta;
+      if (shell.scrollLeft !== before) {
+        event.preventDefault();
+      }
+    };
+
+    shell.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => shell.removeEventListener('wheel', onWheel, { capture: true });
+  }, [kanbanLayoutActive]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const ownerUserId = user?.id;
-      const [options, userRows] = await Promise.all([
+      const [options, userRows, sources, reasons] = await Promise.all([
         getCommercialFunnelOptions(),
         getUsers(),
+        getCommercialLeadSources().catch(() => []),
+        getCommercialLossReasons().catch(() => []),
       ]);
 
       const nextOptions = Array.isArray(options) ? options : [];
       setFunnelOptions(nextOptions);
       setUsers((userRows ?? []).filter((row) => row.active !== false));
+      setLeadSources(Array.isArray(sources) ? sources : []);
+      setLossReasons(Array.isArray(reasons) ? reasons : []);
 
       const preferredFunnelId = funnelIdFromUrl || selectedFunnelId;
       const currentFunnel =
@@ -1196,7 +1507,6 @@ export function CommercialLeadsPage() {
 
       const leadRows = await getCommercialLeads({
         funnelId: funnelId || undefined,
-        ownerUserId,
       });
 
       setLeads(Array.isArray(leadRows) ? leadRows : []);
@@ -1226,6 +1536,15 @@ export function CommercialLeadsPage() {
     if (user?.id) load();
   }, [load, user?.id]);
 
+  useEffect(() => {
+    if (!leadIdFromUrl || loading || !leads.length) return;
+    const lead = leads.find((row) => row.id === leadIdFromUrl);
+    if (lead) {
+      setModal({ mode: 'edit', lead });
+      setActiveStageId(lead.stageId);
+    }
+  }, [leadIdFromUrl, leads, loading]);
+
   const leadsByStage = useMemo(() => {
     const map = Object.fromEntries(stages.map((stage) => [stage.id, []]));
     for (const lead of leads) {
@@ -1252,11 +1571,20 @@ export function CommercialLeadsPage() {
   };
 
   const onStageChange = useCallback(
-    async (lead, stageId) => {
+    async (lead, stageId, lossPayload) => {
       if (lead.stageId === stageId) return;
+
+      const targetStage = stages.find((stage) => stage.id === stageId);
+      const enteringLost =
+        targetStage?.outcome === 'lost' && lead.stageOutcome !== 'lost';
+      if (enteringLost && !lossPayload) {
+        setMarkLostModal({ lead, stageId });
+        return false;
+      }
+
       setBusyLeadId(lead.id);
       try {
-        const result = await updateCommercialLead(lead.id, { stageId });
+        const result = await updateCommercialLead(lead.id, { stageId, ...lossPayload });
         const updated = result?.lead ?? result;
         setLeads((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
 
@@ -1273,13 +1601,37 @@ export function CommercialLeadsPage() {
         } else {
           flash.error('Não foi possível mover o lead para esta etapa.');
         }
+        return true;
       } catch (err) {
         flash.error(err.message);
+        return false;
       } finally {
         setBusyLeadId('');
       }
     },
-    [flash],
+    [flash, stages],
+  );
+
+  const onRequestMarkLost = useCallback((lead, stageId) => {
+    setModal(null);
+    setMarkLostModal({ lead, stageId });
+  }, []);
+
+  const onConfirmMarkLost = useCallback(
+    async (lossPayload) => {
+      if (!markLostModal) return;
+      const { lead, stageId } = markLostModal;
+      const ok = await onStageChange(lead, stageId, lossPayload);
+      if (!ok) return;
+      try {
+        const reasons = await getCommercialLossReasons();
+        setLossReasons(Array.isArray(reasons) ? reasons : []);
+      } catch {
+        /* lista opcional */
+      }
+      setMarkLostModal(null);
+    },
+    [markLostModal, onStageChange],
   );
 
   const onKanbanDrop = useCallback(
@@ -1345,6 +1697,11 @@ export function CommercialLeadsPage() {
     );
   };
 
+  const onLeadDeleted = (leadId) => {
+    setLeads((rows) => rows.filter((row) => row.id !== leadId));
+    setModal(null);
+  };
+
   const onSaved = (savedLead, conversion) => {
     if (conversion) {
       setLeads((rows) => rows.map((row) => (row.id === savedLead.id ? savedLead : row)));
@@ -1367,10 +1724,20 @@ export function CommercialLeadsPage() {
 
   return (
     <PermissionGate permission="comercial.leads">
-      <div className={`page-stack commercial-page${isMobile ? ' commercial-page--mobile' : ''}`}>
+      <div
+        className={`page-stack commercial-page${isMobile ? ' commercial-page--mobile' : ''}${
+          kanbanLayoutActive ? ' commercial-page--kanban' : ''
+        }${kanbanFullscreenActive ? ' commercial-page--kanban-fullscreen' : ''}`}
+      >
         <PageHeader
           title="Funil de vendas"
-          subtitle="Leads comerciais para academias parceiras e empresas corporativas."
+          subtitle={
+            kanbanFullscreenActive
+              ? selectedFunnel?.name
+                ? `Funil: ${selectedFunnel.name}`
+                : undefined
+              : 'Leads comerciais para academias e empresas.'
+          }
           actions={
             <div className="commercial-header-actions">
               {!isMobile ? (
@@ -1392,6 +1759,24 @@ export function CommercialLeadsPage() {
                   </button>
                 </div>
               ) : null}
+              {viewMode === 'kanban' && !isMobile ? (
+                <button
+                  type="button"
+                  className={`commercial-view-toggle-btn commercial-kanban-fullscreen-btn${
+                    kanbanFullscreenActive ? ' commercial-kanban-fullscreen-btn--active' : ''
+                  }`}
+                  onClick={toggleKanbanFullscreen}
+                  aria-pressed={kanbanFullscreenActive}
+                  title={kanbanFullscreenActive ? 'Sair da tela cheia' : 'Kanban em tela cheia'}
+                >
+                  {kanbanFullscreenActive ? (
+                    <Minimize2 size={16} aria-hidden="true" />
+                  ) : (
+                    <Maximize2 size={16} aria-hidden="true" />
+                  )}
+                  <span>{kanbanFullscreenActive ? 'Sair' : 'Tela cheia'}</span>
+                </button>
+              ) : null}
               {canManage && !isMobile ? (
                 <button type="button" className="btn-primary" onClick={() => setModal({ mode: 'create' })}>
                   Novo lead
@@ -1403,10 +1788,15 @@ export function CommercialLeadsPage() {
 
         <CrudAlerts error={error} />
 
+        {!loading && leadSources.length && !kanbanFullscreenActive ? (
+          <LeadSourcesLegend items={leadSources} />
+        ) : null}
+
         {loading ? (
           <AppLoadingPanel label="Carregando funil…" />
         ) : viewMode === 'kanban' && !isMobile ? (
-          <div className="commercial-kanban" aria-label="Kanban de leads">
+          <div className="commercial-kanban-shell" ref={kanbanShellRef}>
+          <div className="commercial-kanban commercial-kanban--compact" aria-label="Kanban de leads">
             {stages.map((stage) => {
               const columnLeads = leadsByStage[stage.id] ?? [];
               return (
@@ -1439,10 +1829,13 @@ export function CommercialLeadsPage() {
                         <LeadKanbanCard
                           key={lead.id}
                           lead={lead}
+                          stages={stages}
                           canManage={canManage}
+                          busyId={busyLeadId}
                           dropStageId={stage.id}
                           dragging={draggingLeadId === lead.id}
                           onOpen={(row) => setModal({ mode: 'edit', lead: row })}
+                          onStageChange={onStageChange}
                           onColumnDragOver={onColumnDragOver}
                           onColumnDrop={onColumnDrop}
                           onDragStart={() => {
@@ -1459,6 +1852,7 @@ export function CommercialLeadsPage() {
                 </section>
               );
             })}
+          </div>
           </div>
         ) : (
           <>
@@ -1532,6 +1926,7 @@ export function CommercialLeadsPage() {
 
         {modal ? (
           <LeadModal
+            key={modal.mode === 'create' ? 'create' : modal.lead?.id}
             mode={modal.mode}
             lead={modal.lead}
             stages={stages}
@@ -1542,6 +1937,19 @@ export function CommercialLeadsPage() {
             onClose={() => setModal(null)}
             onSaved={onSaved}
             onUpdated={onLeadUpdated}
+            onDeleted={onLeadDeleted}
+            onRequestMarkLost={onRequestMarkLost}
+          />
+        ) : null}
+
+        {markLostModal ? (
+          <LeadMarkLostModal
+            lead={markLostModal.lead}
+            stageLabel={stageLabel(stages.find((stage) => stage.id === markLostModal.stageId))}
+            reasons={lossReasons}
+            busy={busyLeadId === markLostModal.lead?.id}
+            onClose={() => setMarkLostModal(null)}
+            onConfirm={onConfirmMarkLost}
           />
         ) : null}
       </div>

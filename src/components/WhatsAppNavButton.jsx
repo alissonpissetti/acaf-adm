@@ -41,7 +41,7 @@ export function WhatsAppNavButton({ className = '' }) {
   useEffect(() => {
     void refresh();
     if (!canView) return undefined;
-    const timer = window.setInterval(() => void refresh(), 45_000);
+    const timer = window.setInterval(() => void refresh(), 120_000);
     const onFocus = () => void refresh();
     window.addEventListener('focus', onFocus);
     return () => {

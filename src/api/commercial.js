@@ -8,6 +8,26 @@ export function getCommercialFunnelOptions() {
   return fetchApi('/api/admin/commercial/funnels/options');
 }
 
+export function getCommercialLeadSources() {
+  return fetchApi('/api/admin/commercial/lead-sources');
+}
+
+export function getCommercialLossReasons() {
+  return fetchApi('/api/admin/commercial/loss-reasons');
+}
+
+export function getCommercialLossReasonsReport(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.funnelId) params.set('funnelId', filters.funnelId);
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  if (filters.limit) params.set('limit', String(filters.limit));
+  const query = params.toString();
+  return fetchApi(
+    `/api/admin/commercial/reports/loss-reasons${query ? `?${query}` : ''}`,
+  );
+}
+
 export function getCommercialFunnel(id) {
   return fetchApi(`/api/admin/commercial/funnels/${id}`);
 }
@@ -37,6 +57,7 @@ export function getCommercialLeads(filters = {}) {
   if (filters.funnelId) params.set('funnelId', filters.funnelId);
   if (filters.ownerUserId) params.set('ownerUserId', filters.ownerUserId);
   if (filters.type) params.set('type', filters.type);
+  params.set('limit', String(filters.limit ?? 300));
   const query = params.toString();
   return fetchApi(`/api/admin/commercial/leads${query ? `?${query}` : ''}`);
 }
@@ -59,6 +80,12 @@ export function updateCommercialLead(id, payload) {
   });
 }
 
+export function deleteCommercialLead(id) {
+  return fetchApi(`/api/admin/commercial/leads/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export function convertCommercialLead(id) {
   return fetchApi(`/api/admin/commercial/leads/${id}/convert`, {
     method: 'POST',
@@ -74,6 +101,10 @@ export function recordCommercialLeadInteraction(id, kind) {
 
 export function getCommercialLeadInteractions(leadId) {
   return fetchApi(`/api/admin/commercial/leads/${leadId}/interactions`);
+}
+
+export function getCommercialLeadAuditLogs(leadId) {
+  return fetchApi(`/api/admin/commercial/leads/${encodeURIComponent(leadId)}/audit-logs`);
 }
 
 export function addCommercialLeadInteraction(leadId, content) {
