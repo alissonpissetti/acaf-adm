@@ -288,6 +288,8 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 0.5rem 0.75rem;
 }
 
@@ -633,7 +635,10 @@
     bottom: 0;
     z-index: 140;
     width: min(19rem, calc(100vw - 2.5rem));
-    min-height: 100dvh;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
     transform: translateX(-105%);
     transition: transform 0.24s ease;
     box-shadow: 16px 0 48px rgba(0, 0, 0, 0.35);
@@ -648,6 +653,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.5rem;
+    flex-shrink: 0;
     min-height: auto;
     padding:
       max(0.75rem, env(safe-area-inset-top, 0px))
@@ -662,6 +668,7 @@
   }
 
   .admin-sidebar-footer {
+    flex-shrink: 0;
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
@@ -677,6 +684,12 @@
   }
 
   .module-sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     padding: 0.375rem 0.625rem;
   }
 
