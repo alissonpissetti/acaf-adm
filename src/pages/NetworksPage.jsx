@@ -397,6 +397,7 @@ export function NetworksPage() {
             void load();
             void loadUnits();
           }}
+          onInviteEmailSent={load}
           mapCityFilter={mapCityFilter}
           mapCityLabel={mapCityLabel}
           mapCityOptions={mapCityOptions}

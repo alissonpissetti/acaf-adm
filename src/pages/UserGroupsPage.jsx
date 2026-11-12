@@ -129,18 +129,20 @@ function UserGroupForm({
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel group-permissions-panel">
         <div className="panel-header">
-          <div>
+          <div className="group-permissions-panel-intro">
             <h2>Permissões do grupo</h2>
             <p className="panel-subtitle">
               Organize o acesso por módulo e tela. Marcar &quot;Gerenciar&quot; inclui automaticamente
               a permissão de visualização.
             </p>
           </div>
-          <span className="panel-meta">{permissionIds.length} selecionada(s)</span>
+          <span className="panel-meta group-permissions-panel-meta">
+            {permissionIds.length} selecionada(s)
+          </span>
         </div>
-        <div className="panel-body panel-body-flush">
+        <div className="panel-body panel-body-flush group-permissions-panel-body">
           <GroupPermissionsEditor
             modules={modules}
             permissions={permissions}

@@ -921,6 +921,59 @@
   cursor: default;
 }
 
+@keyframes marketing-form-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.marketing-form-skeleton {
+  width: min(100%, 32rem);
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.marketing-form-skeleton-cover {
+  height: 7rem;
+  background: linear-gradient(90deg, #e8edf4 0%, #f4f7fb 50%, #e8edf4 100%);
+  animation: marketing-form-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.marketing-form-skeleton-body {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.5rem;
+}
+
+.marketing-form-skeleton-line {
+  height: 2.5rem;
+  border-radius: 8px;
+  background: #e8edf4;
+  animation: marketing-form-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.marketing-form-skeleton-line-lg {
+  width: 70%;
+  height: 1.75rem;
+}
+
+.marketing-form-skeleton-line-md {
+  width: 90%;
+  height: 1rem;
+}
+
+.marketing-form-skeleton-button {
+  margin-top: 0.5rem;
+  height: 2.75rem;
+  width: 8rem;
+}
+
 .marketing-public-page {
   min-height: 100vh;
   display: grid;

@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { importAcafAssociates } from '../api/admin.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchAssociations, importAcafAssociates } from '../api/admin.js';
 import { AppLoading } from './crud/AppLoading.jsx';
 import { CrudAlerts } from './crud/CrudAlerts.jsx';
 import '../styles/acaf-import.css';
@@ -18,6 +18,8 @@ export function AcafAssociatesImportPanel({ onImported }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [result, setResult] = useState(null);
+  const [associations, setAssociations] = useState([]);
+  const [associationSlug, setAssociationSlug] = useState('acaf');
 
   const collapsedSummary =
     'Planilha NOVA ASSINATURA · .xlsx · importação ao selecionar o arquivo';
@@ -30,7 +32,7 @@ export function AcafAssociatesImportPanel({ onImported }) {
     setMessage('');
     setResult(null);
     try {
-      const summary = await importAcafAssociates(file, { syncMissing, updateExisting });
+      const summary = await importAcafAssociates(file, { syncMissing, updateExisting, associationSlug });
       setResult(summary);
       const removedByStatus = summary.deactivatedByStatus ?? summary.deactivated ?? 0;
       const removedSync = summary.deactivatedSyncMissing ?? 0;
@@ -57,6 +59,21 @@ export function AcafAssociatesImportPanel({ onImported }) {
     if (!busy) inputRef.current?.click();
   }, [busy]);
 
+  useEffect(() => {
+    if (!expanded) return;
+    let cancelled = false;
+    fetchAssociations()
+      .then((rows) => {
+        if (!cancelled) setAssociations(Array.isArray(rows) ? rows.filter((r) => r.active) : []);
+      })
+      .catch(() => {
+        if (!cancelled) setAssociations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [expanded]);
+
   const onFileInputChange = (ev) => {
     const file = ev.target.files?.[0];
     if (file) void runImport(file);
@@ -76,7 +93,7 @@ export function AcafAssociatesImportPanel({ onImported }) {
         expanded ? 'is-expanded' : 'is-collapsed'
       }`}
       aria-busy={busy}
-      aria-label="Importar associados movly."
+      aria-label="Importar membros associados"
     >
       <button
         type="button"
@@ -85,7 +102,7 @@ export function AcafAssociatesImportPanel({ onImported }) {
         aria-expanded={expanded}
       >
         <span className="collapsible-header-main">
-          <strong>Importar associados movly.</strong>
+          <strong>Importar membros associados</strong>
           {!expanded ? <span className="collapsible-summary">{collapsedSummary}</span> : null}
         </span>
         <span className="collapsible-chevron" aria-hidden>
@@ -128,6 +145,23 @@ export function AcafAssociatesImportPanel({ onImported }) {
 
           <fieldset className="acaf-import-options" disabled={busy}>
             <legend className="acaf-import-options-title">Opções</legend>
+            {associations.length > 0 ? (
+              <label className="acaf-import-association-select">
+                <span>Agrupador comercial</span>
+                <select
+                  className="input"
+                  value={associationSlug}
+                  onChange={(ev) => setAssociationSlug(ev.target.value)}
+                  disabled={busy}
+                >
+                  {associations.map((a) => (
+                    <option key={a.id} value={a.slug}>
+                      {a.name} ({a.slug})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <div className="acaf-import-checkboxes">
               <label className="checkbox-inline">
                 <input

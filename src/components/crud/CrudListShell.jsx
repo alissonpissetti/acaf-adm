@@ -181,7 +181,11 @@ export function CrudListShell({
                       </td>
                     ) : null}
                     {columns.map((column) => (
-                      <td key={column.key} data-label={column.label} className={column.className ?? ''}>
+                      <td
+                        key={column.key}
+                        data-label={column.mobileLabel ?? column.label}
+                        className={column.className ?? ''}
+                      >
                         {renderCell
                           ? renderCell(row, column.key)
                           : column.render

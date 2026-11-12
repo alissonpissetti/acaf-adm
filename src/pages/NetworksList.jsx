@@ -3,7 +3,7 @@ import { CrudListShell } from '../components/crud/CrudListShell.jsx';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { TableNetworkLogo } from '../components/TableNetworkLogo.jsx';
-import { mergeNetworks } from '../api/admin.js';
+import { mergeNetworks, sendPartnerOnboardingInviteEmail } from '../api/admin.js';
 import { appChoose, appConfirm } from '../components/confirm/appConfirm.js';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
 import { selectFilter } from '../crud/filterUtils.js';
@@ -23,6 +23,8 @@ import {
  * | primaryMemberCount | Academia principal | Acad. principal | Alunos do app com esta rede como unidade principal. |
  * | partnerAccessStatus | Portal parceiro | Portal | Situação do acesso ao portal do parceiro (onboarding). |
  * | partnerUserCount | Usuários vinculados | Usuários | Equipe com login nas unidades desta rede. |
+ * | onboardingInviteEmail | E-mail convite | E-mail | Destino do convite de onboarding. |
+ * | onboardingInviteSend | Enviar convite | Enviar | Dispara o e-mail de onboarding. |
  * | commercialOwnerName | Resp. comercial | Resp. com. | Responsável comercial interno (ACAF) pela conta. |
  */
 const NETWORKS_TABLE_COLUMN_HINTS = {
@@ -46,6 +48,7 @@ export function NetworksList({
   onEdit,
   onDelete,
   onMerged,
+  onInviteEmailSent,
   mapCityFilter = '',
   mapCityLabel: _mapCityLabel = '',
   mapCityOptions = [],
@@ -56,6 +59,7 @@ export function NetworksList({
   const flash = useFlashMessage();
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [mergeBusy, setMergeBusy] = useState(false);
+  const [inviteEmailBusyId, setInviteEmailBusyId] = useState('');
 
   const getSortValue = useCallback((row, key) => {
     if (key === 'partnerAccessStatus') return partnerAccessStatusSortRank(row);
@@ -171,6 +175,41 @@ export function NetworksList({
   }, [list.rows]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleSendInviteEmail = async (row, ev) => {
+    ev?.stopPropagation?.();
+    ev?.preventDefault?.();
+    if (!row?.id || inviteEmailBusyId) return;
+    if (!row.onboardingInviteEmail) {
+      flash.error('Cadastre o e-mail responsável da rede ou importe o e-mail da planilha na unidade.');
+      return;
+    }
+    if (row.onboardingInviteEmailSentToday) {
+      flash.error(
+        'Já foi enviado um convite hoje para esta academia/rede. Você poderá reenviar amanhã.',
+      );
+      return;
+    }
+    if ((row.unitCount ?? 0) < 1) {
+      flash.error('Cadastre ao menos uma unidade antes de enviar o convite.');
+      return;
+    }
+    setInviteEmailBusyId(row.id);
+    const isTeam = Boolean(row.hasPartnerUser);
+    try {
+      const res = await sendPartnerOnboardingInviteEmail(row.id);
+      const kindLabel = res.inviteKind === 'team' || isTeam ? 'equipe' : 'onboarding';
+      flash.success(
+        `Convite de ${kindLabel} enviado para ${res.recipientEmail ?? row.onboardingInviteEmail}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
+        9000,
+      );
+      onInviteEmailSent?.();
+    } catch (err) {
+      flash.error(err.message ?? 'Não foi possível enviar o convite por e-mail.');
+    } finally {
+      setInviteEmailBusyId('');
+    }
+  };
 
   const handleMerge = async () => {
     const ids = [...selectedIds];
@@ -313,30 +352,12 @@ export function NetworksList({
           label: 'Rede',
           headerHint: NETWORKS_TABLE_COLUMN_HINTS.name,
           className: 'data-table-cell-wrap data-table-col-network-name',
-          render: (row) => <strong>{row.name}</strong>,
-        },
-        {
-          key: 'unitCount',
-          label: 'Unidades',
-          headerHint: NETWORKS_TABLE_COLUMN_HINTS.unitCount,
-          className: 'data-table-cell-numeric data-table-col-network-units',
-          render: (row) => <span className="badge badge-muted">{row.unitCount ?? 0}</span>,
-        },
-        {
-          key: 'primaryMemberCount',
-          label: 'Academia principal',
-          headerAbbr: 'Acad. principal',
-          headerHint: NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount,
-          className: 'data-table-cell-numeric data-table-col-network-primary',
-          render: (row) => (
-            <span className="badge badge-muted" title={NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount}>
-              {row.primaryMemberCount ?? 0}
-            </span>
-          ),
+          render: (row) => <strong className="networks-partners-name">{row.name}</strong>,
         },
         {
           key: 'partnerAccessStatus',
           label: 'Portal parceiro',
+          mobileLabel: 'Portal',
           headerAbbr: 'Portal',
           headerHint: NETWORKS_TABLE_COLUMN_HINTS.partnerAccessStatus,
           className: 'data-table-col-network-portal',
@@ -350,8 +371,30 @@ export function NetworksList({
           ),
         },
         {
+          key: 'unitCount',
+          label: 'Unidades',
+          mobileLabel: 'Unid.',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.unitCount,
+          className: 'data-table-cell-numeric data-table-col-network-units',
+          render: (row) => <span className="badge badge-muted">{row.unitCount ?? 0}</span>,
+        },
+        {
+          key: 'primaryMemberCount',
+          label: 'Academia principal',
+          mobileLabel: 'Acad.',
+          headerAbbr: 'Acad. principal',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount,
+          className: 'data-table-cell-numeric data-table-col-network-primary',
+          render: (row) => (
+            <span className="badge badge-muted" title={NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount}>
+              {row.primaryMemberCount ?? 0}
+            </span>
+          ),
+        },
+        {
           key: 'partnerUserCount',
           label: 'Usuários vinculados',
+          mobileLabel: 'Equipe',
           headerAbbr: 'Usuários',
           headerHint: NETWORKS_TABLE_COLUMN_HINTS.partnerUserCount,
           className: 'data-table-cell-numeric data-table-col-network-users',
@@ -365,11 +408,69 @@ export function NetworksList({
           ),
         },
         {
+          key: 'onboardingInviteEmail',
+          label: 'E-mail convite',
+          mobileLabel: 'E-mail',
+          headerAbbr: 'E-mail',
+          headerHint: 'Destino do convite de onboarding (responsável da rede ou planilha ACAF por unidade).',
+          className: 'data-table-col-network-invite-email',
+          render: (row) => {
+            const email = row.onboardingInviteEmail;
+            if (!email) {
+              return <span className="muted">—</span>;
+            }
+            const source =
+              row.onboardingInviteEmailSource === 'network' ? 'Responsável rede' : 'Planilha';
+            return (
+              <span className="networks-invite-email-cell" title={`${source}: ${email}`}>
+                <span className="networks-invite-email-value">{email}</span>
+                <span className="networks-invite-email-source muted">{source}</span>
+              </span>
+            );
+          },
+        },
+        {
+          key: 'onboardingInviteSend',
+          label: 'Enviar convite',
+          mobileLabel: 'Convite',
+          headerAbbr: 'Enviar',
+          headerHint:
+            'Onboarding (rede sem acesso) ou convite equipe (rede já configurada). Máx. 1 e-mail/dia por academia/rede.',
+          className: 'data-table-col-network-invite-send',
+          render: (row) => {
+            const busy = inviteEmailBusyId === row.id;
+            const noEmail = !row.onboardingInviteEmail;
+            const sentToday = Boolean(row.onboardingInviteEmailSentToday);
+            const noUnits = (row.unitCount ?? 0) < 1;
+            const hasAccess = Boolean(row.hasPartnerUser);
+            const disabled = busy || noEmail || sentToday || noUnits;
+            let title = hasAccess
+              ? 'Enviar convite de equipe por e-mail (novo usuário no portal)'
+              : 'Enviar convite de onboarding por e-mail';
+            if (noEmail) title = 'Sem e-mail — cadastre na rede ou na planilha';
+            else if (sentToday) title = 'Já enviado hoje — tente novamente amanhã';
+            else if (noUnits) title = 'Cadastre uma unidade';
+            const label = busy ? 'Enviando…' : sentToday ? 'Enviado hoje' : hasAccess ? 'Convite equipe' : 'Enviar';
+            return (
+              <button
+                type="button"
+                className="btn-ghost btn-sm networks-invite-email-btn"
+                disabled={disabled}
+                title={title}
+                onClick={(ev) => void handleSendInviteEmail(row, ev)}
+              >
+                {label}
+              </button>
+            );
+          },
+        },
+        {
           key: 'commercialOwnerName',
           label: 'Resp. comercial',
+          mobileLabel: 'Comercial',
           headerAbbr: 'Resp. com.',
           headerHint: NETWORKS_TABLE_COLUMN_HINTS.commercialOwnerName,
-          className: 'data-table-col-network-commercial',
+          className: 'data-table-col-network-commercial data-table-col-network-commercial-desktop',
           render: (row) => row.commercialOwnerName ?? '—',
         },
       ]}

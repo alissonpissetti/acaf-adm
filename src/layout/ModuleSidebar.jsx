@@ -119,25 +119,31 @@ export function ModuleSidebar({ onNavigate }) {
                 role="group"
                 aria-label={`Telas: ${module.name}`}
               >
-                {module.items.map((item) =>
-                  isExternalRoute(item.route) ? (
-                    <a
-                      key={item.id}
-                      href={item.route}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="module-sidebar-child-link module-sidebar-child-link--external"
-                      onClick={onNavigate}
-                    >
-                      <span>{item.label}</span>
-                      <ExternalLink
-                        size={13}
-                        strokeWidth={2}
-                        className="module-sidebar-external-icon"
-                        aria-hidden="true"
-                      />
-                    </a>
-                  ) : (
+                {module.items.map((item) => {
+                  const external = isExternalRoute(item.route);
+
+                  if (external) {
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.route}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="module-sidebar-child-link module-sidebar-child-link--external"
+                        onClick={onNavigate}
+                      >
+                        <span>{item.label}</span>
+                        <ExternalLink
+                          size={13}
+                          strokeWidth={2}
+                          className="module-sidebar-external-icon"
+                          aria-hidden="true"
+                        />
+                      </a>
+                    );
+                  }
+
+                  return (
                     <NavLink
                       key={item.id}
                       to={item.route}
@@ -150,8 +156,8 @@ export function ModuleSidebar({ onNavigate }) {
                     >
                       {item.label}
                     </NavLink>
-                  ),
-                )}
+                  );
+                })}
               </div>
             ) : null}
           </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deleteUnit, getPlatformFeeDefaults, getUnits, updateUnit } from '../api/admin.js';
+import { deleteUnit, fetchAssociations, getPlatformFeeDefaults, getUnits, updateUnit } from '../api/admin.js';
 import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { confirmCrudDelete } from '../crud/crudUtils.js';
 import { PageHeader } from '../components/PageHeader.jsx';
@@ -38,6 +38,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
   const [connectOverrideInput, setConnectOverrideInput] = useState('');
   const [dailyOverrideInput, setDailyOverrideInput] = useState('');
   const [cadastralExpanded, setCadastralExpanded] = useState(false);
+  const [associationOptions, setAssociationOptions] = useState([]);
 
   const acafCadastralSummary = useMemo(() => {
     if (!form?.acafAssociate) return '';
@@ -51,6 +52,22 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
     getPlatformFeeDefaults()
       .then(setPlatformDefaults)
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAssociations()
+      .then((rows) => {
+        if (!cancelled) {
+          setAssociationOptions(Array.isArray(rows) ? rows.filter((r) => r.active) : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAssociationOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -286,7 +303,34 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                           />
                         </label>
                         <label>
-                          <span>Associação</span>
+                          <span>Agrupador comercial (opcional)</span>
+                          <select
+                            className="input"
+                            value={form.acafAssociate.associationId ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                acafAssociate: {
+                                  ...form.acafAssociate,
+                                  associationId: e.target.value,
+                                },
+                              })
+                            }
+                            disabled={busy}
+                          >
+                            <option value="">Nenhum</option>
+                            {associationOptions.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name} ({a.slug})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="muted unit-tab-help">
+                            Vínculo ao cadastro de associações; define em qual portal o parceiro aparece.
+                          </p>
+                        </label>
+                        <label>
+                          <span>Associação (planilha)</span>
                           <input
                             value={form.acafAssociate.association}
                             onChange={(e) =>

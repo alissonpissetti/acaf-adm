@@ -8,6 +8,7 @@ import {
   updateNetwork,
   uploadNetworkLogo,
   createPartnerOnboardingInvite,
+  sendPartnerOnboardingInviteEmail,
 } from '../api/admin.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
@@ -305,12 +306,18 @@ export function NetworkEditScreen({
   const [busy, setBusy] = useState(false);
   const [onboardingUrl, setOnboardingUrl] = useState('');
   const [onboardingBusy, setOnboardingBusy] = useState(false);
+  const [onboardingEmailBusy, setOnboardingEmailBusy] = useState(false);
+  const [partnerContactEmail, setPartnerContactEmail] = useState(network.partnerContactEmail ?? '');
   const [platformDefaults, setPlatformDefaults] = useState({ connectFeePercent: 20, dailyFeePercent: 20 });
   const [connectOverrideInput, setConnectOverrideInput] = useState('');
   const [dailyOverrideInput, setDailyOverrideInput] = useState('');
   const [cadastralExpanded, setCadastralExpanded] = useState(false);
 
   const unitCountLabel = useMemo(() => `${units.length} unidade(s)`, [units.length]);
+  const hasPartnerAccess = Boolean(
+    network.hasPartnerUser ?? (Number(network.partnerUserCount) > 0),
+  );
+  const inviteSentToday = Boolean(network.onboardingInviteEmailSentToday);
 
   const cadastralSummary = useMemo(() => {
     const bits = [networkName.trim() || network.name];
@@ -337,6 +344,7 @@ export function NetworkEditScreen({
    * senão um load() com o mesmo id desfazia "Remover logo" antes de salvar. */
   useEffect(() => {
     setNetworkName(network.name);
+    setPartnerContactEmail(network.partnerContactEmail ?? '');
     setSocial(networkSocialFromNetwork(network));
     setConnectOverrideInput(
       network.connectFeePercentOverride != null ? String(network.connectFeePercentOverride) : '',
@@ -389,6 +397,7 @@ export function NetworkEditScreen({
         social,
         connectFeePercentOverride: connectParsed,
         dailyFeePercentOverride: dailyParsed,
+        partnerContactEmail: partnerContactEmail.trim() ? partnerContactEmail.trim() : null,
       };
       if (logoRemovePending && !logoFile) {
         patch.logoUrl = null;
@@ -431,13 +440,37 @@ export function NetworkEditScreen({
     onUpdated?.();
   };
 
+  const sendOnboardingEmail = async () => {
+    setOnboardingEmailBusy(true);
+    setError('');
+    try {
+      const res = await sendPartnerOnboardingInviteEmail(network.id);
+      setOnboardingUrl(res.inviteUrl ?? '');
+      const kind =
+        res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
+      flash.success(
+        `Convite de ${kind} enviado para ${res.recipientEmail}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
+        9000,
+      );
+      onUpdated?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOnboardingEmailBusy(false);
+    }
+  };
+
   const generateOnboardingLink = async () => {
     setOnboardingBusy(true);
     setError('');
     try {
       const res = await createPartnerOnboardingInvite(network.id);
       setOnboardingUrl(res.inviteUrl ?? '');
-      flash.success('Link de onboarding gerado. Copie e envie ao parceiro (válido por 14 dias).', 8000);
+      const kind = res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
+      flash.success(
+        `Link de ${kind} gerado. Copie e envie ao parceiro (válido por 14 dias).`,
+        8000,
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -565,6 +598,18 @@ export function NetworkEditScreen({
                           disabled
                         />
                       </label>
+                      <label className="field-span-full">
+                        <span>E-mail responsável (convite onboarding)</span>
+                        <input
+                          className="input"
+                          type="email"
+                          autoComplete="email"
+                          placeholder="Opcional — tem prioridade sobre o e-mail da planilha ACAF"
+                          value={partnerContactEmail}
+                          onChange={(e) => setPartnerContactEmail(e.target.value)}
+                          disabled={readOnly || busy}
+                        />
+                      </label>
                     </div>
                   </section>
 
@@ -647,19 +692,72 @@ export function NetworkEditScreen({
             </section>
 
             <section className="form-section field-span-full">
-              <h3 className="form-section-title">Onboarding — portal do parceiro</h3>
+              <h3 className="form-section-title">
+                {hasPartnerAccess ? 'Convite equipe — portal do parceiro' : 'Onboarding — portal do parceiro'}
+              </h3>
               <p className="muted" style={{ marginTop: 0 }}>
-                Gere um link único para o parceiro criar o primeiro usuário com acesso a{' '}
-                <strong>todas as unidades desta rede</strong>. Cada geração cria um novo convite (válido 14 dias).
+                {hasPartnerAccess ? (
+                  <>
+                    A rede já possui acesso configurado. Envie um convite para{' '}
+                    <strong>adicionar outra pessoa</strong> à equipe, com acesso a todas as unidades desta rede. O
+                    cadastro não passa pelo assistente inicial da rede.
+                  </>
+                ) : (
+                  <>
+                    Gere um link ou envie por e-mail o convite para o parceiro criar o{' '}
+                    <strong>primeiro usuário</strong> com acesso a todas as unidades desta rede.
+                  </>
+                )}{' '}
+                O envio por e-mail é limitado a <strong>1 por dia</strong> por academia/rede; cada envio gera um
+                novo link (válido 14 dias).
+                {inviteSentToday ? (
+                  <>
+                    {' '}
+                    <strong>Já houve envio hoje</strong> — o reenvio por e-mail ficará disponível amanhã; você ainda
+                    pode gerar link manualmente.
+                  </>
+                ) : null}
               </p>
               <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
                 <button
                   type="button"
                   className="btn-primary btn-sm"
-                  disabled={readOnly || busy || onboardingBusy || units.length === 0}
+                  disabled={
+                    readOnly ||
+                    busy ||
+                    onboardingEmailBusy ||
+                    onboardingBusy ||
+                    units.length === 0 ||
+                    inviteSentToday
+                  }
+                  title={
+                    inviteSentToday
+                      ? 'Já enviado hoje — tente novamente amanhã'
+                      : hasPartnerAccess
+                        ? 'Enviar convite de equipe'
+                        : 'Enviar convite de onboarding'
+                  }
+                  onClick={() => void sendOnboardingEmail()}
+                >
+                  {onboardingEmailBusy
+                    ? 'Enviando…'
+                    : inviteSentToday
+                      ? 'E-mail enviado hoje'
+                      : hasPartnerAccess
+                        ? 'Enviar convite equipe'
+                        : 'Enviar convite por e-mail'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost btn-sm"
+                  disabled={readOnly || busy || onboardingBusy || onboardingEmailBusy || units.length === 0}
                   onClick={() => void generateOnboardingLink()}
                 >
-                  {onboardingBusy ? 'Gerando…' : 'Gerar link de cadastro'}
+                  {onboardingBusy
+                    ? 'Gerando…'
+                    : hasPartnerAccess
+                      ? 'Gerar link equipe'
+                      : 'Gerar link de cadastro'}
                 </button>
               </div>
               {units.length === 0 ? (

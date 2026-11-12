@@ -1496,6 +1496,10 @@ textarea {
   width: 32px;
   height: 32px;
   margin-inline: auto;
+  border: 1px solid #e3e5ea;
+  border-radius: 8px;
+  background: #fff;
+  box-sizing: border-box;
 }
 
 .data-table td.data-table-col-logo .table-logo-fallback {
@@ -1506,6 +1510,31 @@ textarea {
 .data-table td.data-table-col-network-name {
   width: 30%;
   min-width: 0;
+}
+
+@media (min-width: 1201px) {
+  .data-table.networks-partners-table th.data-table-col-network-name,
+  .data-table.networks-partners-table td.data-table-col-network-name {
+    min-width: 9.5rem;
+    width: auto;
+    max-width: 16rem;
+  }
+
+  .data-table.networks-partners-table .networks-partners-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1201px) and (max-width: 1400px) {
+  .data-table.networks-partners-table th.data-table-col-network-primary,
+  .data-table.networks-partners-table td.data-table-col-network-primary,
+  .data-table.networks-partners-table th.data-table-col-network-commercial,
+  .data-table.networks-partners-table td.data-table-col-network-commercial {
+    display: none;
+  }
 }
 
 /* Parceiros — cabeçalhos legíveis; larguras para evitar LOG… / PORTAL PAR… */
@@ -1567,6 +1596,40 @@ textarea {
   line-height: 1.2;
   white-space: normal;
   text-align: center;
+}
+
+.data-table.networks-partners-table th.data-table-col-network-invite-email,
+.data-table.networks-partners-table td.data-table-col-network-invite-email {
+  min-width: 9rem;
+  max-width: 14rem;
+}
+
+.networks-invite-email-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 14rem;
+}
+
+.networks-invite-email-value {
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.networks-invite-email-source {
+  font-size: 0.6875rem;
+}
+
+.data-table.networks-partners-table th.data-table-col-network-invite-send,
+.data-table.networks-partners-table td.data-table-col-network-invite-send {
+  width: 6.5rem;
+  white-space: nowrap;
+}
+
+.networks-invite-email-btn {
+  max-width: 100%;
 }
 
 .data-table th.data-table-cell-numeric,
@@ -2356,14 +2419,17 @@ input.input-disabled:disabled {
   width: 40px;
   height: 40px;
   border-radius: 0.5rem;
-  background: var(--surface-muted);
+  border: 1px solid #e3e5ea;
+  background: #fff;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .table-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  border-radius: inherit;
 }
 
 .table-logo-fallback {
@@ -4054,6 +4120,15 @@ input.input-disabled:disabled {
 .permission-matrix {
   display: grid;
   gap: 1rem;
+}
+
+/* Grupos · editor de permissões (detalhe/edição) */
+.group-permissions-panel .panel-header {
+  align-items: flex-start;
+}
+
+.group-permissions-panel .panel-subtitle {
+  max-width: 42rem;
 }
 
 .permission-checkboxes {

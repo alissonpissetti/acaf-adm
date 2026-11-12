@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { recordPublicMarketingClick } from '../api/public.js';
-import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
+import { MarketingFormSkeleton } from '../components/MarketingFormSkeleton.jsx';
 
 export function MarketingGoPage() {
   const { slug } = useParams();
@@ -26,5 +26,5 @@ export function MarketingGoPage() {
       });
   }, [navigate, searchParams, slug]);
 
-  return <AppLoadingPanel label="Redirecionando…" />;
+  return <MarketingFormSkeleton />;
 }

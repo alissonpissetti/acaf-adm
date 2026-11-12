@@ -31,7 +31,8 @@ export function resolveMarketingFontFamily(fontFamily, brandTypography) {
 }
 
 export function shouldLoadBrandTypography(fontFamily) {
-  const value = String(fontFamily ?? '').trim();
+  if (fontFamily == null) return false;
+  const value = String(fontFamily).trim();
   if (isAppDefaultMarketingFont(value)) return true;
   return value === 'Figtree' || value === 'Inter';
 }
@@ -60,6 +61,11 @@ let brandTypographyPromise = null;
 
 export function getCachedBrandTypography() {
   return brandTypographyCache;
+}
+
+export function seedBrandTypographyCache(typography) {
+  if (!typography) return;
+  brandTypographyCache = typography;
 }
 
 export async function loadBrandTypography() {

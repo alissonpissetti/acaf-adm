@@ -68,14 +68,49 @@ export function createPartnerOnboardingInvite(networkId) {
   });
 }
 
-export function importAcafAssociates(file, { syncMissing = false, updateExisting = false } = {}) {
+/** Envia convite de onboarding por e-mail (1× por dia por academia/rede). */
+export function sendPartnerOnboardingInviteEmail(networkId) {
+  return fetchApi(
+    `/api/admin/networks/${encodeURIComponent(networkId)}/partner-onboarding-invite-email`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export function importAcafAssociates(
+  file,
+  { syncMissing = false, updateExisting = false, associationSlug = 'acaf' } = {},
+) {
   const formData = new FormData();
   formData.append('file', file);
   const params = new URLSearchParams();
   if (syncMissing) params.set('syncMissing', '1');
   if (updateExisting) params.set('updateExisting', '1');
+  if (associationSlug && associationSlug !== 'acaf') {
+    params.set('associationSlug', associationSlug);
+  }
   const q = params.toString();
   return fetchApiUpload(`/api/admin/associates/import${q ? `?${q}` : ''}`, formData);
+}
+
+export function fetchAssociations() {
+  return fetchApi('/api/admin/associations');
+}
+
+export function createAssociation(payload) {
+  return fetchApi('/api/admin/associations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAssociation(id, payload) {
+  return fetchApi(`/api/admin/associations/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function uploadNetworkLogo(id, file) {

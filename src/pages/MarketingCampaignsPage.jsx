@@ -18,6 +18,7 @@ import { MarketingSharePanel } from '../components/MarketingSharePanel.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { PermissionGate } from '../components/PermissionGate.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
+import { appAlert } from '../components/confirm/appConfirm.js';
 import { confirmCrudDelete, inactiveBadgeClass, inactiveLabel } from '../crud/crudUtils.js';
 import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
@@ -413,8 +414,16 @@ export function MarketingCampaignsPage() {
     if (!canManage) return;
     const confirmed = await confirmCrudDelete('campanha', row.name);
     if (!confirmed) return;
-    await deactivateMarketingCampaign(row.id);
-    await reload();
+    try {
+      await deactivateMarketingCampaign(row.id);
+      await reload();
+    } catch (err) {
+      await appAlert({
+        title: 'Não foi possível excluir',
+        message: err.message,
+        tone: 'danger',
+      });
+    }
   };
 
   if (loading) return <AppLoadingPanel label="Carregando campanhas…" />;
@@ -457,9 +466,17 @@ export function MarketingCampaignsPage() {
               ? async () => {
                   const confirmed = await confirmCrudDelete('campanha', detail.name);
                   if (!confirmed) return;
-                  await deactivateMarketingCampaign(detail.id);
-                  await reload();
-                  router.goToList();
+                  try {
+                    await deactivateMarketingCampaign(detail.id);
+                    await reload();
+                    router.goToList();
+                  } catch (err) {
+                    await appAlert({
+                      title: 'Não foi possível excluir',
+                      message: err.message,
+                      tone: 'danger',
+                    });
+                  }
                 }
               : undefined
           }

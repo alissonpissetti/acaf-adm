@@ -174,62 +174,69 @@ function ModulePermissionsSection({
 
       {expanded ? (
         <div className="group-permissions-module-body">
-          <table className="group-permissions-table">
-            <thead>
-              <tr>
-                <th>Tela / funcionalidade</th>
-                <th>Ver</th>
-                <th>Gerenciar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleItems.map((item) => {
-                const view = item.permissions?.view;
-                const manage = item.permissions?.manage;
-                const viewChecked = view ? selectedIds.includes(view.id) : false;
-                const manageChecked = manage ? selectedIds.includes(manage.id) : false;
+          <div className="table-wrap group-permissions-table-wrap">
+            <table className="group-permissions-table">
+              <thead>
+                <tr>
+                  <th scope="col">Tela / funcionalidade</th>
+                  <th scope="col">Ver</th>
+                  <th scope="col">Gerenciar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleItems.map((item) => {
+                  const view = item.permissions?.view;
+                  const manage = item.permissions?.manage;
+                  const viewChecked = view ? selectedIds.includes(view.id) : false;
+                  const manageChecked = manage ? selectedIds.includes(manage.id) : false;
 
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      <span className="group-permissions-item-label">{item.label}</span>
-                      {view?.key ? (
-                        <span className="group-permissions-item-key">{view.key}</span>
-                      ) : null}
-                    </td>
-                    <td>
-                      <PermissionActionCell
-                        label="Ver"
-                        permission={view}
-                        checked={viewChecked}
-                        disabled={readOnly}
-                        onChange={() =>
-                          onTogglePermission(view?.id, !viewChecked, view?.id, manage?.id, false)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <PermissionActionCell
-                        label="Gerenciar"
-                        permission={manage}
-                        checked={manageChecked}
-                        disabled={readOnly}
-                        onChange={() =>
-                          onTogglePermission(
-                            manage?.id,
-                            !manageChecked,
-                            view?.id,
-                            manage?.id,
-                            true,
-                          )
-                        }
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  return (
+                    <tr key={item.id}>
+                      <td data-cell-label="Tela">
+                        <span className="group-permissions-item-label">{item.label}</span>
+                        {view?.key ? (
+                          <span className="group-permissions-item-key">{view.key}</span>
+                        ) : null}
+                        {manage?.key && manage.key !== view?.key ? (
+                          <span className="group-permissions-item-key group-permissions-item-key-secondary">
+                            {manage.key}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td data-cell-label="Ver">
+                        <PermissionActionCell
+                          label="Ver"
+                          permission={view}
+                          checked={viewChecked}
+                          disabled={readOnly}
+                          onChange={() =>
+                            onTogglePermission(view?.id, !viewChecked, view?.id, manage?.id, false)
+                          }
+                        />
+                      </td>
+                      <td data-cell-label="Gerenciar">
+                        <PermissionActionCell
+                          label="Gerenciar"
+                          permission={manage}
+                          checked={manageChecked}
+                          disabled={readOnly}
+                          onChange={() =>
+                            onTogglePermission(
+                              manage?.id,
+                              !manageChecked,
+                              view?.id,
+                              manage?.id,
+                              true,
+                            )
+                          }
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
     </section>

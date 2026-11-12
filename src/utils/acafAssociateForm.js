@@ -2,6 +2,7 @@ export function acafAssociateFormFromUnit(unit) {
   const a = unit?.acafAssociate;
   if (!a || a.importSource !== 'acaf_associates_xlsx') return null;
   return {
+    associationId: a.associationId ?? '',
     legalName: a.legalName ?? '',
     association: a.association ?? '',
     signedAt: a.signedAt ?? '',
@@ -19,6 +20,7 @@ export function normalizePhoneDigits(value) {
 export function payloadFromAcafForm(acaf) {
   if (!acaf) return undefined;
   return {
+    associationId: acaf.associationId?.trim() || null,
     legalName: acaf.legalName.trim(),
     association: acaf.association.trim(),
     signedAt: acaf.signedAt,

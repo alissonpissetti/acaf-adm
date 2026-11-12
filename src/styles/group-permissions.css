@@ -1,12 +1,31 @@
 .group-permissions {
   display: grid;
-  gap: 1rem;
+  gap: 0;
+  min-width: 0;
+}
+
+.group-permissions-panel {
+  overflow: visible;
+}
+
+.group-permissions-panel-intro {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-permissions-panel-body.panel-body-flush {
+  padding-inline: 0;
+}
+
+.group-permissions-panel-meta {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .group-permissions-toolbar {
   display: grid;
   gap: 0.75rem;
-  padding: 1rem 1.25rem;
+  padding: 1rem var(--panel-inline-padding);
   border-bottom: 1px solid var(--border, #e5e7eb);
   background: #fafbfc;
   position: sticky;
@@ -19,6 +38,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.625rem;
+  min-width: 0;
 }
 
 .group-permissions-search {
@@ -37,6 +57,7 @@
 }
 
 .group-permissions-search .input {
+  width: 100%;
   padding-left: 2.25rem;
 }
 
@@ -50,6 +71,8 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.375rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .group-permissions-filter-btn {
@@ -61,6 +84,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  min-height: 2rem;
 }
 
 .group-permissions-filter-btn:hover {
@@ -77,12 +101,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-left: auto;
 }
 
 .group-permissions-body {
   display: grid;
   gap: 0.75rem;
-  padding: 1rem 1.25rem 1.25rem;
+  padding: 1rem var(--panel-inline-padding) 1.25rem;
+  min-width: 0;
 }
 
 .group-permissions-empty {
@@ -97,6 +123,7 @@
   border-radius: 0.875rem;
   overflow: hidden;
   background: #fff;
+  min-width: 0;
 }
 
 .group-permissions-module.is-dimmed {
@@ -108,21 +135,43 @@
   align-items: center;
   gap: 0.75rem;
   width: 100%;
+  min-width: 0;
   padding: 0.875rem 1rem;
-  border: 0;
   background: #f8f9fb;
   text-align: left;
-  cursor: pointer;
 }
 
-.group-permissions-module-head:disabled {
-  cursor: default;
+.group-permissions-module-toggle,
+.group-permissions-module-meta {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .group-permissions-module-toggle {
   display: inline-flex;
-  color: var(--text-muted);
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
+  border-radius: 0.5rem;
+  color: var(--text-muted);
+}
+
+.group-permissions-module-toggle:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.group-permissions-module-toggle:focus-visible,
+.group-permissions-module-meta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .group-permissions-module-icon {
@@ -146,6 +195,7 @@
   display: block;
   font-size: 0.9375rem;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .group-permissions-module-meta small {
@@ -154,6 +204,7 @@
   color: var(--text-muted);
   font-size: 0.75rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .group-permissions-module-badges {
@@ -183,11 +234,25 @@
 
 .group-permissions-module-body {
   border-top: 1px solid #eef0f4;
+  min-width: 0;
+}
+
+.group-permissions-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0;
 }
 
 .group-permissions-table {
   width: 100%;
+  min-width: 0;
   border-collapse: collapse;
+}
+
+.group-permissions-table th:first-child,
+.group-permissions-table td:first-child {
+  width: auto;
+  min-width: 12rem;
 }
 
 .group-permissions-table th,
@@ -209,7 +274,7 @@
 
 .group-permissions-table th:not(:first-child),
 .group-permissions-table td:not(:first-child) {
-  width: 6.5rem;
+  width: 7rem;
   text-align: center;
 }
 
@@ -222,6 +287,7 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--foreground);
+  overflow-wrap: anywhere;
 }
 
 .group-permissions-item-key {
@@ -230,6 +296,12 @@
   font-size: 0.6875rem;
   color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.group-permissions-item-key-secondary {
+  opacity: 0.88;
 }
 
 .group-permissions-action-cell {
@@ -253,6 +325,8 @@
 
 .group-permissions-action-cell input {
   accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
 }
 
 .group-permissions-action-cell label:has(input:disabled) {
@@ -265,6 +339,7 @@
   border-radius: 0.875rem;
   padding: 1rem;
   background: #fcfcfd;
+  min-width: 0;
 }
 
 .group-permissions-orphans h4 {
@@ -274,27 +349,104 @@
 
 .group-permissions-orphans-grid {
   display: grid;
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+  gap: 0.625rem;
 }
 
-@media (max-width: 720px) {
+.group-permissions-orphans .permission-checkbox {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #eef0f4;
+  border-radius: 0.625rem;
+  background: #fff;
+}
+
+.group-permissions-orphans .permission-checkbox span,
+.group-permissions-orphans .permission-checkbox small {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (min-width: 961px) {
+  .group-permissions-summary {
+    display: none;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1100px) {
+  .group-permissions-table {
+    min-width: 34rem;
+  }
+}
+
+@media (max-width: 960px) {
+  .group-permissions-panel-meta {
+    display: none;
+  }
+
   .group-permissions-toolbar {
-    padding: 0.875rem 1rem;
+    padding-block: 0.875rem;
+  }
+
+  .group-permissions-toolbar-row:last-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-permissions-filter {
+    width: 100%;
+  }
+
+  .group-permissions-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .group-permissions-actions .btn-ghost.btn-sm {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-height: var(--touch-target, 2.75rem);
+    justify-content: center;
   }
 
   .group-permissions-body {
-    padding: 0.875rem 1rem 1rem;
+    padding-block: 0.875rem 1rem;
   }
 
   .group-permissions-module-head {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      'toggle icon meta'
+      'badges badges badges';
+    align-items: start;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .group-permissions-module-toggle {
+    grid-area: toggle;
+  }
+
+  .group-permissions-module-icon {
+    grid-area: icon;
+  }
+
+  .group-permissions-module-meta {
+    grid-area: meta;
   }
 
   .group-permissions-module-badges {
+    grid-area: badges;
     width: 100%;
     justify-content: flex-start;
-    padding-left: 2.75rem;
+    padding-left: 0;
+  }
+
+  .group-permissions-table-wrap {
+    overflow: visible;
+  }
+
+  .group-permissions-table {
+    min-width: 0;
+    table-layout: auto;
   }
 
   .group-permissions-table thead {
@@ -312,6 +464,7 @@
   .group-permissions-table tr {
     padding: 0.875rem 1rem;
     border-top: 1px solid #f1f3f6;
+    box-sizing: border-box;
   }
 
   .group-permissions-table tr:first-child {
@@ -321,12 +474,37 @@
   .group-permissions-table td:not(:first-child) {
     width: auto;
     text-align: left;
-    padding-top: 0.375rem;
+    padding-top: 0.5rem;
     padding-bottom: 0;
+    padding-inline: 1rem;
+  }
+
+  .group-permissions-table td:not(:first-child)::before {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    content: attr(data-cell-label);
+  }
+
+  .group-permissions-table td:not(:first-child):last-child {
+    padding-bottom: 0.875rem;
   }
 
   .group-permissions-action-cell {
     flex-direction: row;
     justify-content: flex-start;
+  }
+
+  .group-permissions-action-cell label {
+    min-height: var(--touch-target, 2.75rem);
+    padding-right: 0.25rem;
+  }
+
+  .group-permissions-orphans-grid {
+    grid-template-columns: 1fr;
   }
 }

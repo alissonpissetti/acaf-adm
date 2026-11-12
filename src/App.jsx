@@ -1,46 +1,56 @@
+import { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext.jsx';
 import { ConfirmDialogProvider } from './components/confirm/ConfirmDialogProvider.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { FlashMessageProvider } from './components/flash/FlashMessageProvider.jsx';
+import { MarketingFormSkeleton } from './components/MarketingFormSkeleton.jsx';
 import { SupportProvider } from './components/support/SupportContext.jsx';
+import { AppLoadingPanel } from './components/crud/AppLoading.jsx';
 import { ProtectedRoute } from './auth/ProtectedRoute.jsx';
 import { AdminLayout } from './layout/AdminLayout.jsx';
-import { CashFlowPage } from './pages/CashFlowPage.jsx';
-import { CommercialFunnelsPage } from './pages/CommercialFunnelsPage.jsx';
-import { CommercialLeadsPage } from './pages/CommercialLeadsPage.jsx';
-import { CommercialLossReportPage } from './pages/CommercialLossReportPage.jsx';
-import { WhatsAppInboxPage } from './pages/WhatsAppInboxPage.jsx';
-import { CompaniesPage } from './pages/CompaniesPage.jsx';
-import { ConnectPlansPage } from './pages/ConnectPlansPage.jsx';
-import { CostCentersPage } from './pages/CostCentersPage.jsx';
-import { AccountPlansPage } from './pages/AccountPlansPage.jsx';
-import { SuppliersPage } from './pages/SuppliersPage.jsx';
-import { DashboardPage } from './pages/DashboardPage.jsx';
-import { DepartmentsPage } from './pages/DepartmentsPage.jsx';
-import { EvolutionInstancesPage } from './pages/EvolutionInstancesPage.jsx';
-import { ChangelogPage } from './pages/ChangelogPage.jsx';
-import { JobPositionsPage } from './pages/JobPositionsPage.jsx';
-import { LoginPage } from './pages/LoginPage.jsx';
-import { ModalitiesPage } from './pages/ModalitiesPage.jsx';
-import { MarketingDashboardPage } from './pages/MarketingDashboardPage.jsx';
-import { MarketingCampaignsPage } from './pages/MarketingCampaignsPage.jsx';
-import { MarketingLandingPagesPage } from './pages/MarketingLandingPagesPage.jsx';
-import { MarketingFormPage } from './pages/MarketingFormPage.jsx';
-import { MarketingGoPage } from './pages/MarketingGoPage.jsx';
-import { ModulesPage } from './pages/ModulesPage.jsx';
-import { NotificationsPage } from './pages/NotificationsPage.jsx';
-import { NetworkDetailRedirect } from './pages/NetworkDetailRedirect.jsx';
-import { NetworksPage } from './pages/NetworksPage.jsx';
-import { PayablesPage } from './pages/PayablesPage.jsx';
-import { PlatformSettingsPage } from './pages/PlatformSettingsPage.jsx';
-import { ReceivablesPage } from './pages/ReceivablesPage.jsx';
-import { SupportTicketsPage } from './pages/SupportTicketsPage.jsx';
-import { SupportQueuesPage } from './pages/SupportQueuesPage.jsx';
-import { UserGroupsPage } from './pages/UserGroupsPage.jsx';
-import { UsersPage } from './pages/UsersPage.jsx';
-import { LegacyRedirect } from './routing/LegacyRedirect.jsx';
-import { AcafAssociationRedirect } from './pages/AcafAssociationRedirect.jsx';
+import {
+  AccountPlansPage,
+  AcafAssociationRedirect,
+  AssociationsPage,
+  CashFlowPage,
+  ChangelogPage,
+  CommercialFunnelsPage,
+  CommercialLeadsPage,
+  CommercialLossReportPage,
+  CompaniesPage,
+  ConnectPlansPage,
+  CostCentersPage,
+  DashboardPage,
+  DepartmentsPage,
+  EvolutionInstancesPage,
+  JobPositionsPage,
+  LegacyRedirect,
+  LoginPage,
+  MarketingCampaignsPage,
+  MarketingDashboardPage,
+  MarketingFormPage,
+  MarketingGoPage,
+  MarketingLandingPagesPage,
+  ModalitiesPage,
+  ModulesPage,
+  NetworkDetailRedirect,
+  NetworksPage,
+  NotificationsPage,
+  PayablesPage,
+  PlatformSettingsPage,
+  ReceivablesPage,
+  SuppliersPage,
+  SupportQueuesPage,
+  SupportTicketsPage,
+  UserGroupsPage,
+  UsersPage,
+  WhatsAppInboxPage,
+} from './routing/lazyPages.js';
+
+function AdminRouteFallback() {
+  return <AppLoadingPanel label="Carregando painel…" />;
+}
 
 export default function App() {
   return (
@@ -51,55 +61,360 @@ export default function App() {
             <BrowserRouter>
               <SupportProvider>
                 <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/f/go/:slug" element={<MarketingGoPage />} />
-                  <Route path="/f/:slug" element={<MarketingFormPage />} />
+                  <Route
+                    path="/login"
+                    element={
+                      <Suspense fallback={<AdminRouteFallback />}>
+                        <LoginPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/f/go/:slug"
+                    element={
+                      <Suspense fallback={<MarketingFormSkeleton />}>
+                        <MarketingGoPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/f/:slug"
+                    element={
+                      <Suspense fallback={<MarketingFormSkeleton />}>
+                        <MarketingFormPage />
+                      </Suspense>
+                    }
+                  />
                   <Route element={<ProtectedRoute />}>
-                    <Route path="/m/comercial/whatsapp" element={<WhatsAppInboxPage />} />
+                    <Route
+                      path="/m/comercial/whatsapp"
+                      element={
+                        <Suspense fallback={<AdminRouteFallback />}>
+                          <WhatsAppInboxPage />
+                        </Suspense>
+                      }
+                    />
                     <Route element={<AdminLayout />}>
-              <Route path="/m/operacao/dashboard" element={<DashboardPage />} />
-              <Route path="/m/operacao/redes" element={<NetworksPage />} />
-              <Route path="/m/operacao/redes/:networkId" element={<NetworkDetailRedirect />} />
-              <Route path="/m/operacao/modalidades" element={<ModalitiesPage />} />
-              <Route path="/m/operacao/planos" element={<ConnectPlansPage />} />
-              <Route path="/m/operacao/usuarios" element={<UsersPage />} />
-              <Route path="/m/sistema/configuracoes" element={<PlatformSettingsPage />} />
-              <Route path="/m/plataforma/connect" element={<Navigate to="/m/operacao/planos" replace />} />
-              <Route path="/m/plataforma/usuarios" element={<Navigate to="/m/operacao/usuarios" replace />} />
-              <Route path="/m/plataforma/configuracoes" element={<Navigate to="/m/sistema/configuracoes" replace />} />
-              <Route path="/m/corporativo/empresas" element={<CompaniesPage />} />
-              <Route path="/m/associacao/parceiros" element={<AcafAssociationRedirect />} />
-              <Route path="/m/comercial/leads" element={<CommercialLeadsPage />} />
-              <Route path="/m/comercial/funis" element={<CommercialFunnelsPage />} />
-              <Route path="/m/comercial/relatorio-perdas" element={<CommercialLossReportPage />} />
-              <Route path="/m/marketing/painel" element={<MarketingDashboardPage />} />
-              <Route path="/m/marketing/campanhas" element={<MarketingCampaignsPage />} />
-              <Route path="/m/marketing/formularios" element={<MarketingLandingPagesPage />} />
-              <Route path="/m/financeiro/contas-pagar" element={<PayablesPage />} />
-              <Route path="/m/financeiro/contas-receber" element={<ReceivablesPage />} />
-              <Route path="/m/financeiro/fluxo-caixa" element={<CashFlowPage />} />
-              <Route path="/m/financeiro/centros-custo" element={<CostCentersPage />} />
-              <Route path="/m/financeiro/fornecedores" element={<SuppliersPage />} />
-              <Route path="/m/financeiro/planos-conta" element={<AccountPlansPage />} />
-              <Route path="/m/sistema/modulos" element={<ModulesPage />} />
-              <Route path="/m/sistema/grupos" element={<UserGroupsPage />} />
-              <Route path="/m/sistema/departamentos" element={<DepartmentsPage />} />
-              <Route path="/m/sistema/cargos" element={<JobPositionsPage />} />
-              <Route path="/m/sistema/evolution" element={<EvolutionInstancesPage />} />
-              <Route path="/m/sistema/atualizacoes" element={<ChangelogPage />} />
-              <Route path="/m/atendimento/filas" element={<SupportQueuesPage />} />
-              <Route path="/m/atendimento/chamados" element={<SupportTicketsPage />} />
-              <Route path="/m/notificacoes" element={<NotificationsPage />} />
+                      <Route
+                        path="/m/operacao/dashboard"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <DashboardPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/redes"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <NetworksPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/redes/:networkId"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <NetworkDetailRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/modalidades"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <ModalitiesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/planos"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <ConnectPlansPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/usuarios"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <UsersPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/configuracoes"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <PlatformSettingsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route path="/m/plataforma/connect" element={<Navigate to="/m/operacao/planos" replace />} />
+                      <Route path="/m/plataforma/usuarios" element={<Navigate to="/m/operacao/usuarios" replace />} />
+                      <Route
+                        path="/m/plataforma/configuracoes"
+                        element={<Navigate to="/m/sistema/configuracoes" replace />}
+                      />
+                      <Route
+                        path="/m/corporativo/empresas"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CompaniesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/associacao/parceiros"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <AcafAssociationRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/comercial/leads"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CommercialLeadsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/comercial/funis"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CommercialFunnelsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/comercial/relatorio-perdas"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CommercialLossReportPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/marketing/painel"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <MarketingDashboardPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/marketing/campanhas"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <MarketingCampaignsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/marketing/formularios"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <MarketingLandingPagesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/financeiro/contas-pagar"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <PayablesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/financeiro/contas-receber"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <ReceivablesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/financeiro/fluxo-caixa"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CashFlowPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/financeiro/centros-custo"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CostCentersPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/financeiro/fornecedores"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <SuppliersPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/financeiro/planos-conta"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <AccountPlansPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/modulos"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <ModulesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/grupos"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <UserGroupsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/departamentos"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <DepartmentsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/cargos"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <JobPositionsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/evolution"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <EvolutionInstancesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/atualizacoes"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <ChangelogPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/sistema/associacoes"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <AssociationsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/atendimento/filas"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <SupportQueuesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/atendimento/chamados"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <SupportTicketsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/notificacoes"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <NotificationsPage />
+                          </Suspense>
+                        }
+                      />
 
-              <Route path="/" element={<LegacyRedirect />} />
-              <Route path="/networks" element={<LegacyRedirect />} />
-              <Route path="/networks/:networkId" element={<LegacyRedirect />} />
-              <Route path="/modalities" element={<LegacyRedirect />} />
-              <Route path="/connect" element={<LegacyRedirect />} />
-              <Route path="/users" element={<LegacyRedirect />} />
-              <Route path="/companies" element={<LegacyRedirect />} />
-              <Route path="/units" element={<LegacyRedirect />} />
-              <Route path="*" element={<Navigate to="/m/operacao/dashboard" replace />} />
+                      <Route
+                        path="/"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/networks"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/networks/:networkId"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/modalities"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/connect"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/users"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/companies"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/units"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <LegacyRedirect />
+                          </Suspense>
+                        }
+                      />
+                      <Route path="*" element={<Navigate to="/m/operacao/dashboard" replace />} />
                     </Route>
                   </Route>
                 </Routes>

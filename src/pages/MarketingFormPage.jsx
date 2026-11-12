@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
-import { getPublicMarketingPage, submitPublicMarketingPage } from '../api/public.js';
-import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
+import { submitPublicMarketingPage } from '../api/public.js';
+import { MarketingFormSkeleton } from '../components/MarketingFormSkeleton.jsx';
+import { getPublicMarketingPageCached } from '../utils/publicMarketingPageCache.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import {
   buildButtonRadius,
@@ -88,11 +89,14 @@ export function MarketingFormPage() {
   const utmFromUrl = useMemo(() => readUtm(searchParams, null), [searchParams]);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError('');
     setSuccess('');
-    getPublicMarketingPage(slug, utmFromUrl)
+
+    getPublicMarketingPageCached(slug, utmFromUrl)
       .then((result) => {
+        if (cancelled) return;
         if (result.brandTypography) {
           injectBrandFontFaces(result.brandTypography);
         }
@@ -105,8 +109,16 @@ export function MarketingFormPage() {
           });
         setValues(initial);
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     slug,
     utmFromUrl.creativeId,
@@ -131,7 +143,7 @@ export function MarketingFormPage() {
     [page],
   );
 
-  const hookTypography = useMarketingBrandTypography(theme.fontFamily);
+  const hookTypography = useMarketingBrandTypography(page ? theme.fontFamily : null);
   const brandTypography = page?.brandTypography ?? hookTypography;
   const resolvedFontFamily = resolveMarketingFontFamily(theme.fontFamily, brandTypography);
   const buttonRadius = buildButtonRadius(theme.buttonStyle);
@@ -159,7 +171,7 @@ export function MarketingFormPage() {
     }
   };
 
-  if (loading) return <AppLoadingPanel label="Carregando formulário…" />;
+  if (loading) return <MarketingFormSkeleton />;
 
   if (error && !page) {
     return (
