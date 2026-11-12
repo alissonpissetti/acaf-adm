@@ -28,6 +28,10 @@ export function CrudListShell({
   onRemoveFieldFilter,
   onClearFieldFilters,
   filters = null,
+  toolbarTitle = null,
+  /** @type {'default' | 'compact'} */
+  toolbarLayout = 'default',
+  toolbarWrapClassName = '',
   page,
   pageSize,
   totalItems,
@@ -84,6 +88,9 @@ export function CrudListShell({
           onRemoveFieldFilter={onRemoveFieldFilter}
           onClearFieldFilters={onClearFieldFilters}
           filters={filters}
+          toolbarTitle={toolbarTitle}
+          layout={toolbarLayout}
+          wrapClassName={toolbarWrapClassName}
         />
       </div>
 
@@ -113,12 +120,35 @@ export function CrudListShell({
                       />
                     </th>
                   ) : null}
-                  {columns.map((column) => (
-                    <th key={column.key} className={column.className ?? ''}>
-                      {column.label}
-                    </th>
-                  ))}
-                  {showActions ? <th className="col-actions" aria-label="Ações" /> : null}
+                  {columns.map((column) => {
+                    const headerHint = column.headerHint ?? column.label;
+                    const headerLabel = column.headerLabel ?? column.label;
+                    const useAbbr = Boolean(column.headerAbbr);
+                    return (
+                      <th
+                        key={column.key}
+                        scope="col"
+                        className={column.className ?? ''}
+                        title={useAbbr ? undefined : headerHint}
+                      >
+                        {useAbbr ? (
+                          <abbr title={headerHint} aria-label={headerHint} className="data-table-header-abbr">
+                            {column.headerAbbr}
+                          </abbr>
+                        ) : (
+                          headerLabel
+                        )}
+                      </th>
+                    );
+                  })}
+                  {showActions ? (
+                    <th
+                      className="col-actions"
+                      scope="col"
+                      aria-label="Ações"
+                      title="Ver detalhes, editar ou excluir o cadastro"
+                    />
+                  ) : null}
                 </tr>
               </thead>
               <tbody>

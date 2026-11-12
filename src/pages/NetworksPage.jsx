@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { deleteNetwork, getNetworks, purgeAcafImportedNetworks } from '../api/admin.js';
+import { deleteNetwork, getNetworks, getUnits, purgeAcafImportedNetworks } from '../api/admin.js';
+import { listCityOptions, networkIdsInCity } from '../utils/networksMapGeo.js';
 import { confirmCrudDelete } from '../crud/crudUtils.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { appConfirm, appAlert } from '../components/confirm/appConfirm.js';
@@ -9,9 +10,19 @@ import { NetworkCreateScreen } from './NetworkCreateScreen.jsx';
 import { NetworkEditScreen } from './NetworkEditScreen.jsx';
 import { NetworksList } from './NetworksList.jsx';
 import { AcafAssociatesImportPanel } from '../components/AcafAssociatesImportPanel.jsx';
+import { NetworksUnitsMap } from '../components/networks/NetworksUnitsMap.jsx';
+import {
+  filterNetworksByPartnerAccess,
+  PARTNER_ACCESS_FILTER_OPTIONS,
+} from '../utils/networkPartnerAccessFilter.js';
 import { UnitCreateScreen } from './UnitCreateScreen.jsx';
 import { UnitEditScreen } from './UnitEditScreen.jsx';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
+import {
+  readNetworksViewMode,
+  writeNetworksViewMode,
+} from '../utils/networksPageStorage.js';
+import { showDangerTools } from '../config.js';
 
 export function NetworksPage() {
   const flash = useFlashMessage();
@@ -23,15 +34,34 @@ export function NetworksPage() {
   const isCreatingUnit = unitParam === 'new';
   const unitId = unitParam && unitParam !== 'new' ? unitParam : null;
   const isViewingNetwork = Boolean(selectedId) && mode === 'view' && !unitParam;
+  const dangerToolsVisible = showDangerTools(searchParams.get('danger'));
 
   const [networks, setNetworks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [purgeBusy, setPurgeBusy] = useState(false);
+  /** @type {'both' | 'list' | 'map'} */
+  const [listLayout, setListLayout] = useState(() => readNetworksViewMode());
+  /** @type {import('../utils/networkPartnerAccessFilter.js').NetworkPartnerAccessFilter} */
+  const [partnerAccessFilter, setPartnerAccessFilter] = useState('all');
+  const [units, setUnits] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(true);
+  const [mapCityFilter, setMapCityFilter] = useState('');
+  const [mapLayerMode, setMapLayerMode] = useState('units');
 
   const selectedNetwork = useMemo(
     () => networks.find((network) => network.id === selectedId) ?? null,
     [networks, selectedId],
+  );
+
+  const filteredNetworks = useMemo(
+    () => filterNetworksByPartnerAccess(partnerAccessFilter, networks),
+    [networks, partnerAccessFilter],
+  );
+
+  const filteredNetworkIds = useMemo(
+    () => (partnerAccessFilter === 'all' ? null : new Set(filteredNetworks.map((n) => n.id))),
+    [filteredNetworks, partnerAccessFilter],
   );
 
   const load = async () => {
@@ -46,9 +76,41 @@ export function NetworksPage() {
     }
   };
 
+  const loadUnits = async () => {
+    setUnitsLoading(true);
+    try {
+      const rows = await getUnits();
+      setUnits(Array.isArray(rows) ? rows : []);
+    } catch {
+      setUnits([]);
+    } finally {
+      setUnitsLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
+    void loadUnits();
   }, []);
+
+  useEffect(() => {
+    writeNetworksViewMode(listLayout);
+  }, [listLayout]);
+
+  const mapCityOptions = useMemo(() => listCityOptions(units), [units]);
+  const mapCityLabel = useMemo(
+    () => mapCityOptions.find((c) => c.key === mapCityFilter)?.label ?? '',
+    [mapCityOptions, mapCityFilter],
+  );
+
+  const networksForList = useMemo(() => {
+    let rows = filterNetworksByPartnerAccess(partnerAccessFilter, networks);
+    const ids = networkIdsInCity(units, mapCityFilter);
+    if (ids) {
+      rows = rows.filter((n) => ids.has(n.id));
+    }
+    return rows;
+  }, [networks, units, mapCityFilter, partnerAccessFilter]);
 
   const goToList = () => {
     setSearchParams({});
@@ -75,6 +137,10 @@ export function NetworksPage() {
   const goToEditUnit = (id) => {
     if (!selectedId) return;
     setSearchParams({ id: selectedId, unit: id });
+  };
+
+  const goToUnitFromMap = (networkId, unitId) => {
+    setSearchParams({ id: networkId, unit: unitId });
   };
 
   const goToNetworkFromUnit = () => {
@@ -233,38 +299,112 @@ export function NetworksPage() {
   return (
     <div className="page-stack">
       <CrudAlerts error={error} />
-      <section className="panel acaf-purge-panel">
-        <div className="panel-body acaf-purge-panel-body">
-          <div>
-            <h2 className="acaf-purge-title">Limpeza — importação movly.</h2>
-            <p className="muted">
-              Remove <strong>todas as redes importadas pela planilha</strong> (IDs{' '}
-              <code>net_acaf_*</code>, p.ex. agrupadores <code>net_acaf_grp_*</code>), incluindo unidades. Não remove
-              rede se ainda houver usuários do app
-              com academia principal na base ou equipe parceira vinculada — nesses casos a rede permanece e
-              aparece no relatório após a ação.
-            </p>
+      {dangerToolsVisible ? (
+        <section className="panel acaf-purge-panel">
+          <div className="panel-body acaf-purge-panel-body">
+            <div>
+              <h2 className="acaf-purge-title">Limpeza — importação movly.</h2>
+              <p className="muted">
+                Remove <strong>todas as redes importadas pela planilha</strong> (IDs{' '}
+                <code>net_acaf_*</code>, p.ex. agrupadores <code>net_acaf_grp_*</code>), incluindo unidades. Não remove
+                rede se ainda houver usuários do app
+                com academia principal na base ou equipe parceira vinculada — nesses casos a rede permanece e
+                aparece no relatório após a ação.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-ghost btn-sm acaf-purge-btn"
+              disabled={purgeBusy || loading}
+              onClick={() => void handlePurgeAcafNetworks()}
+            >
+              {purgeBusy ? 'Removendo…' : 'Remover todos os parceiros movly.'}
+            </button>
           </div>
+        </section>
+      ) : null}
+      <div className="networks-list-layout-header">
+        {listLayout !== 'list' ? (
+          <div className="networks-page-filters-card" role="region" aria-label="Filtros da página">
+            <p className="crud-list-toolbar-title">Filtros</p>
+            <label className="crud-toolbar-field">
+              <span className="crud-toolbar-label">Acesso portal parceiro</span>
+              <select
+                className="crud-toolbar-select"
+                value={partnerAccessFilter}
+                onChange={(e) => setPartnerAccessFilter(e.target.value)}
+                aria-label="Filtrar por onboarding do portal parceiro"
+              >
+                {PARTNER_ACCESS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+        <div className="networks-view-toggle" role="group" aria-label="Visualização da lista de redes">
           <button
             type="button"
-            className="btn-ghost btn-sm acaf-purge-btn"
-            disabled={purgeBusy || loading}
-            onClick={() => void handlePurgeAcafNetworks()}
+            className={`btn-ghost btn-sm${listLayout === 'both' ? ' is-active' : ''}`}
+            aria-pressed={listLayout === 'both'}
+            onClick={() => setListLayout('both')}
           >
-            {purgeBusy ? 'Removendo…' : 'Remover todos os parceiros movly.'}
+            Lista + mapa
+          </button>
+          <button
+            type="button"
+            className={`btn-ghost btn-sm${listLayout === 'list' ? ' is-active' : ''}`}
+            aria-pressed={listLayout === 'list'}
+            onClick={() => setListLayout('list')}
+          >
+            Só lista
+          </button>
+          <button
+            type="button"
+            className={`btn-ghost btn-sm${listLayout === 'map' ? ' is-active' : ''}`}
+            aria-pressed={listLayout === 'map'}
+            onClick={() => setListLayout('map')}
+          >
+            Só mapa
           </button>
         </div>
-      </section>
-      <NetworksList
-        networks={networks}
-        loading={loading}
-        error={error}
-        onAdd={goToCreateNetwork}
-        onView={goToViewNetwork}
-        onEdit={goToEditNetwork}
-        onDelete={handleDeleteNetwork}
-        onMerged={load}
-      />
+      </div>
+      {listLayout !== 'list' ? (
+        <NetworksUnitsMap
+          onOpenUnit={goToUnitFromMap}
+          units={units}
+          unitsLoading={unitsLoading}
+          onReloadUnits={loadUnits}
+          cityFilter={mapCityFilter}
+          onCityFilterChange={setMapCityFilter}
+          layerMode={mapLayerMode}
+          onLayerModeChange={setMapLayerMode}
+          networkIdsFilter={filteredNetworkIds}
+        />
+      ) : null}
+      {listLayout !== 'map' ? (
+        <NetworksList
+          networks={networksForList}
+          loading={loading}
+          error={error}
+          onAdd={goToCreateNetwork}
+          onView={goToViewNetwork}
+          onEdit={goToEditNetwork}
+          onDelete={handleDeleteNetwork}
+          onMerged={() => {
+            void load();
+            void loadUnits();
+          }}
+          mapCityFilter={mapCityFilter}
+          mapCityLabel={mapCityLabel}
+          mapCityOptions={mapCityOptions}
+          onMapCityFilterChange={setMapCityFilter}
+          partnerAccessFilter={partnerAccessFilter}
+          onPartnerAccessFilterChange={listLayout === 'list' ? setPartnerAccessFilter : undefined}
+        />
+      ) : null}
       <AcafAssociatesImportPanel onImported={load} />
     </div>
   );

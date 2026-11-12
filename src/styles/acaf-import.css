@@ -1,0 +1,207 @@
+.acaf-import-panel {
+  margin-top: 1rem;
+}
+
+.acaf-import-collapsible.address-fields-collapsible {
+  border-top: none;
+  padding-top: 0;
+}
+
+.acaf-import-collapsible-trigger.collapsible-header {
+  padding: 1rem var(--panel-inline-padding, 1.25rem);
+  border-bottom: 1px solid #eef0f4;
+  background: #fafbfc;
+}
+
+.acaf-import-collapsible.is-collapsed .acaf-import-collapsible-trigger.collapsible-header {
+  border-bottom: none;
+  padding-bottom: 1rem;
+}
+
+.acaf-import-panel-body {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.acaf-import-lead {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--foreground-secondary, #4b5563);
+}
+
+.acaf-import-instructions {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: #fafbfc;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.acaf-import-instructions summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground-secondary);
+  list-style: none;
+}
+
+.acaf-import-instructions summary::-webkit-details-marker {
+  display: none;
+}
+
+.acaf-import-instructions summary::before {
+  content: '▸ ';
+  display: inline-block;
+  color: var(--text-muted);
+}
+
+.acaf-import-instructions[open] summary::before {
+  content: '▾ ';
+}
+
+.acaf-import-instructions-body {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.acaf-import-columns-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.acaf-import-columns-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.acaf-import-columns-list code {
+  font-size: 0.75rem;
+}
+
+.acaf-import-notes {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(117, 121, 229, 0.06);
+  border: 1px solid rgba(117, 121, 229, 0.12);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--foreground-secondary);
+}
+
+.acaf-import-options {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.acaf-import-options-title {
+  margin: 0 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.acaf-import-checkboxes {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.acaf-import-checkboxes .checkbox-inline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  width: 100%;
+  max-width: 42rem;
+  line-height: 1.45;
+}
+
+.acaf-import-checkboxes .checkbox-inline input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.acaf-import-upload {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.acaf-import-dropzone {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1.25rem;
+  border: 1.5px dashed #cfd5df;
+  border-radius: 0.875rem;
+  background: #fafbfc;
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.acaf-import-dropzone strong {
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.acaf-import-dropzone span {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  max-width: 28rem;
+}
+
+.acaf-import-dropzone:hover:not(.is-disabled),
+.acaf-import-dropzone.is-dragging {
+  border-color: var(--accent);
+  background: rgba(117, 121, 229, 0.06);
+}
+
+.acaf-import-dropzone.is-disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.acaf-import-file-name {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.acaf-import-errors-detail {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(254, 242, 242, 0.5);
+  font-size: 0.8125rem;
+}
+
+.acaf-import-errors-detail summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.acaf-import-errors-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.35rem;
+  color: var(--foreground);
+}

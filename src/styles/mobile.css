@@ -138,6 +138,31 @@
     gap: 0.75rem;
   }
 
+  .crud-list-toolbar--compact {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .crud-toolbar-search-compact {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .crud-toolbar-compact-pill {
+    flex: 1 1 auto;
+    min-width: min(100%, 9rem);
+  }
+
+  .crud-toolbar-compact-pill--sort {
+    flex: 1 1 12rem;
+    max-width: none;
+  }
+
+  .crud-field-filters--compact {
+    flex: 1 1 auto;
+    min-width: min(100%, 9rem);
+  }
+
   .crud-search,
   .crud-sort,
   .crud-page-size,

@@ -7,11 +7,15 @@ export function compareValues(a, b) {
   return String(a).localeCompare(String(b), 'pt-BR', { sensitivity: 'base', numeric: true });
 }
 
-export function sortRows(rows, sortKey, direction = 'asc') {
+export function sortRows(rows, sortKey, direction = 'asc', getSortValue = null) {
   if (!sortKey) return rows;
   const factor = direction === 'desc' ? -1 : 1;
+  const valueOf =
+    typeof getSortValue === 'function'
+      ? (row) => getSortValue(row, sortKey)
+      : (row) => row[sortKey];
   return [...rows].sort(
-    (left, right) => factor * compareValues(left[sortKey], right[sortKey]),
+    (left, right) => factor * compareValues(valueOf(left), valueOf(right)),
   );
 }
 

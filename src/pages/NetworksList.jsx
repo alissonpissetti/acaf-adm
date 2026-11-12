@@ -6,17 +6,133 @@ import { TableNetworkLogo } from '../components/TableNetworkLogo.jsx';
 import { mergeNetworks } from '../api/admin.js';
 import { appChoose, appConfirm } from '../components/confirm/appConfirm.js';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
+import { selectFilter } from '../crud/filterUtils.js';
+import {
+  PARTNER_ACCESS_FILTER_OPTIONS,
+  partnerAccessStatusBadgeClass,
+  partnerAccessStatusLabel,
+  partnerAccessStatusSortRank,
+} from '../utils/networkPartnerAccessFilter.js';
 
-export function NetworksList({ networks, loading, error, onAdd, onView, onEdit, onDelete, onMerged }) {
+/**
+ * Cabeçalhos da tabela de parceiros (`headerHint` → atributo title / abbr na coluna).
+ * | key | label (mobile data-label) | headerAbbr | headerHint |
+ * | logo | Logo | — | Logotipo da rede parceira. |
+ * | name | Rede | — | Nome cadastral da rede de academias. |
+ * | unitCount | Unidades | — | Número de unidades (filiais) vinculadas à rede. |
+ * | primaryMemberCount | Academia principal | Acad. principal | Alunos do app com esta rede como unidade principal. |
+ * | partnerAccessStatus | Portal parceiro | Portal | Situação do acesso ao portal do parceiro (onboarding). |
+ * | partnerUserCount | Usuários vinculados | Usuários | Equipe com login nas unidades desta rede. |
+ * | commercialOwnerName | Resp. comercial | Resp. com. | Responsável comercial interno (ACAF) pela conta. |
+ */
+const NETWORKS_TABLE_COLUMN_HINTS = {
+  logo: 'Logotipo da rede parceira exibido na listagem.',
+  name: 'Nome cadastral da rede de academias parceira.',
+  unitCount: 'Quantidade de unidades (filiais) cadastradas nesta rede.',
+  primaryMemberCount:
+    'Alunos do aplicativo que usam uma unidade desta rede como academia principal.',
+  partnerAccessStatus:
+    'Situação do acesso ao portal do parceiro: com acesso, convite pendente ou sem acesso.',
+  partnerUserCount: 'Usuários da equipe com permissão para gerenciar as unidades da rede.',
+  commercialOwnerName: 'Responsável comercial interno (ACAF) associado a esta rede.',
+};
+
+export function NetworksList({
+  networks,
+  loading,
+  error,
+  onAdd,
+  onView,
+  onEdit,
+  onDelete,
+  onMerged,
+  mapCityFilter = '',
+  mapCityLabel: _mapCityLabel = '',
+  mapCityOptions = [],
+  onMapCityFilterChange,
+  partnerAccessFilter = 'all',
+  onPartnerAccessFilterChange,
+}) {
   const flash = useFlashMessage();
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [mergeBusy, setMergeBusy] = useState(false);
+
+  const getSortValue = useCallback((row, key) => {
+    if (key === 'partnerAccessStatus') return partnerAccessStatusSortRank(row);
+    return row[key];
+  }, []);
 
   const list = useCrudList(networks, {
     searchKeys: ['name'],
     defaultSort: { key: 'name', direction: 'asc' },
     storageKey: LIST_PREFERENCE_KEYS.networks,
+    getSortValue,
   });
+
+  const filterDefinitions = useMemo(() => {
+    const defs = [];
+    if (onPartnerAccessFilterChange) {
+      defs.push(
+        selectFilter(
+          'partnerAccess',
+          'Acesso portal parceiro',
+          'partnerAccess',
+          PARTNER_ACCESS_FILTER_OPTIONS.filter((opt) => opt.value !== 'all'),
+        ),
+      );
+    }
+    if (onMapCityFilterChange && mapCityOptions.length) {
+      defs.push({
+        id: 'mapCity',
+        label: 'Cidade (mapa + lista)',
+        type: 'select',
+        field: 'mapCity',
+        options: [
+          ...mapCityOptions.map((c) => ({
+            value: c.key,
+            label: `${c.label} (${c.count})`,
+          })),
+        ],
+      });
+    }
+    return defs;
+  }, [mapCityOptions, onMapCityFilterChange, onPartnerAccessFilterChange]);
+
+  const toolbarFieldFilters = useMemo(() => {
+    const active = [];
+    if (partnerAccessFilter && partnerAccessFilter !== 'all') {
+      active.push({ id: 'partnerAccess', value: partnerAccessFilter });
+    }
+    if (mapCityFilter) {
+      active.push({ id: 'mapCity', value: mapCityFilter });
+    }
+    return active;
+  }, [mapCityFilter, partnerAccessFilter]);
+
+  const handleApplyToolbarFilter = useCallback(
+    (filter) => {
+      if (filter.id === 'partnerAccess') {
+        onPartnerAccessFilterChange?.(filter.value || 'all');
+      }
+      if (filter.id === 'mapCity') {
+        onMapCityFilterChange?.(filter.value || '');
+      }
+    },
+    [onMapCityFilterChange, onPartnerAccessFilterChange],
+  );
+
+  const handleRemoveToolbarFilter = useCallback(
+    (id) => {
+      if (id === 'partnerAccess') onPartnerAccessFilterChange?.('all');
+      if (id === 'mapCity') onMapCityFilterChange?.('');
+    },
+    [onMapCityFilterChange, onPartnerAccessFilterChange],
+  );
+
+  const handleClearToolbarFilters = useCallback(() => {
+    onPartnerAccessFilterChange?.('all');
+    onMapCityFilterChange?.('');
+  }, [onMapCityFilterChange, onPartnerAccessFilterChange]);
 
   const networkById = useMemo(() => new Map(networks.map((n) => [n.id, n])), [networks]);
 
@@ -141,6 +257,12 @@ export function NetworksList({ networks, loading, error, onAdd, onView, onEdit, 
       query={list.query}
       onQueryChange={list.onQueryChange}
       searchPlaceholder="Buscar por nome da rede"
+      toolbarLayout="compact"
+      filterDefinitions={filterDefinitions}
+      fieldFilters={toolbarFieldFilters}
+      onApplyFieldFilter={handleApplyToolbarFilter}
+      onRemoveFieldFilter={handleRemoveToolbarFilter}
+      onClearFieldFilters={handleClearToolbarFilters}
       sortKey={list.sortKey}
       sortDirection={list.sortDirection}
       onSortChange={list.setSort}
@@ -148,6 +270,16 @@ export function NetworksList({ networks, loading, error, onAdd, onView, onEdit, 
         { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
         { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
         { key: 'unitCount', direction: 'desc', label: 'Mais unidades' },
+        {
+          key: 'partnerAccessStatus',
+          direction: 'asc',
+          label: 'Portal (sem acesso primeiro)',
+        },
+        {
+          key: 'partnerAccessStatus',
+          direction: 'desc',
+          label: 'Portal (com acesso primeiro)',
+        },
       ]}
       page={list.page}
       pageSize={list.pageSize}
@@ -156,8 +288,13 @@ export function NetworksList({ networks, loading, error, onAdd, onView, onEdit, 
       onPageChange={list.setPage}
       onPageSizeChange={list.onPageSizeChange}
       panelTitle="Parceiros cadastrados"
-      emptyMessage="Nenhuma rede cadastrada. Clique em Adicionar rede para começar."
+      emptyMessage={
+        mapCityFilter
+          ? 'Nenhuma rede com unidade nesta cidade. Limpe o filtro de cidade ou escolha outra no mapa.'
+          : 'Nenhuma rede cadastrada. Clique em Adicionar rede para começar.'
+      }
       tableFooter={mergeBar}
+      tableClassName="networks-partners-table"
       selection={{
         selectedIds,
         onToggleRow: toggleRow,
@@ -167,36 +304,61 @@ export function NetworksList({ networks, loading, error, onAdd, onView, onEdit, 
         {
           key: 'logo',
           label: 'Logo',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.logo,
           className: 'data-table-col-logo',
           render: (row) => <TableNetworkLogo logoUrl={row.logoUrl} name={row.name} />,
         },
         {
           key: 'name',
           label: 'Rede',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.name,
           className: 'data-table-cell-wrap data-table-col-network-name',
           render: (row) => <strong>{row.name}</strong>,
         },
         {
           key: 'unitCount',
           label: 'Unidades',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.unitCount,
+          className: 'data-table-cell-numeric data-table-col-network-units',
           render: (row) => <span className="badge badge-muted">{row.unitCount ?? 0}</span>,
         },
         {
           key: 'primaryMemberCount',
           label: 'Academia principal',
+          headerAbbr: 'Acad. principal',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount,
+          className: 'data-table-cell-numeric data-table-col-network-primary',
           render: (row) => (
-            <span className="badge badge-muted" title="Usuários do app com unidade principal nesta rede">
+            <span className="badge badge-muted" title={NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount}>
               {row.primaryMemberCount ?? 0}
+            </span>
+          ),
+        },
+        {
+          key: 'partnerAccessStatus',
+          label: 'Portal parceiro',
+          headerAbbr: 'Portal',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.partnerAccessStatus,
+          className: 'data-table-col-network-portal',
+          render: (row) => (
+            <span
+              className={`networks-partners-portal-badge ${partnerAccessStatusBadgeClass(row)}`}
+              title={NETWORKS_TABLE_COLUMN_HINTS.partnerAccessStatus}
+            >
+              {partnerAccessStatusLabel(row)}
             </span>
           ),
         },
         {
           key: 'partnerUserCount',
           label: 'Usuários vinculados',
+          headerAbbr: 'Usuários',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.partnerUserCount,
+          className: 'data-table-cell-numeric data-table-col-network-users',
           render: (row) => (
             <span
               className={`badge ${row.partnerUserCount ? 'badge-warning' : 'badge-muted'}`}
-              title="Equipe com acesso às unidades desta rede"
+              title={NETWORKS_TABLE_COLUMN_HINTS.partnerUserCount}
             >
               {row.partnerUserCount ?? 0}
             </span>
@@ -205,6 +367,9 @@ export function NetworksList({ networks, loading, error, onAdd, onView, onEdit, 
         {
           key: 'commercialOwnerName',
           label: 'Resp. comercial',
+          headerAbbr: 'Resp. com.',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.commercialOwnerName,
+          className: 'data-table-col-network-commercial',
           render: (row) => row.commercialOwnerName ?? '—',
         },
       ]}

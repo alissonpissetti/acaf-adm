@@ -29,6 +29,7 @@ export function useCrudList(items, options = {}) {
     defaultPageSize = 10,
     storageKey = null,
     matchesSearch = null,
+    getSortValue = null,
   } = options;
 
   const savedPreferences = useMemo(
@@ -94,8 +95,8 @@ export function useCrudList(items, options = {}) {
   }, [items, query, searchKeys, effectiveFieldFilters, filterDefinitions, matchesSearch]);
 
   const sorted = useMemo(
-    () => sortRows(filtered, sortKey, sortDirection),
-    [filtered, sortKey, sortDirection],
+    () => sortRows(filtered, sortKey, sortDirection, getSortValue),
+    [filtered, sortKey, sortDirection, getSortValue],
   );
 
   const pagination = useMemo(

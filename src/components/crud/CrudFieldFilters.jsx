@@ -144,6 +144,7 @@ export function CrudFieldFilterMenu({
   definitions = [],
   activeFilters = [],
   onApplyFilter,
+  compact = false,
 }) {
   const rootRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -176,6 +177,11 @@ export function CrudFieldFilterMenu({
 
   if (!definitions.length) return null;
 
+  const activeCount = activeFilters.filter((filter) => {
+    const definition = definitions.find((item) => item.id === filter.id);
+    return definition && hasFilterValue(filter, definition);
+  }).length;
+
   const openDefinition = (definition) => {
     const existing = activeFilters.find((item) => item.id === definition.id);
     setSelectedDefinition(definition);
@@ -195,11 +201,11 @@ export function CrudFieldFilterMenu({
   };
 
   return (
-    <div className="crud-field-filters" ref={rootRef}>
+    <div className={`crud-field-filters${compact ? ' crud-field-filters--compact' : ''}`} ref={rootRef}>
       <div className="crud-filter-trigger-wrap">
         <button
           type="button"
-          className={`crud-filter-trigger${open ? ' is-open' : ''}`}
+          className={`crud-filter-trigger${compact ? ' crud-filter-trigger--compact' : ''}${open ? ' is-open' : ''}`}
           aria-expanded={open}
           onClick={() => {
             setOpen((current) => !current);
@@ -210,10 +216,19 @@ export function CrudFieldFilterMenu({
         >
           <Filter size={14} aria-hidden />
           Filtrar
+          {activeCount > 0 ? (
+            <span className="crud-filter-trigger-count" aria-label={`${activeCount} filtro(s) ativo(s)`}>
+              {activeCount}
+            </span>
+          ) : null}
         </button>
 
         {open ? (
-          <div className="crud-filter-panel" role="dialog" aria-label="Filtros da listagem">
+          <div
+            className={`crud-filter-panel${compact ? ' crud-filter-panel--compact' : ''}`}
+            role="dialog"
+            aria-label="Filtros da listagem"
+          >
             {step === 'list' ? (
               <>
                 <div className="crud-filter-panel-search">

@@ -18,3 +18,10 @@ export function apiUrl(path) {
   const normalized = path.startsWith('/') ? path : `/${path}`;
   return base ? `${base}${normalized}` : normalized;
 }
+
+/** Ferramentas destrutivas (ex.: limpeza de importação movly.) — ocultas na UI por padrão. */
+export function showDangerTools(dangerQuery) {
+  const env = import.meta.env.VITE_SHOW_DANGER_TOOLS;
+  if (env === 'true' || env === '1') return true;
+  return dangerQuery === '1';
+}
