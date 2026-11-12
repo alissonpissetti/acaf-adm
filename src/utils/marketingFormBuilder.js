@@ -22,7 +22,57 @@ export const FIELD_TYPES = [
   { value: 'email', label: 'E-mail' },
   { value: 'tel', label: 'Telefone' },
   { value: 'textarea', label: 'Texto longo' },
+  { value: 'select', label: 'Seleção' },
 ];
+
+export const DEFAULT_SELECT_OPTIONS = [
+  { label: 'Opção 1', value: 'opcao_1' },
+  { label: 'Opção 2', value: 'opcao_2' },
+];
+
+export function isMarketingSelectField(field) {
+  return field?.kind === 'field' && field.type === 'select';
+}
+
+function slugifyOptionValue(label, index) {
+  const base = String(label ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return base || `opcao_${index + 1}`;
+}
+
+export function normalizeSelectOptionsForEditor(options) {
+  if (!options?.length) return DEFAULT_SELECT_OPTIONS.map((item) => ({ ...item }));
+  const used = new Set();
+  const normalized = [];
+  options.forEach((option, index) => {
+    const label = String(option?.label ?? '').trim();
+    if (!label) return;
+    let value = String(option?.value ?? '').trim();
+    if (!value) value = slugifyOptionValue(label, index);
+    let unique = value;
+    let suffix = 2;
+    while (used.has(unique)) {
+      unique = `${value}_${suffix}`;
+      suffix += 1;
+    }
+    used.add(unique);
+    normalized.push({ label, value: unique });
+  });
+  return normalized.length ? normalized : DEFAULT_SELECT_OPTIONS.map((item) => ({ ...item }));
+}
+
+/** Padrões ao mudar o tipo do campo para seleção no builder. */
+export function patchForMarketingSelectField(field = {}) {
+  return {
+    options: normalizeSelectOptionsForEditor(field.options),
+    placeholder: field.placeholder ?? '',
+  };
+}
 
 export function isMarketingPhoneField(field) {
   return field?.kind === 'field' && field.type === 'tel';
@@ -200,6 +250,9 @@ export function normalizeFieldsForEditor(fields) {
       placeholder: field.placeholder ?? '',
       description: field.description ?? '',
       mapTo: field.mapTo,
+      ...(field.type === 'select'
+        ? { options: normalizeSelectOptionsForEditor(field.options) }
+        : {}),
     };
   });
 }

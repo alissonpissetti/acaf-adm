@@ -486,6 +486,47 @@
   padding-top: 0.25rem;
 }
 
+.marketing-builder-select-options {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.marketing-builder-select-options-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.marketing-builder-select-options-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.marketing-builder-select-option-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.marketing-preview-select {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.15);
+  padding: 0.35rem 0;
+  font-size: 0.8125rem;
+  color: rgba(15, 23, 42, 0.45);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.marketing-preview-select-option {
+  padding-left: 0.35rem;
+  opacity: 0.85;
+}
+
 .marketing-builder-field-advanced {
   margin-top: 0.25rem;
   padding-top: 0.875rem;
@@ -992,7 +1033,8 @@
 }
 
 .marketing-public-form input,
-.marketing-public-form textarea {
+.marketing-public-form textarea,
+.marketing-public-form select {
   width: 100%;
   border: 0;
   border-bottom: 1px solid rgba(15, 23, 42, 0.18);

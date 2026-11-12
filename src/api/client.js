@@ -24,6 +24,7 @@ export async function fetchApi(path, options = {}) {
   }
 
   const response = await fetch(apiUrl(path), {
+    cache: 'no-store',
     ...options,
     headers,
   });

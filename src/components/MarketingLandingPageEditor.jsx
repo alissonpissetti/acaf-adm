@@ -21,8 +21,10 @@ import {
   FIELD_TYPES,
   FONT_OPTIONS,
   isMarketingPhoneField,
+  isMarketingSelectField,
   MARKETING_PHONE_PLACEHOLDER,
   patchForMarketingPhoneField,
+  patchForMarketingSelectField,
   formToPayload,
   moveField,
   pageToForm,
@@ -42,6 +44,67 @@ const LEAD_TYPES = [
   { value: 'partner', label: 'Academia (kanban comercial)' },
   { value: 'corporate', label: 'Empresa (kanban comercial)' },
 ];
+
+function FieldSelectOptionsEditor({ options = [], readOnly, onChange }) {
+  const updateOption = (optionIndex, patch) => {
+    onChange(
+      options.map((option, index) => (index === optionIndex ? { ...option, ...patch } : option)),
+    );
+  };
+
+  return (
+    <div className="marketing-builder-select-options">
+      <div className="marketing-builder-select-options-head">
+        <span>Opções da seleção</span>
+        {!readOnly ? (
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => onChange([...options, { label: `Opção ${options.length + 1}`, value: '' }])}
+          >
+            Adicionar opção
+          </button>
+        ) : null}
+      </div>
+      <div className="marketing-builder-select-options-list">
+        {options.map((option, optionIndex) => (
+          <div key={`select-option-${optionIndex}`} className="marketing-builder-select-option-row">
+            <label>
+              <span className="sr-only">Rótulo da opção {optionIndex + 1}</span>
+              <input
+                value={option.label}
+                onChange={(ev) => updateOption(optionIndex, { label: ev.target.value })}
+                disabled={readOnly}
+                placeholder="Rótulo exibido"
+              />
+            </label>
+            <label>
+              <span className="sr-only">Valor interno da opção {optionIndex + 1}</span>
+              <input
+                value={option.value}
+                onChange={(ev) => updateOption(optionIndex, { value: ev.target.value })}
+                disabled={readOnly}
+                placeholder="Valor (opcional)"
+              />
+            </label>
+            {!readOnly ? (
+              <button
+                type="button"
+                className="crud-icon-btn crud-icon-btn-danger"
+                title="Remover opção"
+                onClick={() => onChange(options.filter((_, index) => index !== optionIndex))}
+                disabled={options.length <= 1}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <p className="field-hint">O rótulo aparece na lista; o valor é gravado na resposta (deixe em branco para gerar automaticamente).</p>
+    </div>
+  );
+}
 
 function ColorField({ label, value, onChange, disabled }) {
   return (
@@ -98,7 +161,7 @@ function FieldBuilderCard({
               });
               return;
             }
-            onChange({
+            const next = {
               kind: 'field',
               type: value,
               key: field.key || `field_${displayIndex}`,
@@ -108,7 +171,10 @@ function FieldBuilderCard({
               description: field.description ?? '',
               mapTo: field.mapTo,
               ...(value === 'tel' ? patchForMarketingPhoneField(field) : {}),
-            });
+              ...(value === 'select' ? patchForMarketingSelectField(field) : {}),
+            };
+            if (value !== 'select') delete next.options;
+            onChange(next);
           }}
           disabled={readOnly}
         >
@@ -203,9 +269,17 @@ function FieldBuilderCard({
               placeholder="Texto de ajuda exibido abaixo da pergunta"
             />
           </label>
-          <p className="field-hint marketing-builder-field-preview-line">
-            Prévia: {isMarketingPhoneField(field) ? MARKETING_PHONE_PLACEHOLDER : 'Sua resposta'}
-          </p>
+          {isMarketingSelectField(field) ? (
+            <FieldSelectOptionsEditor
+              options={field.options ?? []}
+              readOnly={readOnly}
+              onChange={(options) => onChange({ options })}
+            />
+          ) : (
+            <p className="field-hint marketing-builder-field-preview-line">
+              Prévia: {isMarketingPhoneField(field) ? MARKETING_PHONE_PLACEHOLDER : 'Sua resposta'}
+            </p>
+          )}
         </>
       ) : null}
 

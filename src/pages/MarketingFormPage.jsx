@@ -9,6 +9,7 @@ import {
   buildPageBackgroundStyle,
   DEFAULT_MARKETING_THEME,
   isMarketingPhoneField,
+  isMarketingSelectField,
   MARKETING_PHONE_PLACEHOLDER,
 } from '../utils/marketingFormBuilder.js';
 import { formatMobilePhoneInput, normalizeMobilePhone } from '../utils/person.js';
@@ -54,6 +55,19 @@ function PublicField({ field, value, onChange }) {
           onChange={(ev) => onChange(ev.target.value)}
           required={Boolean(field.required)}
         />
+      ) : isMarketingSelectField(field) ? (
+        <select
+          value={value}
+          onChange={(ev) => onChange(ev.target.value)}
+          required={Boolean(field.required)}
+        >
+          <option value="">{field.placeholder?.trim() || 'Selecione…'}</option>
+          {(field.options ?? []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       ) : (
         <input
           type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : 'text'}

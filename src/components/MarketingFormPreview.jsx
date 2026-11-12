@@ -3,6 +3,7 @@ import {
   buildPageBackgroundStyle,
   DEFAULT_MARKETING_THEME,
   isMarketingPhoneField,
+  isMarketingSelectField,
   MARKETING_PHONE_PLACEHOLDER,
 } from '../utils/marketingFormBuilder.js';
 import { useMarketingBrandTypography } from '../hooks/useMarketingBrandTypography.js';
@@ -28,6 +29,15 @@ function PreviewField({ field }) {
       {field.description ? <p className="field-hint">{field.description}</p> : null}
       {field.type === 'textarea' ? (
         <div className="marketing-preview-input marketing-preview-textarea">Sua resposta</div>
+      ) : isMarketingSelectField(field) ? (
+        <div className="marketing-preview-select">
+          <span>{field.placeholder?.trim() || 'Selecione…'}</span>
+          {(field.options ?? []).slice(0, 3).map((option) => (
+            <span key={option.value} className="marketing-preview-select-option">
+              {option.label}
+            </span>
+          ))}
+        </div>
       ) : (
         <div className="marketing-preview-input">
           {isMarketingPhoneField(field)

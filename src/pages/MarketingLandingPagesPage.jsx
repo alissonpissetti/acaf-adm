@@ -34,7 +34,7 @@ export function MarketingLandingPagesPage() {
   const [listMessage, setListMessage] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const { data: rows, loading, error, reload } = useAsyncResource(
+  const { data: rows, loading, error, reload, setData } = useAsyncResource(
     () => getMarketingLandingPages(true),
     [],
   );
@@ -81,6 +81,18 @@ export function MarketingLandingPagesPage() {
     [detail],
   );
 
+  const applyLandingPageRemoval = useCallback(
+    (pageId, pageName, result) => {
+      setData((current) => (current ?? []).filter((item) => item.id !== pageId));
+      setListMessage(
+        result?.removed === false
+          ? `Formulário "${pageName}" inativado.`
+          : `Formulário "${pageName}" removido.`,
+      );
+    },
+    [setData],
+  );
+
   const handleDelete = useCallback(
     async (row) => {
       if (!canManage) return;
@@ -88,8 +100,8 @@ export function MarketingLandingPagesPage() {
       setListMessage('');
       setActionError('');
       try {
-        await deactivateMarketingLandingPage(row.id);
-        setListMessage(`Formulário "${row.name}" inativado.`);
+        const result = await deactivateMarketingLandingPage(row.id);
+        applyLandingPageRemoval(row.id, row.name, result);
         await reload();
       } catch (err) {
         setActionError(err.message);
@@ -100,7 +112,7 @@ export function MarketingLandingPagesPage() {
         });
       }
     },
-    [canManage, reload],
+    [canManage, reload, applyLandingPageRemoval],
   );
 
   if (loading) return <AppLoadingPanel label="Carregando formulários…" />;
@@ -167,7 +179,8 @@ export function MarketingLandingPagesPage() {
               ? async () => {
                   if (!(await confirmCrudDelete('formulário', detail.name))) return;
                   try {
-                    await deactivateMarketingLandingPage(detail.id);
+                    const result = await deactivateMarketingLandingPage(detail.id);
+                    applyLandingPageRemoval(detail.id, detail.name, result);
                     await reload();
                     router.goToList();
                   } catch (err) {
