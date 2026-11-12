@@ -2023,6 +2023,16 @@ textarea {
   background: var(--surface-muted, #f8fafc);
 }
 
+.acaf-associate-readonly.address-fields-collapsible {
+  border-top: none;
+  padding-top: 0.35rem;
+}
+
+.acaf-associate-readonly.address-fields-collapsible .collapsible-header {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .acaf-meta-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

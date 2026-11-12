@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { deleteUnit, getPlatformFeeDefaults, getUnits, updateUnit } from '../api/admin.js';
 import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { confirmCrudDelete } from '../crud/crudUtils.js';
@@ -37,6 +37,15 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
   const [platformDefaults, setPlatformDefaults] = useState({ connectFeePercent: 20, dailyFeePercent: 20 });
   const [connectOverrideInput, setConnectOverrideInput] = useState('');
   const [dailyOverrideInput, setDailyOverrideInput] = useState('');
+  const [cadastralExpanded, setCadastralExpanded] = useState(false);
+
+  const acafCadastralSummary = useMemo(() => {
+    if (!form?.acafAssociate) return '';
+    const bits = [];
+    if (form.acafAssociate.legalName) bits.push(form.acafAssociate.legalName);
+    if (unit?.acafAssociate?.cnpj) bits.push(formatCnpjFromDigits(unit.acafAssociate.cnpj));
+    return bits.join(' · ') || 'Importação movly.';
+  }, [form?.acafAssociate, unit?.acafAssociate?.cnpj]);
 
   useEffect(() => {
     getPlatformFeeDefaults()
@@ -223,7 +232,29 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                     />
                   </label>
                   {form.acafAssociate && unit.acafAssociate?.importSource === 'acaf_associates_xlsx' ? (
-                    <div className="field-span-2 acaf-associate-readonly">
+                    <div
+                      className={`field-span-2 acaf-associate-readonly address-fields-collapsible ${
+                        cadastralExpanded ? 'is-expanded' : 'is-collapsed'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => setCadastralExpanded((open) => !open)}
+                        aria-expanded={cadastralExpanded}
+                      >
+                        <span className="collapsible-header-main">
+                          <strong>Dados cadastrais</strong>
+                          {!cadastralExpanded ? (
+                            <span className="collapsible-summary">{acafCadastralSummary}</span>
+                          ) : null}
+                        </span>
+                        <span className="collapsible-chevron" aria-hidden>
+                          {cadastralExpanded ? '▾' : '▸'}
+                        </span>
+                      </button>
+                      {cadastralExpanded ? (
+                        <>
                       <h3 className="section-subtitle">Dados da importação movly.</h3>
                       <p className="muted">
                         Edite os dados abaixo quando precisar corrigir a base; o{' '}
@@ -366,6 +397,8 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                             : '—'}
                         </p>
                       </div>
+                        </>
+                      ) : null}
                     </div>
                   ) : null}
                   <label className="field-span-2">

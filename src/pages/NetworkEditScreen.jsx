@@ -308,8 +308,22 @@ export function NetworkEditScreen({
   const [platformDefaults, setPlatformDefaults] = useState({ connectFeePercent: 20, dailyFeePercent: 20 });
   const [connectOverrideInput, setConnectOverrideInput] = useState('');
   const [dailyOverrideInput, setDailyOverrideInput] = useState('');
+  const [cadastralExpanded, setCadastralExpanded] = useState(false);
 
   const unitCountLabel = useMemo(() => `${units.length} unidade(s)`, [units.length]);
+
+  const cadastralSummary = useMemo(() => {
+    const bits = [networkName.trim() || network.name];
+    const withAssociate = units.filter((u) => u.acafAssociate?.cnpj || u.acafAssociate?.legalName);
+    if (withAssociate.length === 1) {
+      const { legalName, cnpj } = withAssociate[0].acafAssociate ?? {};
+      if (legalName) bits.push(legalName);
+      if (cnpj) bits.push(formatCnpjFromDigits(cnpj));
+    } else if (withAssociate.length > 1) {
+      bits.push(`${withAssociate.length} unidades com cadastro fiscal`);
+    }
+    return bits.join(' · ');
+  }, [units, networkName, network.name]);
 
   const loadUnits = () => {
     setUnitsLoading(true);
@@ -352,6 +366,11 @@ export function NetworkEditScreen({
   const saveNetwork = async (ev) => {
     ev.preventDefault();
     if (readOnly) return;
+    if (!networkName.trim()) {
+      setError('Informe o nome comercial da rede.');
+      setCadastralExpanded(true);
+      return;
+    }
     setBusy(true);
     setError('');
     setMessage('');
@@ -481,52 +500,78 @@ export function NetworkEditScreen({
         </div>
         <div className="panel-body">
           <form className="form-grid" onSubmit={saveNetwork}>
-            <section className="form-section field-span-full">
-              <h3 className="form-section-title">Identidade</h3>
-              <div className="form-grid-inner">
-                <div className="field-span-full">
-                  <NetworkLogoField
-                    value={logoUrl}
-                    onChange={(file) => {
-                      setLogoFile(file);
-                      if (file) setLogoRemovePending(false);
-                    }}
-                    onRemoveLogo={
-                      readOnly
-                        ? undefined
-                        : () => {
-                            setLogoRemovePending(true);
-                            setLogoUrl(null);
-                            setLogoFile(null);
+            <section
+              className={`form-section field-span-full address-fields-collapsible ${
+                cadastralExpanded ? 'is-expanded' : 'is-collapsed'
+              }`}
+            >
+              <button
+                type="button"
+                className="collapsible-header"
+                onClick={() => setCadastralExpanded((open) => !open)}
+                aria-expanded={cadastralExpanded}
+              >
+                <span className="collapsible-header-main">
+                  <strong>Dados cadastrais</strong>
+                  {!cadastralExpanded ? (
+                    <span className="collapsible-summary">{cadastralSummary}</span>
+                  ) : null}
+                </span>
+                <span className="collapsible-chevron" aria-hidden>
+                  {cadastralExpanded ? '▾' : '▸'}
+                </span>
+              </button>
+              {cadastralExpanded ? (
+                <>
+                  <section className="form-section field-span-full">
+                    <h3 className="form-section-title">Identidade</h3>
+                    <div className="form-grid-inner">
+                      <div className="field-span-full">
+                        <NetworkLogoField
+                          value={logoUrl}
+                          onChange={(file) => {
+                            setLogoFile(file);
+                            if (file) setLogoRemovePending(false);
+                          }}
+                          onRemoveLogo={
+                            readOnly
+                              ? undefined
+                              : () => {
+                                  setLogoRemovePending(true);
+                                  setLogoUrl(null);
+                                  setLogoFile(null);
+                                }
                           }
-                    }
-                    disabled={busy || readOnly}
-                  />
-                </div>
-                <label>
-                  <span>Nome comercial</span>
-                  <input
-                    className="input"
-                    value={networkName}
-                    onChange={(e) => setNetworkName(e.target.value)}
-                    placeholder="Ex.: Academia H2O"
-                    required
-                    disabled={readOnly}
-                  />
-                </label>
-                <label>
-                  <span>Responsável comercial</span>
-                  <input
-                    className="input"
-                    value={network.commercialOwnerName ?? '—'}
-                    readOnly
-                    disabled
-                  />
-                </label>
-              </div>
-            </section>
+                          disabled={busy || readOnly}
+                        />
+                      </div>
+                      <label>
+                        <span>Nome comercial</span>
+                        <input
+                          className="input"
+                          value={networkName}
+                          onChange={(e) => setNetworkName(e.target.value)}
+                          placeholder="Ex.: Academia H2O"
+                          required
+                          disabled={readOnly}
+                        />
+                      </label>
+                      <label>
+                        <span>Responsável comercial</span>
+                        <input
+                          className="input"
+                          value={network.commercialOwnerName ?? '—'}
+                          readOnly
+                          disabled
+                        />
+                      </label>
+                    </div>
+                  </section>
 
-            <NetworkSocialFields value={social} onChange={setSocial} disabled={busy || readOnly} />
+                  <NetworkSocialFields value={social} onChange={setSocial} disabled={busy || readOnly} />
+                </>
+              ) : null}
+            </section>
 
             <section className="form-section field-span-full network-platform-fees">
               <h3 className="form-section-title">Taxa da plataforma (rede)</h3>
