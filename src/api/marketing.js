@@ -83,8 +83,9 @@ export function updateMarketingLandingPage(id, payload) {
   });
 }
 
-export function deactivateMarketingLandingPage(id) {
-  return fetchApi(`/api/admin/marketing/landing-pages/${id}`, {
+export function deactivateMarketingLandingPage(id, { force = true } = {}) {
+  const query = force ? '?force=1' : '?force=0';
+  return fetchApi(`/api/admin/marketing/landing-pages/${encodeURIComponent(id)}${query}`, {
     method: 'DELETE',
   });
 }

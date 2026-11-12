@@ -4,20 +4,27 @@ import { Link } from 'react-router-dom';
 import { getCommercialFunnelOptions } from '../api/commercial.js';
 import {
   createMarketingLandingPage,
-  deactivateMarketingLandingPage,
   getMarketingCampaign,
   getMarketingCampaignOptions,
   getMarketingLandingPage,
   getMarketingLandingPages,
   updateMarketingLandingPage,
 } from '../api/marketing.js';
+import {
+  deactivateAndVerifyMarketingLandingPage,
+  LEGACY_API_DEPLOY_MESSAGE,
+} from '../api/marketingLandingPageDelete.js';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
 import { MarketingLandingPageEditor } from '../components/MarketingLandingPageEditor.jsx';
 import { MarketingLandingPageMetricsPage } from './MarketingLandingPageMetricsPage.jsx';
 import { PermissionGate } from '../components/PermissionGate.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { confirmCrudDelete, inactiveBadgeClass, inactiveLabel } from '../crud/crudUtils.js';
+import {
+  confirmMarketingLandingPageDelete,
+  inactiveBadgeClass,
+  inactiveLabel,
+} from '../crud/crudUtils.js';
 import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { useAsyncResource, useCrudRouter } from '../crud/useCrudRouter.js';
@@ -82,27 +89,43 @@ export function MarketingLandingPagesPage() {
   );
 
   const applyLandingPageRemoval = useCallback(
-    (pageId, pageName, result) => {
+    (pageId, pageName) => {
       setData((current) => (current ?? []).filter((item) => item.id !== pageId));
-      setListMessage(
-        result?.removed === false
-          ? `Formulário "${pageName}" inativado.`
-          : `Formulário "${pageName}" removido.`,
-      );
+      setListMessage(`Formulário "${pageName}" removido.`);
     },
     [setData],
+  );
+
+  const runVerifiedLandingPageDelete = useCallback(
+    async (pageId, pageName) => {
+      const { status } = await deactivateAndVerifyMarketingLandingPage(pageId, { force: true });
+      if (status === 'removed') {
+        applyLandingPageRemoval(pageId, pageName);
+        await reload();
+        return 'removed';
+      }
+      await reload();
+      setListMessage(
+        `Formulário "${pageName}" foi apenas inativado — a API em produção precisa de redeploy para exclusão definitiva.`,
+      );
+      await appAlert({
+        title: 'API desatualizada em produção',
+        message: LEGACY_API_DEPLOY_MESSAGE,
+        tone: 'warning',
+      });
+      return 'legacy_soft_delete';
+    },
+    [applyLandingPageRemoval, reload],
   );
 
   const handleDelete = useCallback(
     async (row) => {
       if (!canManage) return;
-      if (!(await confirmCrudDelete('formulário', row.name))) return;
+      if (!(await confirmMarketingLandingPageDelete(row.name))) return;
       setListMessage('');
       setActionError('');
       try {
-        const result = await deactivateMarketingLandingPage(row.id);
-        applyLandingPageRemoval(row.id, row.name, result);
-        await reload();
+        await runVerifiedLandingPageDelete(row.id, row.name);
       } catch (err) {
         setActionError(err.message);
         await appAlert({
@@ -112,7 +135,7 @@ export function MarketingLandingPagesPage() {
         });
       }
     },
-    [canManage, reload, applyLandingPageRemoval],
+    [canManage, runVerifiedLandingPageDelete],
   );
 
   if (loading) return <AppLoadingPanel label="Carregando formulários…" />;
@@ -177,12 +200,12 @@ export function MarketingLandingPagesPage() {
           onDelete={
             canManage && router.isEditing
               ? async () => {
-                  if (!(await confirmCrudDelete('formulário', detail.name))) return;
+                  if (!(await confirmMarketingLandingPageDelete(detail.name))) return;
                   try {
-                    const result = await deactivateMarketingLandingPage(detail.id);
-                    applyLandingPageRemoval(detail.id, detail.name, result);
-                    await reload();
-                    router.goToList();
+                    const outcome = await runVerifiedLandingPageDelete(detail.id, detail.name);
+                    if (outcome === 'removed') {
+                      router.goToList();
+                    }
                   } catch (err) {
                     await appAlert({
                       title: 'Não foi possível excluir',

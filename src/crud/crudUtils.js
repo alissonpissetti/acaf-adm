@@ -14,6 +14,19 @@ export async function confirmCrudDelete(label, name) {
   });
 }
 
+export async function confirmMarketingLandingPageDelete(name) {
+  const label = name !== undefined && name !== null && String(name).trim()
+    ? `"${String(name).trim()}"`
+    : 'este formulário';
+  return appConfirm({
+    title: 'Excluir formulário definitivamente',
+    message: `Excluir o formulário ${label}? Todos os envios e métricas serão apagados permanentemente. Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Excluir definitivamente',
+    cancelLabel: 'Cancelar',
+    tone: 'danger',
+  });
+}
+
 export async function confirmEntryCancel(label) {
   return appConfirm({
     title: 'Cancelar lançamento',
