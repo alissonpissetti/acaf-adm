@@ -24,6 +24,7 @@ export function CrudRowActions({
           }}
         >
           <Columns3 size={15} strokeWidth={2} aria-hidden="true" />
+          <span className="crud-action-label">Abrir</span>
         </button>
       ) : null}
       {onView ? (
@@ -39,6 +40,7 @@ export function CrudRowActions({
           }}
         >
           <Eye size={15} strokeWidth={2} aria-hidden="true" />
+          <span className="crud-action-label">Ver</span>
         </button>
       ) : null}
       {onEdit ? (
@@ -54,6 +56,7 @@ export function CrudRowActions({
           }}
         >
           <Pencil size={15} strokeWidth={2} aria-hidden="true" />
+          <span className="crud-action-label">Editar</span>
         </button>
       ) : null}
       {onDuplicate ? (
@@ -69,6 +72,7 @@ export function CrudRowActions({
           }}
         >
           <Copy size={15} strokeWidth={2} aria-hidden="true" />
+          <span className="crud-action-label">Duplicar</span>
         </button>
       ) : null}
       {onDelete ? (
@@ -84,6 +88,7 @@ export function CrudRowActions({
           }}
         >
           <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+          <span className="crud-action-label">Excluir</span>
         </button>
       ) : null}
     </div>

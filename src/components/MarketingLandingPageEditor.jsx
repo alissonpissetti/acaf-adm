@@ -3,7 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { CrudAlerts } from './crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from './crud/CrudFormActions.jsx';
 import { PageHeader } from './PageHeader.jsx';
+import {
+  uploadMarketingLandingCover,
+  uploadMarketingLandingLogo,
+} from '../api/marketing.js';
 import { MarketingFormPreview } from './MarketingFormPreview.jsx';
+import { MarketingLandingMediaField } from './MarketingLandingMediaField.jsx';
 import { MarketingGradientField } from './MarketingGradientField.jsx';
 import { MarketingSharePanel } from './MarketingSharePanel.jsx';
 import {
@@ -15,15 +20,21 @@ import {
   FIELD_MAPS,
   FIELD_TYPES,
   FONT_OPTIONS,
+  isMarketingPhoneField,
+  MARKETING_PHONE_PLACEHOLDER,
+  patchForMarketingPhoneField,
   formToPayload,
   moveField,
+  pageToForm,
 } from '../utils/marketingFormBuilder.js';
+import { APP_DEFAULT_FONT_FAMILY } from '../utils/marketingBrandTypography.js';
+import { useMarketingBrandTypography } from '../hooks/useMarketingBrandTypography.js';
 
 const TABS = [
   { id: 'identity', label: 'Identidade' },
   { id: 'appearance', label: 'Aparência' },
   { id: 'form', label: 'Formulário' },
-  { id: 'share', label: 'Links para redes (com rastreamento)' },
+  { id: 'share', label: 'Compartilhamento' },
 ];
 
 const LEAD_TYPES = [
@@ -96,6 +107,7 @@ function FieldBuilderCard({
               placeholder: field.placeholder ?? '',
               description: field.description ?? '',
               mapTo: field.mapTo,
+              ...(value === 'tel' ? patchForMarketingPhoneField(field) : {}),
             });
           }}
           disabled={readOnly}
@@ -109,7 +121,7 @@ function FieldBuilderCard({
         </select>
 
         {!isSection ? (
-          <label className="marketing-builder-required">
+          <label className="checkbox-inline marketing-builder-required">
             <input
               type="checkbox"
               checked={Boolean(field.required)}
@@ -191,7 +203,9 @@ function FieldBuilderCard({
               placeholder="Texto de ajuda exibido abaixo da pergunta"
             />
           </label>
-          <p className="field-hint marketing-builder-field-preview-line">Prévia: Sua resposta</p>
+          <p className="field-hint marketing-builder-field-preview-line">
+            Prévia: {isMarketingPhoneField(field) ? MARKETING_PHONE_PLACEHOLDER : 'Sua resposta'}
+          </p>
         </>
       ) : null}
 
@@ -260,21 +274,32 @@ export function MarketingLandingPageEditor({
   onSubmit,
   onCancel,
   onDelete,
+  onEdit,
   onOpenMetrics,
+  onSaved,
 }) {
   const [form, setForm] = useState(initial);
   const [tab, setTab] = useState('identity');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copiedSlug, setCopiedSlug] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
+  const [logoRemovePending, setLogoRemovePending] = useState(false);
+  const [coverRemovePending, setCoverRemovePending] = useState(false);
 
   useEffect(() => {
     setForm(initial);
     setError('');
     setTab('identity');
+    setLogoFile(null);
+    setCoverFile(null);
+    setLogoRemovePending(false);
+    setCoverRemovePending(false);
   }, [initial]);
 
   const stats = useMemo(() => countFormStats(form.fields), [form.fields]);
+  const brandTypography = useMarketingBrandTypography(form.theme?.fontFamily);
   const selectedCreative = creatives?.find((item) => item.id === form.creativeId) ?? null;
   const publicPath = form.slug ? `/f/${form.slug}` : '';
 
@@ -295,6 +320,11 @@ export function MarketingLandingPageEditor({
     }));
   };
 
+  const clearCommercialLink = async () => {
+    setForm((current) => ({ ...current, campaignId: '', creativeId: '' }));
+    await onCampaignChange?.('');
+  };
+
   const copySlug = async () => {
     if (!form.slug) return;
     try {
@@ -312,7 +342,26 @@ export function MarketingLandingPageEditor({
     setBusy(true);
     setError('');
     try {
-      await onSubmit(formToPayload(form));
+      const payload = formToPayload(form);
+      if (logoRemovePending && !logoFile) payload.logoUrl = null;
+      if (coverRemovePending && !coverFile) payload.coverImageUrl = null;
+
+      let saved = await onSubmit(payload);
+      const pageId = saved?.id;
+      if (pageId) {
+        if (logoFile) saved = await uploadMarketingLandingLogo(pageId, logoFile);
+        if (coverFile) saved = await uploadMarketingLandingCover(pageId, coverFile);
+      }
+
+      if (saved) {
+        setForm(pageToForm(saved));
+        setLogoFile(null);
+        setCoverFile(null);
+        setLogoRemovePending(false);
+        setCoverRemovePending(false);
+      }
+
+      await onSaved?.(saved);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -321,31 +370,29 @@ export function MarketingLandingPageEditor({
   };
 
   return (
-    <div className="page-stack marketing-builder-page">
+    <div className="page-stack">
       <PageHeader breadcrumbs={breadcrumbs} title={title} subtitle={subtitle} />
       <CrudAlerts error={error} />
 
-      <form onSubmit={submit}>
-        <section className="panel marketing-builder-workspace">
-          <div className="panel-header marketing-builder-tabs-header">
-            <div className="notifications-filter" role="tablist" aria-label="Configuração do formulário">
+      <form className="page-stack" onSubmit={submit}>
+        <div className="marketing-builder-layout">
+          <section className="panel marketing-builder-workspace">
+            <div className="unit-edit-tabs" role="tablist" aria-label="Configuração do formulário">
               {TABS.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   role="tab"
                   aria-selected={tab === item.id}
-                  className={`notifications-filter-btn${tab === item.id ? ' is-active' : ''}`}
+                  className={tab === item.id ? 'unit-edit-tab active' : 'unit-edit-tab'}
                   onClick={() => setTab(item.id)}
                 >
                   {item.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="panel-body marketing-builder-body">
-            <div className="marketing-builder-layout">
+            <div className="panel-body marketing-builder-body">
               <div className="marketing-builder-main">
                 {tab === 'identity' ? (
                   <div className="marketing-builder-sections">
@@ -367,25 +414,26 @@ export function MarketingLandingPageEditor({
                           <p className="field-hint">Apenas para controle interno. Não aparece na página pública.</p>
                         </label>
 
-                        <label>
-                          <span>Nome da página</span>
-                          <input
-                            value={form.headline}
-                            onChange={(ev) => setForm({ ...form, headline: ev.target.value })}
-                            required
-                            disabled={readOnly}
-                          />
-                          <div className="marketing-inline-check">
+                        <div className="field-span-2">
+                          <label>
+                            <span>Nome da página</span>
+                            <input
+                              value={form.headline}
+                              onChange={(ev) => setForm({ ...form, headline: ev.target.value })}
+                              required
+                              disabled={readOnly}
+                            />
+                          </label>
+                          <label className="checkbox-inline">
                             <input
                               type="checkbox"
-                              id="hide-headline"
                               checked={Boolean(form.theme?.hideHeadline)}
                               onChange={(ev) => updateTheme({ hideHeadline: ev.target.checked })}
                               disabled={readOnly}
                             />
-                            <label htmlFor="hide-headline">Ocultar título na página pública</label>
-                          </div>
-                        </label>
+                            <span>Ocultar título na página pública</span>
+                          </label>
+                        </div>
 
                         <label>
                           <span>Endereço da página</span>
@@ -408,31 +456,41 @@ export function MarketingLandingPageEditor({
                           <p className="field-hint">Letras minúsculas, números e hífens.</p>
                         </label>
 
-                        <label className="field-span-2">
-                          <span>Descrição</span>
-                          <textarea
-                            value={form.description}
-                            onChange={(ev) => setForm({ ...form, description: ev.target.value })}
-                            rows={3}
-                            disabled={readOnly}
-                          />
-                          <div className="marketing-inline-check">
+                        <div className="field-span-2">
+                          <label>
+                            <span>Descrição</span>
+                            <textarea
+                              value={form.description}
+                              onChange={(ev) => setForm({ ...form, description: ev.target.value })}
+                              rows={3}
+                              disabled={readOnly}
+                            />
+                          </label>
+                          <label className="checkbox-inline">
                             <input
                               type="checkbox"
-                              id="hide-description"
                               checked={Boolean(form.theme?.hideDescription)}
                               onChange={(ev) => updateTheme({ hideDescription: ev.target.checked })}
                               disabled={readOnly}
                             />
-                            <label htmlFor="hide-description">Ocultar descrição na página pública</label>
-                          </div>
-                        </label>
+                            <span>Ocultar descrição na página pública</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
 
                     <div className="form-section">
-                      <h3 className="form-section-title">Integração comercial</h3>
-                      <p className="field-hint">Vincule campanha, criativo e funil para rastrear leads.</p>
+                      <div className="marketing-integration-head">
+                        <div>
+                          <h3 className="form-section-title">Integração comercial</h3>
+                          <p className="field-hint">Vincule campanha, criativo e funil para rastrear leads.</p>
+                        </div>
+                        {!readOnly && (form.campaignId || form.creativeId) ? (
+                          <button type="button" className="btn-ghost btn-sm" onClick={clearCommercialLink}>
+                            Remover vínculo
+                          </button>
+                        ) : null}
+                      </div>
 
                       <div className="form-grid-inner">
                         <label>
@@ -508,36 +566,50 @@ export function MarketingLandingPageEditor({
                       <h3 className="form-section-title">Mensagem e mídia</h3>
                       <p className="field-hint">Texto de confirmação e imagens opcionais da página.</p>
 
-                      <div className="form-grid-inner">
+                      <div className="form-grid-inner marketing-media-section">
                         <label className="field-span-2">
                           <span>Mensagem de agradecimento</span>
                           <textarea
                             value={form.thankYouMessage}
                             onChange={(ev) => setForm({ ...form, thankYouMessage: ev.target.value })}
-                            rows={2}
+                            rows={3}
                             disabled={readOnly}
                           />
+                          <p className="field-hint">Exibida após o envio do formulário na página pública.</p>
                         </label>
 
-                        <label>
-                          <span>Logo (URL)</span>
-                          <input
+                        <div className="field-span-2 marketing-media-stack">
+                          <MarketingLandingMediaField
+                            kind="logo"
                             value={form.logoUrl}
-                            onChange={(ev) => setForm({ ...form, logoUrl: ev.target.value })}
+                            onChange={setLogoFile}
+                            onRemoveSaved={() => {
+                              setLogoRemovePending(true);
+                              setForm((current) => ({ ...current, logoUrl: '' }));
+                            }}
+                            onUrlChange={(logoUrl) => {
+                              setLogoRemovePending(false);
+                              setLogoFile(null);
+                              setForm((current) => ({ ...current, logoUrl }));
+                            }}
                             disabled={readOnly}
                           />
-                          <p className="field-hint">PNG ou WebP com fundo transparente.</p>
-                        </label>
-
-                        <label>
-                          <span>Foto de capa (URL)</span>
-                          <input
+                          <MarketingLandingMediaField
+                            kind="cover"
                             value={form.coverImageUrl}
-                            onChange={(ev) => setForm({ ...form, coverImageUrl: ev.target.value })}
+                            onChange={setCoverFile}
+                            onRemoveSaved={() => {
+                              setCoverRemovePending(true);
+                              setForm((current) => ({ ...current, coverImageUrl: '' }));
+                            }}
+                            onUrlChange={(coverImageUrl) => {
+                              setCoverRemovePending(false);
+                              setCoverFile(null);
+                              setForm((current) => ({ ...current, coverImageUrl }));
+                            }}
                             disabled={readOnly}
                           />
-                          <p className="field-hint">Banner no topo. Proporção recomendada 16:3.</p>
-                        </label>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -605,7 +677,7 @@ export function MarketingLandingPageEditor({
                         Caixa arredondada onde ficam logo, textos e campos. Cor sempre sólida.
                       </p>
 
-                      <div className="form-grid-inner marketing-builder-tab-grid marketing-builder-grid-3">
+                      <div className="form-grid-inner marketing-builder-tab-grid">
                   <ColorField
                     label="Cor do card"
                     value={form.theme?.cardColor}
@@ -621,7 +693,7 @@ export function MarketingLandingPageEditor({
                   <label>
                     <span>Fonte</span>
                     <select
-                      value={form.theme?.fontFamily ?? 'Inter'}
+                      value={form.theme?.fontFamily ?? APP_DEFAULT_FONT_FAMILY}
                       onChange={(ev) => updateTheme({ fontFamily: ev.target.value })}
                       disabled={readOnly}
                     >
@@ -631,6 +703,9 @@ export function MarketingLandingPageEditor({
                         </option>
                       ))}
                     </select>
+                    <p className="field-hint">
+                      O padrão do movimento usa a fonte Figtree publicada no storage (mesma tipografia do admin).
+                    </p>
                   </label>
                       </div>
                     </div>
@@ -639,7 +714,7 @@ export function MarketingLandingPageEditor({
                       <h3 className="form-section-title">Botão de envio</h3>
                       <p className="field-hint">Personalize a aparência do botão na página pública.</p>
 
-                      <div className="form-grid-inner marketing-builder-tab-grid marketing-builder-grid-3">
+                      <div className="form-grid-inner marketing-builder-tab-grid">
                   <ColorField
                     label="Cor do botão"
                     value={form.theme?.buttonColor}
@@ -774,24 +849,24 @@ export function MarketingLandingPageEditor({
                   )
                 ) : null}
 
-                <div className="marketing-builder-footer">
+                <div className="form-actions panel-actions field-span-full marketing-builder-actions">
                   {readOnly ? (
-                    <CrudViewActions onBack={onCancel} />
+                    <CrudViewActions onBack={onCancel} onEdit={onEdit} />
                   ) : (
-                    <CrudFormActions
-                      busy={busy}
-                      onCancel={onCancel}
-                      submitLabel="Salvar configuração"
-                      onDelete={onDelete}
-                    />
+                    <CrudFormActions busy={busy} onCancel={onCancel} onDelete={onDelete} showDelete={Boolean(onDelete)} />
                   )}
                 </div>
               </div>
-
-              <MarketingFormPreview form={form} publicPath={publicPath} onOpenMetrics={onOpenMetrics} />
             </div>
-          </div>
-        </section>
+          </section>
+
+          <MarketingFormPreview
+            form={form}
+            publicPath={publicPath}
+            onOpenMetrics={onOpenMetrics}
+            brandTypography={brandTypography}
+          />
+        </div>
       </form>
     </div>
   );

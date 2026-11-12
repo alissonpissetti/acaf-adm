@@ -7,7 +7,12 @@ import {
   buildButtonRadius,
   buildPageBackgroundStyle,
   DEFAULT_MARKETING_THEME,
+  isMarketingPhoneField,
+  MARKETING_PHONE_PLACEHOLDER,
 } from '../utils/marketingFormBuilder.js';
+import { formatMobilePhoneInput, normalizeMobilePhone } from '../utils/person.js';
+import { useMarketingBrandTypography } from '../hooks/useMarketingBrandTypography.js';
+import { injectBrandFontFaces, resolveMarketingFontFamily } from '../utils/marketingBrandTypography.js';
 import '../styles/marketing.css';
 
 function readUtm(searchParams, creative) {
@@ -52,8 +57,17 @@ function PublicField({ field, value, onChange }) {
         <input
           type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : 'text'}
           value={value}
-          placeholder={field.placeholder || 'Sua resposta'}
-          onChange={(ev) => onChange(ev.target.value)}
+          placeholder={
+            field.placeholder ||
+            (isMarketingPhoneField(field) ? MARKETING_PHONE_PLACEHOLDER : 'Sua resposta')
+          }
+          inputMode={field.type === 'tel' ? 'tel' : undefined}
+          autoComplete={field.type === 'tel' ? 'tel' : field.type === 'email' ? 'email' : undefined}
+          onChange={(ev) =>
+            onChange(
+              isMarketingPhoneField(field) ? formatMobilePhoneInput(ev.target.value) : ev.target.value,
+            )
+          }
           required={Boolean(field.required)}
         />
       )}
@@ -79,6 +93,9 @@ export function MarketingFormPage() {
     setSuccess('');
     getPublicMarketingPage(slug, utmFromUrl)
       .then((result) => {
+        if (result.brandTypography) {
+          injectBrandFontFaces(result.brandTypography);
+        }
         setPage(result);
         const initial = {};
         (result.fields ?? [])
@@ -114,13 +131,24 @@ export function MarketingFormPage() {
     [page],
   );
 
+  const hookTypography = useMarketingBrandTypography(theme.fontFamily);
+  const brandTypography = page?.brandTypography ?? hookTypography;
+  const resolvedFontFamily = resolveMarketingFontFamily(theme.fontFamily, brandTypography);
+  const buttonRadius = buildButtonRadius(theme.buttonStyle);
+
   const onSubmit = async (ev) => {
     ev.preventDefault();
     setBusy(true);
     setError('');
     try {
+      const data = { ...values };
+      (page?.fields ?? []).forEach((field) => {
+        if (isMarketingPhoneField(field) && data[field.key]) {
+          data[field.key] = normalizeMobilePhone(data[field.key]);
+        }
+      });
       const result = await submitPublicMarketingPage(slug, {
-        data: values,
+        data,
         ...utm,
       });
       setSuccess(result.thankYouMessage || 'Recebemos seus dados. Em breve entraremos em contato.');
@@ -143,26 +171,36 @@ export function MarketingFormPage() {
     );
   }
 
-  const buttonRadius = buildButtonRadius(theme.buttonStyle);
+  if (!page) {
+    return (
+      <div className="marketing-public-page" style={buildPageBackgroundStyle()}>
+        <div className="marketing-public-card">
+          <CrudAlerts error={error || 'Formulário indisponível.'} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="marketing-public-page" style={buildPageBackgroundStyle(theme)}>
       <div
-        className="marketing-public-card marketing-public-card-themed"
+        className="marketing-landing-card marketing-public-card marketing-public-card-themed"
         style={{
           backgroundColor: theme.cardColor,
           color: theme.cardTextColor,
-          fontFamily: theme.fontFamily,
+          fontFamily: resolvedFontFamily,
         }}
       >
         {page.coverImageUrl ? (
           <div
-            className="marketing-public-cover"
+            className="marketing-landing-cover"
             style={{ backgroundImage: `url(${page.coverImageUrl})` }}
+            role="img"
+            aria-hidden="true"
           />
         ) : null}
 
-        <div className="marketing-public-card-body">
+        <div className="marketing-landing-card-body">
           {success ? (
             <div className="marketing-public-success">
               <h1>Obrigado!</h1>

@@ -465,7 +465,7 @@ function InstanceForm({
                     checked={form.autoCreateLeads}
                     onChange={(ev) => setForm({ ...form, autoCreateLeads: ev.target.checked })}
                   />
-                  Criar lead básico automaticamente em novas conversas
+                  Criar lead ao receber mensagem (só com celular BR ou nome do contato)
                 </label>
                 <label className="checkbox-inline">
                   <input
@@ -824,7 +824,7 @@ export function EvolutionInstancesPage() {
           usageMode: selected.usageMode ?? 'corporate',
           departmentId: selected.departmentId ?? '',
           defaultOwnerUserId: selected.defaultOwnerUserId ?? '',
-          autoCreateLeads: selected.autoCreateLeads !== false,
+          autoCreateLeads: Boolean(selected.autoCreateLeads),
           isEditing: true,
           readOnly: router.isViewing,
           onEdit: canManage ? () => router.goToEdit(selected.id) : undefined,

@@ -220,7 +220,14 @@ function CampaignForm({
               {readOnly ? (
                 <CrudViewActions onBack={onCancel} />
               ) : (
-                <CrudFormActions busy={busy} onCancel={onCancel} submitLabel="Salvar campanha" onDelete={onDelete} />
+                <CrudFormActions
+                  busy={busy}
+                  onCancel={onCancel}
+                  submitLabel="Salvar campanha"
+                  onDelete={onDelete}
+                  showDelete={Boolean(onDelete)}
+                  deleteLabel="Remover campanha"
+                />
               )}
             </div>
           </form>
@@ -402,6 +409,14 @@ export function MarketingCampaignsPage() {
     [router.id],
   );
 
+  const handleDelete = async (row) => {
+    if (!canManage) return;
+    const confirmed = await confirmCrudDelete('campanha', row.name);
+    if (!confirmed) return;
+    await deactivateMarketingCampaign(row.id);
+    await reload();
+  };
+
   if (loading) return <AppLoadingPanel label="Carregando campanhas…" />;
 
   if (router.isCreating) {
@@ -488,6 +503,7 @@ export function MarketingCampaignsPage() {
   return (
     <PermissionGate permission="marketing.campanhas">
       <CrudListShell
+        tableClassName="marketing-campaigns-table"
         title="Campanhas"
         subtitle="Organize campanhas e criativos das redes sociais com métricas de performance."
         addLabel="Nova campanha"
@@ -517,27 +533,47 @@ export function MarketingCampaignsPage() {
         onPageChange={list.setPage}
         onPageSizeChange={list.onPageSizeChange}
         columns={[
-          { key: 'name', label: 'Campanha', sortable: true },
-          { key: 'platformLabel', label: 'Plataforma', sortable: true },
-          { key: 'statusLabel', label: 'Status', sortable: true },
+          {
+            key: 'name',
+            label: 'Campanha',
+            sortable: true,
+            className: 'data-table-cell-wrap data-table-col-marketing-campaign-name',
+            render: (row) => <strong>{row.name}</strong>,
+          },
+          {
+            key: 'platformLabel',
+            label: 'Plataforma',
+            sortable: true,
+            className: 'data-table-col-marketing-platform',
+          },
+          {
+            key: 'statusLabel',
+            label: 'Status',
+            sortable: true,
+            className: 'data-table-col-marketing-status',
+          },
           {
             key: 'submissionCount',
             label: 'Leads',
+            className: 'data-table-cell-numeric data-table-col-marketing-metric',
             render: (row) => row.submissionCount ?? 0,
           },
           {
             key: 'ctr',
             label: 'CTR',
+            className: 'data-table-cell-numeric data-table-col-marketing-metric',
             render: (row) => `${row.ctr ?? 0}%`,
           },
           {
             key: 'conversionRate',
             label: 'Conversão',
+            className: 'data-table-cell-numeric data-table-col-marketing-metric',
             render: (row) => `${row.conversionRate ?? 0}%`,
           },
           {
             key: 'active',
             label: 'Situação',
+            className: 'data-table-col-marketing-situation',
             render: (row) => (
               <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
             ),
@@ -546,6 +582,7 @@ export function MarketingCampaignsPage() {
         rows={list.rows}
         onView={(row) => router.goToView(row.id)}
         onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+        onDelete={canManage ? handleDelete : undefined}
         canManage={canManage}
       />
     </PermissionGate>

@@ -1,3 +1,5 @@
+import { APP_DEFAULT_FONT_FAMILY } from './marketingBrandTypography.js';
+
 export const DEFAULT_MARKETING_THEME = {
   backgroundType: 'solid',
   backgroundColor: '#eef0f4',
@@ -5,7 +7,7 @@ export const DEFAULT_MARKETING_THEME = {
   backgroundImageUrl: '',
   cardColor: '#ffffff',
   cardTextColor: '#1c1c1e',
-  fontFamily: 'Inter',
+  fontFamily: APP_DEFAULT_FONT_FAMILY,
   buttonColor: '#0f766e',
   buttonTextColor: '#ffffff',
   buttonStyle: 'rounded',
@@ -13,12 +15,34 @@ export const DEFAULT_MARKETING_THEME = {
   hideDescription: false,
 };
 
+export const MARKETING_PHONE_PLACEHOLDER = '(00) 00000-0000';
+
 export const FIELD_TYPES = [
   { value: 'text', label: 'Texto' },
   { value: 'email', label: 'E-mail' },
   { value: 'tel', label: 'Telefone' },
   { value: 'textarea', label: 'Texto longo' },
 ];
+
+export function isMarketingPhoneField(field) {
+  return field?.kind === 'field' && field.type === 'tel';
+}
+
+/** Padrões ao mudar o tipo do campo para telefone no builder. */
+export function patchForMarketingPhoneField(field = {}) {
+  const patch = {
+    mapTo: field.mapTo || 'phone',
+    placeholder: field.placeholder?.trim() ? field.placeholder : MARKETING_PHONE_PLACEHOLDER,
+  };
+  if (!field.label?.trim() || field.label === 'Nova pergunta') {
+    patch.label = 'Telefone';
+  }
+  const key = String(field.key ?? '').trim();
+  if (!key || /^field_\d+$/.test(key)) {
+    patch.key = 'phone';
+  }
+  return patch;
+}
 
 export const FIELD_MAPS = [
   { value: '', label: 'Somente resposta' },
@@ -32,9 +56,9 @@ export const FIELD_MAPS = [
 ];
 
 export const FONT_OPTIONS = [
-  { value: 'Inter', label: 'Inter' },
+  { value: APP_DEFAULT_FONT_FAMILY, label: 'Fonte padrão do movimento' },
   { value: 'system-ui', label: 'Sistema' },
-  { value: 'Georgia', label: 'Georgia' },
+  { value: 'Georgia', label: 'Georgia (serifada)' },
   { value: 'Roboto', label: 'Roboto' },
 ];
 
@@ -122,11 +146,18 @@ export const DEFAULT_FIELDS = [
   { key: 'message', label: 'Mensagem', kind: 'field', type: 'textarea', required: false, mapTo: 'notes' },
 ];
 
+function normalizeStoredFontFamily(fontFamily) {
+  const value = String(fontFamily ?? '').trim();
+  if (!value || value === 'Inter') return APP_DEFAULT_FONT_FAMILY;
+  return value;
+}
+
 export function pageToForm(page) {
   const theme = {
     ...DEFAULT_MARKETING_THEME,
     ...(page?.theme ?? {}),
     buttonColor: page?.theme?.buttonColor ?? page?.primaryColor ?? DEFAULT_MARKETING_THEME.buttonColor,
+    fontFamily: normalizeStoredFontFamily(page?.theme?.fontFamily),
   };
 
   return {

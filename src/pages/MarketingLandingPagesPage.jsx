@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { appAlert } from '../components/confirm/appConfirm.js';
 import { Link } from 'react-router-dom';
 import { getCommercialFunnelOptions } from '../api/commercial.js';
 import {
@@ -23,13 +24,15 @@ import { useAsyncResource, useCrudRouter } from '../crud/useCrudRouter.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { pageToForm } from '../utils/marketingFormBuilder.js';
 import '../styles/marketing.css';
-import '../styles/notifications.css';
 
 export function MarketingLandingPagesPage() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission('marketing.formularios.manage');
   const router = useCrudRouter();
   const filterDefinitions = useMemo(() => [activeStatusFilter()], []);
+  const defaultFieldFilters = useMemo(() => [{ id: 'active', value: true }], []);
+  const [listMessage, setListMessage] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const { data: rows, loading, error, reload } = useAsyncResource(
     () => getMarketingLandingPages(true),
@@ -40,6 +43,7 @@ export function MarketingLandingPagesPage() {
     storageKey: LIST_PREFERENCE_KEYS.marketingLandingPages,
     searchKeys: ['name', 'slug', 'campaignName', 'headline'],
     filterDefinitions,
+    defaultFieldFilters,
     defaultSort: { key: 'name', direction: 'asc' },
   });
 
@@ -70,6 +74,35 @@ export function MarketingLandingPagesPage() {
     setCreatives(campaign.creatives ?? []);
   };
 
+  /** Evita novo objeto a cada render (ex.: após loadCreatives), o que resetava o formulário. */
+  const createFormInitial = useMemo(() => pageToForm(null), []);
+  const editFormInitial = useMemo(
+    () => (detail ? pageToForm(detail) : null),
+    [detail],
+  );
+
+  const handleDelete = useCallback(
+    async (row) => {
+      if (!canManage) return;
+      if (!(await confirmCrudDelete('formulário', row.name))) return;
+      setListMessage('');
+      setActionError('');
+      try {
+        await deactivateMarketingLandingPage(row.id);
+        setListMessage(`Formulário "${row.name}" inativado.`);
+        await reload();
+      } catch (err) {
+        setActionError(err.message);
+        await appAlert({
+          title: 'Não foi possível excluir',
+          message: err.message,
+          tone: 'danger',
+        });
+      }
+    },
+    [canManage, reload],
+  );
+
   if (loading) return <AppLoadingPanel label="Carregando formulários…" />;
 
   if (router.isCreating) {
@@ -79,14 +112,14 @@ export function MarketingLandingPagesPage() {
           title="Novo formulário"
           subtitle="Crie uma landing page de captação que gera leads no funil comercial."
           breadcrumbs={[{ label: 'Formulários', onClick: router.goToList }, { label: 'Novo formulário' }]}
-          initial={pageToForm(null)}
+          initial={createFormInitial}
           campaignOptions={campaignOptions ?? []}
           funnelOptions={funnelOptions ?? []}
           creatives={creatives}
           onCampaignChange={loadCreatives}
           onCancel={router.goToList}
-          onSubmit={async (payload) => {
-            await createMarketingLandingPage(payload);
+          onSubmit={(payload) => createMarketingLandingPage(payload)}
+          onSaved={async () => {
             await reload();
             router.goToList();
           }}
@@ -116,26 +149,34 @@ export function MarketingLandingPagesPage() {
           title={router.isViewing ? detail.name : 'Editar formulário'}
           subtitle={detail.headline}
           breadcrumbs={[{ label: 'Formulários', onClick: router.goToList }, { label: detail.name }]}
-          initial={pageToForm(detail)}
+          initial={editFormInitial}
           readOnly={router.isViewing}
           campaignOptions={campaignOptions ?? []}
           funnelOptions={funnelOptions ?? []}
           creatives={creatives}
           onCampaignChange={loadCreatives}
           onCancel={router.goToList}
+          onEdit={canManage && router.isViewing ? () => router.goToEdit(detail.id) : undefined}
           onOpenMetrics={() => router.goToMetrics(detail.id)}
-          onSubmit={async (payload) => {
-            await updateMarketingLandingPage(detail.id, payload);
+          onSubmit={(payload) => updateMarketingLandingPage(detail.id, payload)}
+          onSaved={async () => {
             await Promise.all([reload(), reloadDetail()]);
           }}
           onDelete={
             canManage && router.isEditing
               ? async () => {
-                  const confirmed = await confirmCrudDelete('formulário', detail.name);
-                  if (!confirmed) return;
-                  await deactivateMarketingLandingPage(detail.id);
-                  await reload();
-                  router.goToList();
+                  if (!(await confirmCrudDelete('formulário', detail.name))) return;
+                  try {
+                    await deactivateMarketingLandingPage(detail.id);
+                    await reload();
+                    router.goToList();
+                  } catch (err) {
+                    await appAlert({
+                      title: 'Não foi possível excluir',
+                      message: err.message,
+                      tone: 'danger',
+                    });
+                  }
                 }
               : undefined
           }
@@ -152,7 +193,8 @@ export function MarketingLandingPagesPage() {
         addLabel="Novo formulário"
         onAdd={canManage ? router.goToCreate : undefined}
         canAdd={canManage}
-        error={error}
+        error={actionError || error}
+        message={listMessage}
         query={list.query}
         onQueryChange={list.onQueryChange}
         searchPlaceholder="Buscar por nome, slug ou campanha"
@@ -176,13 +218,19 @@ export function MarketingLandingPagesPage() {
         onPageChange={list.setPage}
         onPageSizeChange={list.onPageSizeChange}
         columns={[
-          { key: 'name', label: 'Formulário', sortable: true },
+          { key: 'name', label: 'Formulário', sortable: true, className: 'data-table-cell-wrap' },
           { key: 'campaignName', label: 'Campanha', render: (row) => row.campaignName ?? '—' },
-          { key: 'viewCount', label: 'Views', sortable: true },
+          {
+            key: 'viewCount',
+            label: 'Views',
+            sortable: true,
+            className: 'data-table-cell-numeric',
+          },
           {
             key: 'submissionCount',
             label: 'Envios',
             sortable: true,
+            className: 'data-table-cell-numeric',
           },
           {
             key: 'metrics',
@@ -218,6 +266,7 @@ export function MarketingLandingPagesPage() {
         rows={list.rows}
         onView={(row) => router.goToView(row.id)}
         onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+        onDelete={canManage ? handleDelete : undefined}
         canManage={canManage}
       />
     </PermissionGate>

@@ -1,9 +1,13 @@
 import { appConfirm } from '../components/confirm/appConfirm.js';
 
-export async function confirmCrudDelete(label) {
+export async function confirmCrudDelete(label, name) {
+  const target =
+    name !== undefined && name !== null && String(name).trim()
+      ? `${label} "${String(name).trim()}"`
+      : String(label);
   return appConfirm({
     title: 'Excluir registro',
-    message: `Excluir "${label}"? Esta ação não pode ser desfeita.`,
+    message: `Excluir ${target}? Esta ação não pode ser desfeita.`,
     confirmLabel: 'Excluir',
     cancelLabel: 'Cancelar',
     tone: 'danger',

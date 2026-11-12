@@ -27,6 +27,10 @@ export async function fetchPublicApi(path, options = {}) {
   return response.json();
 }
 
+export function getMarketingBrandTypography() {
+  return fetchPublicApi('/api/public/marketing/brand-fonts');
+}
+
 export function getPublicMarketingPage(slug, utm = {}) {
   const params = new URLSearchParams();
   if (utm.utmSource) params.set('utm_source', utm.utmSource);

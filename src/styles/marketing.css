@@ -117,12 +117,18 @@
 
 /* ——— Form builder ——— */
 
-.marketing-builder-workspace .marketing-builder-tabs-header {
-  padding-block: 0.875rem;
-}
-
 .marketing-builder-body {
   padding-top: 1rem;
+}
+
+.marketing-builder-workspace {
+  min-width: 0;
+}
+
+.form-grid-inner > .field-span-2 {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
 }
 
 .marketing-builder-layout {
@@ -151,21 +157,144 @@
   margin-top: 0.875rem;
 }
 
-.marketing-builder-grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.marketing-media-section {
+  gap: 1.125rem 1rem;
 }
 
-.marketing-inline-check {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+.marketing-media-stack {
+  display: grid;
+  gap: 0.75rem;
+  --marketing-media-thumb-col: 8.5rem;
 }
 
-.marketing-inline-check label {
+.marketing-media-card {
+  display: grid;
+  gap: 0.75rem;
   margin: 0;
-  font-size: 0.8125rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--panel);
+}
+
+.marketing-media-card-head {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.marketing-media-card-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.marketing-media-card-body {
+  display: grid;
+  grid-template-columns: var(--marketing-media-thumb-col) minmax(0, 1fr);
+  gap: 0.875rem;
+  align-items: center;
+}
+
+.marketing-media-thumb {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background: #fafbfc;
+}
+
+.marketing-media-thumb--logo {
+  width: 3.75rem;
+  height: 3.75rem;
+  justify-self: center;
+}
+
+.marketing-media-thumb--cover {
+  width: 100%;
+  aspect-ratio: 16 / 3;
+}
+
+.marketing-media-thumb img {
+  width: 100%;
+  height: 100%;
+}
+
+.marketing-media-thumb-placeholder {
+  padding: 0.35rem;
+  font-size: 0.6875rem;
+  line-height: 1.25;
   color: var(--text-muted);
+  text-align: center;
+}
+
+.marketing-media-thumb-placeholder--broken {
+  color: #b45309;
+  font-weight: 500;
+}
+
+.marketing-media-card-main {
+  display: grid;
+  gap: 0.5rem;
+  align-content: center;
+  min-width: 0;
+}
+
+.marketing-media-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.marketing-media-file-name {
+  margin: 0;
+  word-break: break-all;
+}
+
+.marketing-media-url-block {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.marketing-media-url-toggle {
+  justify-self: start;
+  font-size: 0.8125rem;
+}
+
+.marketing-media-url-input {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.marketing-media-url-input input {
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .marketing-media-card-body {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .marketing-media-thumb--logo {
+    justify-self: start;
+  }
+}
+
+.marketing-integration-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.marketing-integration-head .form-section-title {
+  margin-bottom: 0.25rem;
 }
 
 .marketing-slug-row {
@@ -363,12 +492,10 @@
   border-top: 1px dashed var(--border);
 }
 
-.marketing-builder-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 0.5rem;
-  margin-top: 0.25rem;
-  border-top: 1px solid #eef0f4;
+.marketing-builder-actions {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
 }
 
 .marketing-builder-preview {
@@ -377,8 +504,19 @@
 }
 
 .marketing-builder-preview-frame {
-  padding: 1rem;
-  min-height: 28rem;
+  display: grid;
+  place-items: center;
+  align-content: start;
+  padding: 1.25rem;
+  min-height: 22rem;
+  max-height: min(72vh, 42rem);
+  overflow: auto;
+}
+
+.marketing-preview-stage {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 /* ——— Metrics ——— */
@@ -667,7 +805,6 @@
     position: static;
   }
 
-  .marketing-builder-grid-3,
   .marketing-metrics-filters-grid,
   .marketing-metrics-kpis,
   .marketing-metrics-device-grid,
@@ -676,22 +813,46 @@
   }
 }
 
-.marketing-preview-card {
-  border-radius: 14px;
+.marketing-landing-card,
+.marketing-preview-card,
+.marketing-public-card {
+  width: min(100%, 520px);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
 }
 
+.marketing-landing-cover,
 .marketing-preview-cover,
 .marketing-public-cover {
-  height: 4.5rem;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 3;
+  min-height: 3.25rem;
+  max-height: 8rem;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
+  flex-shrink: 0;
 }
 
+.marketing-landing-card-body,
 .marketing-preview-body,
 .marketing-public-card-body {
   padding: 1rem;
+}
+
+.marketing-preview-card.marketing-public-card-themed h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.125rem, 4vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.marketing-preview-card.marketing-public-card-themed p {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  opacity: 0.85;
+  line-height: 1.45;
 }
 
 .marketing-preview-logo,
@@ -699,17 +860,6 @@
   display: block;
   max-height: 2.5rem;
   margin-bottom: 0.75rem;
-}
-
-.marketing-preview-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.125rem;
-}
-
-.marketing-preview-description {
-  margin: 0 0 0.875rem;
-  font-size: 0.8125rem;
-  opacity: 0.85;
 }
 
 .marketing-preview-fields,
@@ -778,13 +928,6 @@
   padding: 1.5rem;
 }
 
-.marketing-public-card {
-  width: min(100%, 520px);
-  border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-}
-
 .marketing-public-card-themed h1 {
   margin: 0 0 0.5rem;
   font-size: 1.75rem;
@@ -813,16 +956,35 @@
   cursor: pointer;
 }
 
-@media (max-width: 1100px) {
-  .marketing-builder-layout {
-    grid-template-columns: 1fr;
-  }
+/* Listagem de campanhas — nome legível; métricas compactas */
+.marketing-campaigns-table th.data-table-col-marketing-campaign-name,
+.marketing-campaigns-table td.data-table-col-marketing-campaign-name {
+  width: 34%;
+  min-width: 11rem;
+}
 
-  .marketing-builder-preview {
-    position: static;
-  }
+.marketing-campaigns-table th.data-table-col-marketing-platform,
+.marketing-campaigns-table td.data-table-col-marketing-platform {
+  width: 9%;
+  min-width: 5.5rem;
+}
 
-  .marketing-builder-grid-3 {
-    grid-template-columns: 1fr;
-  }
+.marketing-campaigns-table th.data-table-col-marketing-status,
+.marketing-campaigns-table td.data-table-col-marketing-status {
+  width: 9%;
+  min-width: 5.5rem;
+}
+
+.marketing-campaigns-table th.data-table-col-marketing-metric,
+.marketing-campaigns-table td.data-table-col-marketing-metric {
+  width: 5.5%;
+  min-width: 3.25rem;
+  max-width: 4.5rem;
+  text-align: center;
+}
+
+.marketing-campaigns-table th.data-table-col-marketing-situation,
+.marketing-campaigns-table td.data-table-col-marketing-situation {
+  width: 7%;
+  min-width: 5rem;
 }

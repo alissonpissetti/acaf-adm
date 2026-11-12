@@ -1,4 +1,4 @@
-import { fetchApi } from './client.js';
+import { fetchApi, fetchApiUpload } from './client.js';
 
 export function getMarketingDashboard() {
   return fetchApi('/api/admin/marketing/dashboard');
@@ -87,6 +87,18 @@ export function deactivateMarketingLandingPage(id) {
   return fetchApi(`/api/admin/marketing/landing-pages/${id}`, {
     method: 'DELETE',
   });
+}
+
+export function uploadMarketingLandingLogo(id, file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  return fetchApiUpload(`/api/admin/marketing/landing-pages/${id}/logo`, formData);
+}
+
+export function uploadMarketingLandingCover(id, file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  return fetchApiUpload(`/api/admin/marketing/landing-pages/${id}/cover`, formData);
 }
 
 export function getMarketingLandingPageMetrics(id, query = '') {

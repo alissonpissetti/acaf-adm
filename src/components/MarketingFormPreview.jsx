@@ -2,7 +2,11 @@ import {
   buildButtonRadius,
   buildPageBackgroundStyle,
   DEFAULT_MARKETING_THEME,
+  isMarketingPhoneField,
+  MARKETING_PHONE_PLACEHOLDER,
 } from '../utils/marketingFormBuilder.js';
+import { useMarketingBrandTypography } from '../hooks/useMarketingBrandTypography.js';
+import { resolveMarketingFontFamily } from '../utils/marketingBrandTypography.js';
 
 function PreviewField({ field }) {
   if (field.kind === 'section') {
@@ -25,14 +29,21 @@ function PreviewField({ field }) {
       {field.type === 'textarea' ? (
         <div className="marketing-preview-input marketing-preview-textarea">Sua resposta</div>
       ) : (
-        <div className="marketing-preview-input">Sua resposta</div>
+        <div className="marketing-preview-input">
+          {isMarketingPhoneField(field)
+            ? field.placeholder?.trim() || MARKETING_PHONE_PLACEHOLDER
+            : 'Sua resposta'}
+        </div>
       )}
     </label>
   );
 }
 
-export function MarketingFormPreview({ form, publicPath, onOpenMetrics }) {
+export function MarketingFormPreview({ form, publicPath, onOpenMetrics, brandTypography: brandTypographyProp }) {
   const theme = { ...DEFAULT_MARKETING_THEME, ...(form?.theme ?? {}) };
+  const hookTypography = useMarketingBrandTypography(theme.fontFamily);
+  const brandTypography = brandTypographyProp ?? hookTypography;
+  const resolvedFontFamily = resolveMarketingFontFamily(theme.fontFamily, brandTypography);
   const buttonRadius = buildButtonRadius(theme.buttonStyle);
 
   return (
@@ -57,32 +68,35 @@ export function MarketingFormPreview({ form, publicPath, onOpenMetrics }) {
       </div>
 
       <div className="panel-body marketing-builder-preview-frame" style={buildPageBackgroundStyle(theme)}>
-        <div
-          className="marketing-preview-card"
-          style={{
-            backgroundColor: theme.cardColor,
-            color: theme.cardTextColor,
-            fontFamily: theme.fontFamily,
-          }}
-        >
-          {form.coverImageUrl ? (
-            <div
-              className="marketing-preview-cover"
-              style={{ backgroundImage: `url(${form.coverImageUrl})` }}
-            />
-          ) : null}
+        <div className="marketing-preview-stage">
+          <div
+            className="marketing-landing-card marketing-preview-card marketing-public-card-themed"
+            style={{
+              backgroundColor: theme.cardColor,
+              color: theme.cardTextColor,
+              fontFamily: resolvedFontFamily,
+            }}
+          >
+            {form.coverImageUrl ? (
+              <div
+                className="marketing-landing-cover"
+                style={{ backgroundImage: `url(${form.coverImageUrl})` }}
+                role="img"
+                aria-hidden="true"
+              />
+            ) : null}
 
-          <div className="marketing-preview-body">
+            <div className="marketing-landing-card-body">
             {form.logoUrl ? (
               <img src={form.logoUrl} alt="" className="marketing-preview-logo" />
             ) : null}
 
             {!theme.hideHeadline && form.headline ? (
-              <h3 className="marketing-preview-title">{form.headline}</h3>
+              <h1>{form.headline}</h1>
             ) : null}
 
             {!theme.hideDescription && form.description ? (
-              <p className="marketing-preview-description">{form.description}</p>
+              <p>{form.description}</p>
             ) : null}
 
             <div className="marketing-preview-fields">
@@ -102,6 +116,7 @@ export function MarketingFormPreview({ form, publicPath, onOpenMetrics }) {
             >
               Enviar
             </button>
+            </div>
           </div>
         </div>
       </div>

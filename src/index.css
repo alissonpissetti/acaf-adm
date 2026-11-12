@@ -4647,6 +4647,10 @@ input.input-disabled:disabled {
   max-width: 100%;
 }
 
+.crud-action-label {
+  display: none;
+}
+
 .data-table .crud-row-actions .crud-icon-btn {
   width: 1.75rem;
   height: 1.75rem;

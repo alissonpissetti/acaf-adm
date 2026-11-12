@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, X, Search, RefreshCw, Smartphone } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronLeft, X, Search, RefreshCw, Smartphone } from 'lucide-react';
 import {
   fetchWhatsAppInboxInstances,
   fetchWhatsAppInboxThreads,
@@ -478,6 +478,8 @@ export function WhatsAppInboxPage() {
       return;
     }
     if (!selected) {
+      const isMobileInbox = window.matchMedia('(max-width: 900px)').matches;
+      if (isMobileInbox) return;
       const first = threads.find(pickable);
       if (first) setSelected(first);
     }
@@ -844,7 +846,9 @@ export function WhatsAppInboxPage() {
         <CrudAlerts error={error} message={syncHint} />
       </div>
 
-      <div className="whatsapp-wa-layout">
+      <div
+        className={`whatsapp-wa-layout${activeThread ? ' whatsapp-wa-layout--chat-open' : ''}`}
+      >
         <aside className="whatsapp-wa-sidebar" aria-label="Conversas">
           <header className="whatsapp-wa-sidebar__head">
             <div className="whatsapp-wa-sidebar__brand">
@@ -856,7 +860,7 @@ export function WhatsAppInboxPage() {
               >
                 <X size={20} aria-hidden="true" />
               </button>
-              <span className="whatsapp-wa-sidebar__title">WhatsApp</span>
+              <span className="whatsapp-wa-sidebar__title">Conversas</span>
               {!inboxSocketConnected ? (
                 <span className="whatsapp-wa-realtime-hint" title="Atualização automática a cada poucos segundos">
                   sincronizando…
@@ -870,7 +874,7 @@ export function WhatsAppInboxPage() {
             </div>
             <div className="whatsapp-wa-sidebar__tools">
               <select
-                className="whatsapp-wa-select"
+                className="whatsapp-wa-select whatsapp-wa-select--instance"
                 aria-label="Filtrar por instância"
                 value={instanceFilter}
                 onChange={(ev) => {
@@ -1057,6 +1061,14 @@ export function WhatsAppInboxPage() {
           ) : (
             <>
               <header className="whatsapp-wa-chat-head">
+                <button
+                  type="button"
+                  className="whatsapp-wa-icon-btn whatsapp-wa-chat-head__back"
+                  aria-label="Voltar para conversas"
+                  onClick={() => setSelected(null)}
+                >
+                  <ChevronLeft size={22} aria-hidden="true" />
+                </button>
                 <WhatsAppContactAvatar
                   className="whatsapp-wa-chat-head__avatar"
                   name={whatsAppContactAvatarLabel(activeThread)}

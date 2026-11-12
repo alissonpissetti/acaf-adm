@@ -17,8 +17,9 @@ function AdminLayoutInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, avatarImageVersion } = useAuth();
-  const { module, item } = useActiveModuleItem(location.pathname, location.search);
-  const topTitle = item?.label ?? module?.name ?? `${MOVLY_WORDMARK} Admin`;
+  const { module } = useActiveModuleItem(location.pathname, location.search);
+  /** Contexto do módulo na shell; título da tela fica no PageHeader do conteúdo (PREMISSAS-VISUAIS). */
+  const shellTitle = module?.name ?? `${MOVLY_WORDMARK} Admin`;
   const [navOpen, setNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -67,8 +68,7 @@ function AdminLayoutInner() {
         </button>
 
         <div className="admin-mobile-bar-copy">
-          <div className="admin-mobile-bar-title">{topTitle}</div>
-          {module && !item ? <div className="admin-mobile-bar-meta">{module.name}</div> : null}
+          <div className="admin-mobile-bar-title">{shellTitle}</div>
         </div>
 
         <WhatsAppNavButton className="whatsapp-nav-btn--compact" />
@@ -132,8 +132,7 @@ function AdminLayoutInner() {
       <div className="admin-main">
         <header className="admin-topbar">
           <div className="admin-topbar-left">
-            <div className="admin-topbar-title">{topTitle}</div>
-            {module && !item ? <div className="admin-topbar-meta">{module.name}</div> : null}
+            <div className="admin-topbar-title">{shellTitle}</div>
           </div>
           <div className="admin-topbar-actions">
             <WhatsAppNavButton className="whatsapp-nav-btn--topbar" />
