@@ -60,7 +60,7 @@ export function purgeAcafImportedNetworks() {
   });
 }
 
-/** Gera link de onboarding do portal parceiro (14 dias). */
+/** Gera link do portal parceiro (14 dias): onboarding se a rede ainda não tem acesso, equipe se já tem. */
 export function createPartnerOnboardingInvite(networkId) {
   return fetchApi(`/api/admin/networks/${encodeURIComponent(networkId)}/partner-onboarding-invite`, {
     method: 'POST',
@@ -68,7 +68,7 @@ export function createPartnerOnboardingInvite(networkId) {
   });
 }
 
-/** Envia convite de onboarding por e-mail (1× por dia por academia/rede). */
+/** Envia convite por e-mail (1× por dia por academia/rede): onboarding ou equipe, conforme o acesso da rede. */
 export function sendPartnerOnboardingInviteEmail(networkId) {
   return fetchApi(
     `/api/admin/networks/${encodeURIComponent(networkId)}/partner-onboarding-invite-email`,
@@ -110,6 +110,86 @@ export function updateAssociation(id, payload) {
   return fetchApi(`/api/admin/associations/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  });
+}
+
+export const PARTNER_LEGAL_SLUG_ONBOARDING = 'partner_onboarding';
+export const DOCUMENTS_VIEW_PERMISSION = 'operacao.termos-parceiro';
+export const DOCUMENTS_MANAGE_PERMISSION = 'operacao.termos-parceiro.manage';
+export const DOCUMENTS_ADMIN_ROUTE = '/m/operacao/documentos';
+
+export const BUILTIN_LEGAL_DOCUMENT_TYPES = [
+  {
+    slug: PARTNER_LEGAL_SLUG_ONBOARDING,
+    label: 'Termos de parceiro',
+    description: 'Minuta de parceria comercial aceita no onboarding do portal parceiro.',
+    builtIn: true,
+    usedInOnboarding: true,
+  },
+];
+
+/** Fallback local (espelha o catálogo do backend) caso a API ainda não exponha /catalog. */
+export const DOCUMENT_TEMPLATE_VARIABLES = [
+  { key: 'movlyLegalName', hint: 'Razão social Movly' },
+  { key: 'movlyCnpj', hint: 'CNPJ Movly' },
+  { key: 'partnerLegalName', hint: 'Razão social do parceiro' },
+  { key: 'partnerTradeName', hint: 'Nome fantasia da rede' },
+  { key: 'partnerCnpj', hint: 'CNPJ do parceiro' },
+  { key: 'partnerAddress', hint: 'Endereço da unidade principal' },
+  { key: 'partnerCity', hint: 'Cidade' },
+  { key: 'partnerState', hint: 'UF' },
+  { key: 'partnerZip', hint: 'CEP' },
+  { key: 'networkName', hint: 'Nome da rede' },
+  { key: 'networkId', hint: 'ID da rede' },
+  { key: 'primaryUnitName', hint: 'Unidade de referência' },
+  { key: 'responsibleName', hint: 'Responsável (usuário logado)' },
+  { key: 'responsibleEmail', hint: 'E-mail do responsável' },
+  { key: 'responsibleCpf', hint: 'CPF do responsável' },
+  { key: 'connectFeePercent', hint: '% taxa planos' },
+  { key: 'dailyFeePercent', hint: '% taxa diárias' },
+  { key: 'documentTitle', hint: 'Título do documento' },
+  { key: 'documentVersion', hint: 'Versão publicada' },
+  { key: 'effectiveAt', hint: 'Data de vigência' },
+  { key: 'signedName', hint: 'Preenchido na assinatura' },
+  { key: 'signedDocument', hint: 'CPF na assinatura' },
+  { key: 'signedAt', hint: 'Data da assinatura' },
+];
+
+export function getLegalDocumentTypes() {
+  return fetchApi('/api/admin/partner-legal-terms/catalog');
+}
+
+export function createLegalDocumentType(payload) {
+  return fetchApi('/api/admin/partner-legal-terms/catalog', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getPartnerLegalTermsCurrent(slug = PARTNER_LEGAL_SLUG_ONBOARDING) {
+  const q = new URLSearchParams({ slug });
+  return fetchApi(`/api/admin/partner-legal-terms/current?${q}`);
+}
+
+export function getPartnerLegalTermsVersions(slug = PARTNER_LEGAL_SLUG_ONBOARDING) {
+  const q = new URLSearchParams({ slug });
+  return fetchApi(`/api/admin/partner-legal-terms/versions?${q}`);
+}
+
+export function publishPartnerLegalTerms(payload) {
+  return fetchApi('/api/admin/partner-legal-terms/publish', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      slug: payload?.slug || PARTNER_LEGAL_SLUG_ONBOARDING,
+    }),
+  });
+}
+
+export function previewPartnerLegalTermsRender(contentHtml) {
+  return fetchApi('/api/admin/partner-legal-terms/preview-render', {
+    method: 'POST',
+    body: JSON.stringify({ contentHtml }),
   });
 }
 

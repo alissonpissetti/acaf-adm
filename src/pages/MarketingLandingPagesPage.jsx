@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { appAlert } from '../components/confirm/appConfirm.js';
-import { Link } from 'react-router-dom';
 import { getCommercialFunnelOptions } from '../api/commercial.js';
 import {
   createMarketingLandingPage,
@@ -224,6 +223,7 @@ export function MarketingLandingPagesPage() {
   return (
     <PermissionGate permission="marketing.formularios">
       <CrudListShell
+        tableClassName="marketing-landing-pages-table"
         title="Formulários"
         subtitle="Landing pages de captação que alimentam o kanban comercial."
         addLabel="Novo formulário"
@@ -241,6 +241,7 @@ export function MarketingLandingPagesPage() {
           { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
           { key: 'viewCount', direction: 'desc', label: 'Views (maior)' },
           { key: 'submissionCount', direction: 'desc', label: 'Envios (maior)' },
+          { key: 'leadsCount', direction: 'desc', label: 'Leads (maior)' },
         ]}
         filterDefinitions={filterDefinitions}
         fieldFilters={list.fieldFilters}
@@ -254,25 +255,68 @@ export function MarketingLandingPagesPage() {
         onPageChange={list.setPage}
         onPageSizeChange={list.onPageSizeChange}
         columns={[
-          { key: 'name', label: 'Formulário', sortable: true, className: 'data-table-cell-wrap' },
-          { key: 'campaignName', label: 'Campanha', render: (row) => row.campaignName ?? '—' },
+          {
+            key: 'name',
+            label: 'Formulário',
+            sortable: true,
+            className: 'data-table-cell-wrap data-table-col-marketing-landing-name',
+            render: (row) => {
+              const campaignName = row.campaignName?.trim() || '';
+              return (
+                <span className="marketing-landing-pages-name-cell">
+                  <strong className="marketing-landing-pages-name">{row.name}</strong>
+                  {row.slug ? (
+                    <span className="marketing-landing-pages-slug muted" title={`Slug: ${row.slug}`}>
+                      /{row.slug}
+                    </span>
+                  ) : null}
+                  <span
+                    className="marketing-landing-pages-campaign muted"
+                    title={campaignName || 'Sem campanha vinculada'}
+                  >
+                    {campaignName || 'Sem campanha'}
+                  </span>
+                </span>
+              );
+            },
+          },
           {
             key: 'viewCount',
             label: 'Views',
+            mobileLabel: 'Views',
             sortable: true,
-            className: 'data-table-cell-numeric',
+            className: 'data-table-cell-numeric data-table-col-marketing-landing-metric',
           },
           {
             key: 'submissionCount',
             label: 'Envios',
+            mobileLabel: 'Envios',
             sortable: true,
-            className: 'data-table-cell-numeric',
+            className: 'data-table-cell-numeric data-table-col-marketing-landing-metric',
+          },
+          {
+            key: 'leadsCount',
+            label: 'Leads',
+            mobileLabel: 'Leads',
+            headerHint: 'Leads comerciais gerados pelo formulário',
+            sortable: true,
+            className: 'data-table-cell-numeric data-table-col-marketing-landing-metric',
           },
           {
             key: 'metrics',
             label: 'Métricas',
+            headerHint: 'Abrir painel de métricas do formulário',
+            className:
+              'data-table-col-marketing-landing-metrics data-table-col-marketing-landing-metrics-desktop',
             render: (row) => (
-              <button type="button" className="btn-ghost btn-sm" onClick={() => router.goToMetrics(row.id)}>
+              <button
+                type="button"
+                className="btn-ghost btn-sm marketing-landing-pages-metrics-btn"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  router.goToMetrics(row.id);
+                }}
+              >
                 Métricas
               </button>
             ),
@@ -280,27 +324,32 @@ export function MarketingLandingPagesPage() {
           {
             key: 'conversionRate',
             label: 'Conversão',
+            mobileLabel: 'Conv.',
+            headerHint: 'Taxa de conversão (envios ÷ views)',
+            className:
+              'data-table-cell-numeric data-table-col-marketing-landing-conversion',
             render: (row) => `${row.conversionRate ?? 0}%`,
-          },
-          {
-            key: 'publicUrl',
-            label: 'URL',
-            render: (row) => (
-              <Link to={row.publicUrl} target="_blank" rel="noreferrer">
-                {row.publicUrl}
-              </Link>
-            ),
           },
           {
             key: 'active',
             label: 'Situação',
+            mobileLabel: 'Situação',
+            className: 'data-table-col-marketing-landing-situation',
             render: (row) => (
               <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
             ),
           },
         ]}
         rows={list.rows}
-        onView={(row) => router.goToView(row.id)}
+        onRowClick={(row) => router.goToView(row.id)}
+        onView={(row) => {
+          const url = row.publicUrl || (row.slug ? `/f/${row.slug}` : '');
+          if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return;
+          }
+          router.goToView(row.id);
+        }}
         onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
         onDelete={canManage ? handleDelete : undefined}
         canManage={canManage}

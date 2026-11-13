@@ -1083,3 +1083,115 @@
   width: 7%;
   min-width: 5rem;
 }
+
+/* Listagem de formulários — nome em destaque; colunas secundárias compactas */
+.marketing-landing-pages-table {
+  min-width: 56rem;
+}
+
+.marketing-landing-pages-table th.data-table-col-marketing-landing-name,
+.marketing-landing-pages-table td.data-table-col-marketing-landing-name {
+  width: auto;
+  min-width: 11rem;
+}
+
+.marketing-landing-pages-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.marketing-landing-pages-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.marketing-landing-pages-slug {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marketing-landing-pages-campaign {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text-muted);
+}
+
+@media (min-width: 1201px) {
+  .marketing-landing-pages-table .marketing-landing-pages-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .marketing-landing-pages-table .marketing-landing-pages-campaign {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.marketing-landing-pages-table th.data-table-col-marketing-landing-metric,
+.marketing-landing-pages-table td.data-table-col-marketing-landing-metric {
+  width: 4.25rem;
+  min-width: 3.5rem;
+  max-width: 5rem;
+  text-align: center;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.marketing-landing-pages-table th.data-table-col-marketing-landing-conversion,
+.marketing-landing-pages-table td.data-table-col-marketing-landing-conversion {
+  width: 5.25rem;
+  min-width: 5rem;
+  max-width: 6.25rem;
+  text-align: center;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.marketing-landing-pages-table th.data-table-col-marketing-landing-metrics,
+.marketing-landing-pages-table td.data-table-col-marketing-landing-metrics {
+  width: 7.25rem;
+  min-width: 7rem;
+  max-width: 8rem;
+  text-align: center;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.marketing-landing-pages-table .marketing-landing-pages-metrics-btn {
+  white-space: nowrap;
+  max-width: none;
+}
+
+.marketing-landing-pages-table th.data-table-col-marketing-landing-situation,
+.marketing-landing-pages-table td.data-table-col-marketing-landing-situation {
+  width: 6.5rem;
+  min-width: 6.25rem;
+  max-width: 7.5rem;
+  text-align: center;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.marketing-landing-pages-table thead th:not(.col-actions) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}

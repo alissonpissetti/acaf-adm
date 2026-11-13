@@ -55,10 +55,11 @@ body.notif-drawer-open {
 .notif-drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 180;
+  z-index: 1240;
   border: 0;
   padding: 0;
-  background: rgba(23, 20, 43, 0.28);
+  margin: 0;
+  background: rgba(23, 20, 43, 0.36);
   cursor: default;
   animation: notif-fade 0.18s ease;
 }
@@ -68,12 +69,16 @@ body.notif-drawer-open {
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 181;
+  z-index: 1241;
   display: flex;
   flex-direction: column;
-  width: min(30rem, 100vw);
+  width: min(28rem, calc(100vw - 1rem));
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
   background: #fff;
-  box-shadow: -24px 0 60px rgba(42, 37, 110, 0.18);
+  box-shadow: -24px 0 60px rgba(42, 37, 110, 0.22);
   outline: none;
   animation: notif-slide 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -184,13 +189,19 @@ body.notif-drawer-open {
 }
 
 .notif-drawer-foot {
-  padding: 0.875rem 1.5rem calc(0.875rem + env(safe-area-inset-bottom, 0px));
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
-  background: var(--surface-muted);
+  background: #fff;
 }
 
 .notif-drawer-cta {
+  display: flex;
+  justify-content: center;
   width: 100%;
+  padding: 0.5625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .notif-inline-alert {

@@ -30,3 +30,13 @@ export function deleteUsers(ids) {
     body: JSON.stringify({ ids }),
   });
 }
+
+export async function fetchUserConnectBillingStatement(userId) {
+  const data = await fetchApi(`/api/admin/users/${userId}/connect-billing-statement`);
+  return Array.isArray(data?.entries) ? data.entries : [];
+}
+
+export async function fetchUserTransactions(userId) {
+  const data = await fetchApi(`/api/admin/users/${userId}/transactions`);
+  return Array.isArray(data) ? data : [];
+}

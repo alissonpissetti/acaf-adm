@@ -2,6 +2,8 @@
 
 Documento complementar à [Referência Visual completa](./REFERENCIA-VISUAL.md). Use este arquivo como **checklist rápido** em reviews de UI e planejamento de telas.
 
+Nome do produto e regras de copy: [Premissas do workspace](../../PREMISSAS.md) (Movly; CONNECT é codinome morto).
+
 ---
 
 ## Identidade

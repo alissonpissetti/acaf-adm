@@ -72,6 +72,8 @@ export const EvolutionInstancesPage = lazyNamed(
 );
 export const ChangelogPage = lazyNamed(() => import('../pages/ChangelogPage.jsx'), 'ChangelogPage');
 export const AssociationsPage = lazy(() => import('../pages/AssociationsPage.jsx'));
+export const DocumentsPage = lazy(() => import('../pages/DocumentsPage.jsx'));
+export const PartnerLegalTermsPage = DocumentsPage;
 export const SupportQueuesPage = lazyNamed(
   () => import('../pages/SupportQueuesPage.jsx'),
   'SupportQueuesPage',

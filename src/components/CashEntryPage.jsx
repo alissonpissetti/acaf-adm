@@ -17,6 +17,8 @@ import { useCrudList } from '../crud/useCrudList.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
 import { formatDate, formatDateTime, formatMoney, fromDateTimeLocalValue, statusClass, statusLabel, toDateTimeLocalValue } from '../utils/finance.js';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraftStorage.js';
+import { accountPlanDisplayName, cashEntryMetaLine, costCenterDisplayName } from './cashEntryDisplay.js';
+import { CashEntryView } from './CashEntryView.jsx';
 
 const EMPTY_FORM = {
   description: '',
@@ -170,34 +172,6 @@ function accountPlanLabel(entry) {
   return entry.category ?? '';
 }
 
-function costCenterDisplayName(row) {
-  if (row.costCenter?.name) return row.costCenter.name;
-  if (row.costCenterName) {
-    const parts = row.costCenterName.split(' — ');
-    return parts.length > 1 ? parts.slice(1).join(' — ').trim() : row.costCenterName.trim();
-  }
-  return '';
-}
-
-function accountPlanDisplayName(row) {
-  if (row.accountPlan?.name) return row.accountPlan.name;
-  if (row.accountPlanName) {
-    const parts = row.accountPlanName.split(' — ');
-    return parts.length > 1 ? parts.slice(1).join(' — ').trim() : row.accountPlanName.trim();
-  }
-  return row.category ?? '';
-}
-
-function cashEntryMetaLine(row) {
-  const parts = [];
-  if (row.counterpartName) parts.push(row.counterpartName);
-  const costCenterName = costCenterDisplayName(row);
-  if (costCenterName) parts.push(costCenterName);
-  const accountPlanName = accountPlanDisplayName(row);
-  if (accountPlanName) parts.push(accountPlanName);
-  return parts.join(' · ');
-}
-
 function CashEntryDatesCell({ row }) {
   const isSettled = row.status === 'settled';
 
@@ -207,14 +181,17 @@ function CashEntryDatesCell({ row }) {
         <span className="cash-entry-date-label">Vencimento</span>
         <span>{formatDate(row.dueDate)}</span>
       </div>
-      {isSettled && row.settledAt ? (
+      {row.settledAt ? (
         <div className="cash-entry-date-row">
-          <span className="cash-entry-date-label">Baixa</span>
+          <span className="cash-entry-date-label">Execução / baixa</span>
           <span>{formatDateTime(row.settledAt)}</span>
         </div>
-      ) : row.expectedSettledAt ? (
+      ) : null}
+      {row.expectedSettledAt ? (
         <div className="cash-entry-date-row cash-entry-date-expected">
-          <span className="cash-entry-date-label">Previsão baixa</span>
+          <span className="cash-entry-date-label">
+            {isSettled ? 'Compensação' : 'Previsão baixa'}
+          </span>
           <span>{formatDate(row.expectedSettledAt)}</span>
         </div>
       ) : null}
@@ -284,6 +261,7 @@ function CashEntryForm({
   onDuplicate,
   onSettle,
   extraActions,
+  sourceEntry = null,
 }) {
   const [form, setForm] = useState(() => mergeCreateInitial(initial, draftStorageKey, initial.skipDraft));
   const [attachments, setAttachments] = useState(initial.attachments ?? []);
@@ -393,91 +371,35 @@ function CashEntryForm({
           Rascunho restaurado automaticamente. Os dados são salvos localmente enquanto você preenche.
         </p>
       ) : null}
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Dados do lançamento</h2>
-        </div>
-        <div className="panel-body">
-          {readOnly && form.status ? (
-            <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <div>
-                <span className="muted">Status</span>
-                <div>
-                  <span className={statusClass(form.status)}>{statusLabel(form.status)}</span>
-                </div>
-              </div>
-              {form.settledAt ? (
-                <div>
-                  <span className="muted">Baixa em</span>
-                  <div>{formatDateTime(form.settledAt)}</div>
-                </div>
-              ) : form.expectedSettledAt ? (
-                <div>
-                  <span className="muted">Previsão de baixa</span>
-                  <div>{formatDate(form.expectedSettledAt)}</div>
-                </div>
-              ) : null}
-              {form.recurrenceTotal > 1 ? (
-                <div>
-                  <span className="muted">Série mensal</span>
-                  <div>
-                    Parcela {form.recurrenceIndex} de {form.recurrenceTotal}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {readOnly && enableReimbursement && form.reimbursementPayable ? (
-            <div className="payable-reimbursement-info">
-              <span className="muted">Reembolso gerado</span>
-              <div className="payable-reimbursement-info-body">
-                <div>
-                  <strong>{form.reimbursementPayable.description}</strong>
-                  <div className="table-sub">
-                    {form.reimbursementPayable.counterpartName} · {formatMoney(form.reimbursementPayable.amount)} ·{' '}
-                    <span className={statusClass(form.reimbursementPayable.status)}>
-                      {statusLabel(form.reimbursementPayable.status)}
-                    </span>
-                  </div>
-                </div>
-                {onViewLinkedEntry ? (
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() => onViewLinkedEntry(form.reimbursementPayable.id)}
-                  >
-                    Ver reembolso
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-          {readOnly && enableReimbursement && form.reimbursementSourcePayable ? (
-            <div className="payable-reimbursement-info">
-              <span className="muted">Reembolso vinculado ao lançamento</span>
-              <div className="payable-reimbursement-info-body">
-                <div>
-                  <strong>{form.reimbursementSourcePayable.description}</strong>
-                  <div className="table-sub">
-                    {formatMoney(form.reimbursementSourcePayable.amount)} ·{' '}
-                    <span className={statusClass(form.reimbursementSourcePayable.status)}>
-                      {statusLabel(form.reimbursementSourcePayable.status)}
-                    </span>
-                  </div>
-                </div>
-                {onViewLinkedEntry ? (
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() => onViewLinkedEntry(form.reimbursementSourcePayable.id)}
-                  >
-                    Ver lançamento original
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-          <form className="form-grid" onSubmit={submit}>
+      {readOnly && sourceEntry ? (
+        <CashEntryView
+          entry={{
+            ...sourceEntry,
+            description: form.description,
+            amount: form.amount,
+            dueDate: form.dueDate,
+            expectedSettledAt: form.expectedSettledAt,
+            settledAt: form.settledAt ?? sourceEntry.settledAt,
+            status: form.status,
+            counterpartName: form.counterpartName,
+            notes: form.notes,
+            recurrenceIndex: form.recurrenceIndex,
+            recurrenceTotal: form.recurrenceTotal,
+            reimbursementPayable: form.reimbursementPayable,
+            reimbursementSourcePayable: form.reimbursementSourcePayable,
+          }}
+          counterpartLabel={counterpartLabel}
+          enablePayerSelect={enablePayerSelect}
+          enableReimbursement={enableReimbursement}
+          onViewLinkedEntry={onViewLinkedEntry}
+        />
+      ) : (
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Dados do lançamento</h2>
+          </div>
+          <div className="panel-body">
+            <form className="form-grid" onSubmit={submit}>
             <label className="field-span-2">
               <span>Descrição</span>
               <input
@@ -713,20 +635,8 @@ function CashEntryForm({
                 ) : null}
               </div>
             ) : null}
-            <div className="field-span-full form-actions">
-              {readOnly ? (
-                <CrudViewActions
-                  onBack={onCancel}
-                  onEdit={form.onEdit}
-                  onDuplicate={onDuplicate}
-                  editLabel="Editar lançamento"
-                  extraActions={
-                    extraActions ? (
-                      <PermissionGate permission={permissionManage}>{extraActions}</PermissionGate>
-                    ) : null
-                  }
-                />
-              ) : (
+            {!readOnly ? (
+              <div className="field-span-full form-actions">
                 <CrudFormActions
                   busy={busy || attachmentUploadBusy}
                   busyLabel={attachmentUploadBusy && !busy ? 'Enviando anexo…' : 'Salvando…'}
@@ -744,11 +654,58 @@ function CashEntryForm({
                     ) : null
                   }
                 />
-              )}
-            </div>
+              </div>
+            ) : null}
           </form>
         </div>
       </section>
+      )}
+
+      {readOnly ? (
+        <>
+          {enableAttachments ? (
+            <section className="panel">
+              <div className="panel-header">
+                <h2>Comprovantes e anexos</h2>
+              </div>
+              <div className="panel-body">
+                <PayableAttachmentsField
+                  payableId={form.id}
+                  attachments={attachments}
+                  pendingFiles={pendingFiles}
+                  onAttachmentsChange={setAttachments}
+                  onPendingFilesChange={setPendingFiles}
+                  onUpload={uploadAttachments}
+                  onDelete={deleteAttachment}
+                  onUploadBusyChange={setAttachmentUploadBusy}
+                  onPayableUpdated={(payable) => {
+                    setForm((current) => syncPayableFormState(current, payable));
+                  }}
+                  allowPaymentReceiptWhenReadOnly={Boolean(form.id)}
+                  readOnly
+                  disabled={busy}
+                  flowDirection={attachmentFlow}
+                />
+              </div>
+            </section>
+          ) : null}
+          <section className="panel">
+            <div className="panel-body">
+              <CrudViewActions
+                onBack={onCancel}
+                onEdit={form.onEdit}
+                onDuplicate={onDuplicate}
+                editLabel="Editar lançamento"
+                extraActions={
+                  extraActions ? (
+                    <PermissionGate permission={permissionManage}>{extraActions}</PermissionGate>
+                  ) : null
+                }
+              />
+            </div>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -1045,7 +1002,12 @@ export function CashEntryPage({
     return (
       <CashEntryForm
         title={router.isViewing ? selected.description : 'Editar lançamento'}
-        subtitle={`${counterpartLabel}: ${selected.counterpartName}`}
+        subtitle={
+          router.isViewing
+            ? 'Visualização do lançamento'
+            : `${counterpartLabel}: ${selected.counterpartName}`
+        }
+        sourceEntry={selected}
         breadcrumbs={[{ label: title, onClick: router.goToList }, { label: selected.description }]}
         counterpartLabel={counterpartLabel}
         permissionManage={permissionManage}

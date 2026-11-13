@@ -9,6 +9,8 @@ import { appConfirm } from '../components/confirm/appConfirm.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { UserConnectBillingSection } from '../components/UserConnectBillingSection.jsx';
+import { UserTransactionsSection } from '../components/UserTransactionsSection.jsx';
 import { PasswordInput } from '../components/PasswordInput.jsx';
 import {
   formatCpfInput,
@@ -297,6 +299,9 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
           </form>
         </div>
       </section>
+
+      <UserConnectBillingSection userId={user.id} />
+      <UserTransactionsSection userId={user.id} />
     </div>
   );
 }

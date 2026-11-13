@@ -36,6 +36,7 @@ import {
   ModulesPage,
   NetworkDetailRedirect,
   NetworksPage,
+  DocumentsPage,
   NotificationsPage,
   PayablesPage,
   PlatformSettingsPage,
@@ -142,6 +143,26 @@ export default function App() {
                             <UsersPage />
                           </Suspense>
                         }
+                      />
+                      <Route
+                        path="/m/operacao/documentos"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <DocumentsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/documentos/:slug"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <DocumentsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/termos-parceiro"
+                        element={<Navigate to="/m/operacao/documentos/partner_onboarding" replace />}
                       />
                       <Route
                         path="/m/sistema/configuracoes"

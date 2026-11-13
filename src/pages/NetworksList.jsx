@@ -452,15 +452,17 @@ export function NetworksList({
             else if (noUnits) title = 'Cadastre uma unidade';
             const label = busy ? 'Enviando…' : sentToday ? 'Enviado hoje' : hasAccess ? 'Convite equipe' : 'Enviar';
             return (
-              <button
-                type="button"
-                className="btn-ghost btn-sm networks-invite-email-btn"
-                disabled={disabled}
-                title={title}
-                onClick={(ev) => void handleSendInviteEmail(row, ev)}
-              >
-                {label}
-              </button>
+              <span className="networks-invite-send-cell">
+                <button
+                  type="button"
+                  className="btn-ghost btn-sm networks-invite-email-btn"
+                  disabled={disabled}
+                  title={title}
+                  onClick={(ev) => void handleSendInviteEmail(row, ev)}
+                >
+                  {label}
+                </button>
+              </span>
             );
           },
         },

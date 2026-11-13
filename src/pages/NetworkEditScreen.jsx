@@ -305,6 +305,7 @@ export function NetworkEditScreen({
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [onboardingUrl, setOnboardingUrl] = useState('');
+  const [onboardingExpiresAt, setOnboardingExpiresAt] = useState('');
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [onboardingEmailBusy, setOnboardingEmailBusy] = useState(false);
   const [partnerContactEmail, setPartnerContactEmail] = useState(network.partnerContactEmail ?? '');
@@ -318,6 +319,8 @@ export function NetworkEditScreen({
     network.hasPartnerUser ?? (Number(network.partnerUserCount) > 0),
   );
   const inviteSentToday = Boolean(network.onboardingInviteEmailSentToday);
+  const inviteActionsLocked =
+    busy || onboardingBusy || onboardingEmailBusy || unitsLoading || units.length === 0;
 
   const cadastralSummary = useMemo(() => {
     const bits = [networkName.trim() || network.name];
@@ -355,6 +358,7 @@ export function NetworkEditScreen({
     setError('');
     setMessage('');
     setOnboardingUrl('');
+    setOnboardingExpiresAt('');
     loadUnits();
   }, [network]);
 
@@ -363,6 +367,7 @@ export function NetworkEditScreen({
     setLogoFile(null);
     setLogoRemovePending(false);
     setOnboardingUrl('');
+    setOnboardingExpiresAt('');
   }, [network.id]);
 
   useEffect(() => {
@@ -440,12 +445,17 @@ export function NetworkEditScreen({
     onUpdated?.();
   };
 
+  const applyInviteResult = (res) => {
+    setOnboardingUrl(res.inviteUrl ?? '');
+    setOnboardingExpiresAt(res.expiresAt ?? '');
+  };
+
   const sendOnboardingEmail = async () => {
     setOnboardingEmailBusy(true);
     setError('');
     try {
       const res = await sendPartnerOnboardingInviteEmail(network.id);
-      setOnboardingUrl(res.inviteUrl ?? '');
+      applyInviteResult(res);
       const kind =
         res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
       flash.success(
@@ -465,10 +475,12 @@ export function NetworkEditScreen({
     setError('');
     try {
       const res = await createPartnerOnboardingInvite(network.id);
-      setOnboardingUrl(res.inviteUrl ?? '');
+      applyInviteResult(res);
       const kind = res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
       flash.success(
-        `Link de ${kind} gerado. Copie e envie ao parceiro (válido por 14 dias).`,
+        kind === 'equipe'
+          ? 'Link aberto de equipe gerado. Copie ou abra nesta tela (válido por 14 dias).'
+          : 'Link de cadastro gerado. Copie e envie ao parceiro (válido por 14 dias).',
         8000,
       );
     } catch (err) {
@@ -698,7 +710,7 @@ export function NetworkEditScreen({
               <p className="muted" style={{ marginTop: 0 }}>
                 {hasPartnerAccess ? (
                   <>
-                    A rede já possui acesso configurado. Envie um convite para{' '}
+                    A rede já possui acesso configurado. Gere o <strong>link aberto</strong> ou envie um convite para{' '}
                     <strong>adicionar outra pessoa</strong> à equipe, com acesso a todas as unidades desta rede. O
                     cadastro não passa pelo assistente inicial da rede.
                   </>
@@ -710,31 +722,42 @@ export function NetworkEditScreen({
                 )}{' '}
                 O envio por e-mail é limitado a <strong>1 por dia</strong> por academia/rede; cada envio gera um
                 novo link (válido 14 dias).
+                {hasPartnerAccess ? (
+                  <>
+                    {' '}
+                    O link pode ser copiado ou aberto nesta tela, sem depender do e-mail e sem entrar em modo
+                    edição.
+                  </>
+                ) : null}
                 {inviteSentToday ? (
                   <>
                     {' '}
                     <strong>Já houve envio hoje</strong> — o reenvio por e-mail ficará disponível amanhã; você ainda
-                    pode gerar link manualmente.
+                    pode gerar o link aberto manualmente.
                   </>
                 ) : null}
               </p>
               <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                {hasPartnerAccess ? (
+                  <button
+                    type="button"
+                    className="btn-primary btn-sm"
+                    disabled={inviteActionsLocked}
+                    title="Gerar link aberto de convite da equipe para copiar ou abrir nesta tela"
+                    onClick={() => void generateOnboardingLink()}
+                  >
+                    {onboardingBusy ? 'Gerando…' : 'Gerar link equipe'}
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  className="btn-primary btn-sm"
-                  disabled={
-                    readOnly ||
-                    busy ||
-                    onboardingEmailBusy ||
-                    onboardingBusy ||
-                    units.length === 0 ||
-                    inviteSentToday
-                  }
+                  className={hasPartnerAccess ? 'btn-ghost btn-sm' : 'btn-primary btn-sm'}
+                  disabled={inviteActionsLocked || inviteSentToday}
                   title={
                     inviteSentToday
                       ? 'Já enviado hoje — tente novamente amanhã'
                       : hasPartnerAccess
-                        ? 'Enviar convite de equipe'
+                        ? 'Enviar convite de equipe por e-mail'
                         : 'Enviar convite de onboarding'
                   }
                   onClick={() => void sendOnboardingEmail()}
@@ -747,34 +770,49 @@ export function NetworkEditScreen({
                         ? 'Enviar convite equipe'
                         : 'Enviar convite por e-mail'}
                 </button>
-                <button
-                  type="button"
-                  className="btn-ghost btn-sm"
-                  disabled={readOnly || busy || onboardingBusy || onboardingEmailBusy || units.length === 0}
-                  onClick={() => void generateOnboardingLink()}
-                >
-                  {onboardingBusy
-                    ? 'Gerando…'
-                    : hasPartnerAccess
-                      ? 'Gerar link equipe'
-                      : 'Gerar link de cadastro'}
-                </button>
+                {hasPartnerAccess ? null : (
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm"
+                    disabled={inviteActionsLocked}
+                    title="Gerar link de cadastro (onboarding)"
+                    onClick={() => void generateOnboardingLink()}
+                  >
+                    {onboardingBusy ? 'Gerando…' : 'Gerar link de cadastro'}
+                  </button>
+                )}
               </div>
-              {units.length === 0 ? (
+              {!unitsLoading && units.length === 0 ? (
                 <p className="muted" style={{ marginBottom: 0 }}>
-                  Cadastre ao menos uma unidade para habilitar o onboarding.
+                  Cadastre ao menos uma unidade para habilitar{' '}
+                  {hasPartnerAccess ? 'o convite da equipe' : 'o onboarding'}.
                 </p>
               ) : null}
               {onboardingUrl ? (
-                <label className="field-span-full" style={{ marginTop: '0.75rem' }}>
-                  <span>Link para enviar ao parceiro</span>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <input className="input" readOnly value={onboardingUrl} style={{ flex: '1 1 240px' }} />
+                <div className="field-span-full" style={{ marginTop: '0.75rem' }}>
+                  <span>
+                    {hasPartnerAccess ? 'Link aberto de convite da equipe' : 'Link para enviar ao parceiro'}
+                  </span>
+                  <input className="input" readOnly value={onboardingUrl} style={{ marginTop: '0.35rem' }} />
+                  <div className="form-actions" style={{ marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <button type="button" className="btn-ghost btn-sm" onClick={() => void copyOnboardingLink()}>
                       Copiar
                     </button>
+                    <a
+                      className="btn-ghost btn-sm"
+                      href={onboardingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Abrir
+                    </a>
                   </div>
-                </label>
+                  {onboardingExpiresAt ? (
+                    <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+                      Válido até {new Date(onboardingExpiresAt).toLocaleString('pt-BR')}.
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </section>
 

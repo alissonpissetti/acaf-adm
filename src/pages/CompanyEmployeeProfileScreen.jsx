@@ -98,16 +98,18 @@ export function CompanyEmployeeProfileScreen({ companyId, employeeId, onBack }) 
             <span className={EMPLOYEE_STATUS_CLASS[employee.status] ?? 'badge badge-muted'}>
               {EMPLOYEE_STATUS_LABEL[employee.status] ?? employee.status}
             </span>
-            <p className="company-detail-meta">
-              {employee.email || 'E-mail não informado'}
-              {employee.mobilePhone ? ` · ${employee.mobilePhone}` : ''}
-              {employee.cpf ? ` · CPF ${employee.cpf}` : ''}
-            </p>
-            <p className="company-detail-meta">
-              Empresa: <strong>{client.companyName || company.tradeName}</strong>
-              {' · '}
-              Perfil no app:{' '}
-              <strong>{RELATIONSHIP_LABEL[client.relationship] ?? client.relationship}</strong>
+            <p className="company-detail-meta company-detail-meta--compact">
+              <span>
+                {employee.email || 'E-mail não informado'}
+                {employee.mobilePhone ? ` · ${employee.mobilePhone}` : ''}
+                {employee.cpf ? ` · CPF ${employee.cpf}` : ''}
+              </span>
+              <span>
+                Empresa: <strong>{client.companyName || company.tradeName}</strong>
+                {' · '}
+                Perfil:{' '}
+                <strong>{RELATIONSHIP_LABEL[client.relationship] ?? client.relationship}</strong>
+              </span>
             </p>
           </div>
           <div className="company-detail-stats employee-profile-stats">

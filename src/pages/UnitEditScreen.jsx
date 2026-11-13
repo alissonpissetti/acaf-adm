@@ -12,7 +12,11 @@ import { UnitWeeklyHoursFields } from '../components/UnitWeeklyHoursFields.jsx';
 import { formatUnitLocation, unitToAddressForm } from '../utils/address.js';
 import { weeklyScheduleFromUnit } from '../utils/weeklySchedule.js';
 import { formatCnpjFromDigits } from '../utils/cnpj.js';
-import { acafAssociateFormFromUnit, payloadFromAcafForm } from '../utils/acafAssociateForm.js';
+import {
+  acafAssociateFormFromUnit,
+  normalizeCnpjInput,
+  payloadFromAcafForm,
+} from '../utils/acafAssociateForm.js';
 import { formatPercentPtBr, parseOptionalPercent } from '../utils/parsePercentInput.js';
 
 const TABS = [
@@ -44,8 +48,11 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
     if (!form?.acafAssociate) return '';
     const bits = [];
     if (form.acafAssociate.legalName) bits.push(form.acafAssociate.legalName);
-    if (unit?.acafAssociate?.cnpj) bits.push(formatCnpjFromDigits(unit.acafAssociate.cnpj));
-    return bits.join(' · ') || 'Importação movly.';
+    const cnpjDigits =
+      form.acafAssociate.cnpj?.replace(/\D/g, '') || unit?.acafAssociate?.cnpj || '';
+    if (cnpjDigits) bits.push(formatCnpjFromDigits(cnpjDigits));
+    if (bits.length) return bits.join(' · ');
+    return form.acafAssociate.cadastralMode === 'spreadsheet' ? 'Importação movly.' : 'Cadastro fiscal';
   }, [form?.acafAssociate, unit?.acafAssociate?.cnpj]);
 
   useEffect(() => {
@@ -248,7 +255,7 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                       required
                     />
                   </label>
-                  {form.acafAssociate && unit.acafAssociate?.importSource === 'acaf_associates_xlsx' ? (
+                  {form.acafAssociate ? (
                     <div
                       className={`field-span-2 acaf-associate-readonly address-fields-collapsible ${
                         cadastralExpanded ? 'is-expanded' : 'is-collapsed'
@@ -272,21 +279,55 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                       </button>
                       {cadastralExpanded ? (
                         <>
-                      <h3 className="section-subtitle">Dados da importação movly.</h3>
+                      <h3 className="section-subtitle">
+                        {form.acafAssociate.cadastralMode === 'spreadsheet'
+                          ? 'Dados da importação movly.'
+                          : 'Cadastro fiscal da unidade'}
+                      </h3>
                       <p className="muted">
-                        Edite os dados abaixo quando precisar corrigir a base; o{' '}
-                        <strong>CNPJ</strong> não pode ser alterado aqui (veio da planilha). Uma nova
-                        importação pode sobrescrever estes campos, exceto quando você só ajustar o que a
-                        planilha não traz.
+                        {form.acafAssociate.cadastralMode === 'spreadsheet' ? (
+                          <>
+                            Edite os dados abaixo quando precisar corrigir a base; o{' '}
+                            <strong>CNPJ</strong> não pode ser alterado aqui (veio da planilha). Uma nova
+                            importação pode sobrescrever estes campos, exceto quando você só ajustar o que a
+                            planilha não traz.
+                          </>
+                        ) : (
+                          <>
+                            Preencha ou corrija os dados fiscais e de contato desta unidade. O CNPJ pode ser
+                            informado manualmente quando a unidade não veio de planilha.
+                          </>
+                        )}
                       </p>
                       <div className="acaf-meta-form-grid">
                         <label>
                           <span>CNPJ</span>
                           <input
-                            value={formatCnpjFromDigits(unit.acafAssociate.cnpj)}
-                            disabled
-                            readOnly
-                            className="input-disabled"
+                            value={
+                              form.acafAssociate.cadastralMode === 'spreadsheet'
+                                ? formatCnpjFromDigits(unit.acafAssociate?.cnpj)
+                                : form.acafAssociate.cnpj
+                            }
+                            onChange={
+                              form.acafAssociate.cadastralMode === 'spreadsheet'
+                                ? undefined
+                                : (e) =>
+                                    setForm({
+                                      ...form,
+                                      acafAssociate: {
+                                        ...form.acafAssociate,
+                                        cnpj: normalizeCnpjInput(e.target.value),
+                                      },
+                                    })
+                            }
+                            disabled={busy || form.acafAssociate.cadastralMode === 'spreadsheet'}
+                            readOnly={form.acafAssociate.cadastralMode === 'spreadsheet'}
+                            className={
+                              form.acafAssociate.cadastralMode === 'spreadsheet' ? 'input-disabled' : undefined
+                            }
+                            inputMode="numeric"
+                            autoComplete="off"
+                            placeholder="00.000.000/0000-00"
                           />
                         </label>
                         <label className="field-span-2">
@@ -330,7 +371,11 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                           </p>
                         </label>
                         <label>
-                          <span>Associação (planilha)</span>
+                          <span>
+                            {form.acafAssociate.cadastralMode === 'spreadsheet'
+                              ? 'Associação (planilha)'
+                              : 'Associação (texto livre)'}
+                          </span>
                           <input
                             value={form.acafAssociate.association}
                             onChange={(e) =>
@@ -357,7 +402,11 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                           />
                         </label>
                         <label>
-                          <span>E-mail (planilha)</span>
+                          <span>
+                            {form.acafAssociate.cadastralMode === 'spreadsheet'
+                              ? 'E-mail (planilha)'
+                              : 'E-mail de contato'}
+                          </span>
                           <input
                             type="email"
                             value={form.acafAssociate.contactEmail}
@@ -371,7 +420,11 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                           />
                         </label>
                         <label>
-                          <span>Telefone (planilha)</span>
+                          <span>
+                            {form.acafAssociate.cadastralMode === 'spreadsheet'
+                              ? 'Telefone (planilha)'
+                              : 'Telefone de contato'}
+                          </span>
                           <input
                             inputMode="numeric"
                             autoComplete="tel"
@@ -402,8 +455,9 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                         <div className="field-span-2">
                           <span className="field-label-block">Catálogo do app</span>
                           <p className="muted unit-tab-help">
-                            Desligar só oculta no app; o cadastro interno permanece (útil após remoção na
-                            planilha).
+                            {form.acafAssociate.cadastralMode === 'spreadsheet'
+                              ? 'Desligar só oculta no app; o cadastro interno permanece (útil após remoção na planilha).'
+                              : 'Desligar só oculta no app; o cadastro interno permanece.'}
                           </p>
                           <div className="toggle-row">
                             <button
@@ -434,12 +488,14 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
                             </button>
                           </div>
                         </div>
-                        <p className="muted field-span-2 acaf-import-foot">
-                          Última importação do arquivo:{' '}
-                          {unit.acafAssociate.importedAt
-                            ? new Date(unit.acafAssociate.importedAt).toLocaleString('pt-BR')
-                            : '—'}
-                        </p>
+                        {form.acafAssociate.cadastralMode === 'spreadsheet' ? (
+                          <p className="muted field-span-2 acaf-import-foot">
+                            Última importação do arquivo:{' '}
+                            {unit.acafAssociate?.importedAt
+                              ? new Date(unit.acafAssociate.importedAt).toLocaleString('pt-BR')
+                              : '—'}
+                          </p>
+                        ) : null}
                       </div>
                         </>
                       ) : null}

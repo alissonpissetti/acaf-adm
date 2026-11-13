@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, BellOff, CheckCheck, Maximize2, RefreshCw, X } from 'lucide-react';
 import {
@@ -117,25 +118,8 @@ export function NotificationBell() {
     }
   };
 
-  return (
-    <div className="notification-bell">
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`notification-bell-trigger${open ? ' is-open' : ''}`}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        aria-controls="notif-drawer"
-        aria-label={unreadCount ? `${unreadCount} notificações não lidas` : 'Notificações'}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <Bell size={18} aria-hidden="true" />
-        {unreadCount > 0 ? (
-          <span className="notification-bell-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-        ) : null}
-      </button>
-
-      {open ? (
+  const drawer = open
+    ? createPortal(
         <>
           <button
             type="button"
@@ -252,13 +236,35 @@ export function NotificationBell() {
             </div>
 
             <footer className="notif-drawer-foot">
-              <Link to="/m/notificacoes" className="btn-primary notif-drawer-cta" onClick={() => setOpen(false)}>
+              <Link to="/m/notificacoes" className="btn-ghost notif-drawer-cta" onClick={() => setOpen(false)}>
                 Abrir central de notificações
               </Link>
             </footer>
           </aside>
-        </>
-      ) : null}
+        </>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className="notification-bell">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`notification-bell-trigger${open ? ' is-open' : ''}`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls="notif-drawer"
+        aria-label={unreadCount ? `${unreadCount} notificações não lidas` : 'Notificações'}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Bell size={18} aria-hidden="true" />
+        {unreadCount > 0 ? (
+          <span className="notification-bell-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        ) : null}
+      </button>
+
+      {drawer}
     </div>
   );
 }
