@@ -36,6 +36,10 @@ export async function fetchUserConnectBillingStatement(userId) {
   return Array.isArray(data?.entries) ? data.entries : [];
 }
 
+export async function fetchUserSavedPaymentMethods(userId) {
+  return fetchApi(`/api/admin/users/${userId}/saved-payment-methods`);
+}
+
 export async function fetchUserTransactions(userId) {
   const data = await fetchApi(`/api/admin/users/${userId}/transactions`);
   return Array.isArray(data) ? data : [];

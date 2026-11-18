@@ -6,6 +6,7 @@ import { PageHeader } from '../components/PageHeader.jsx';
 import { SuccessFlashEffect } from '../components/flash/FlashMessageProvider.jsx';
 import { UnitAddressFields } from '../components/UnitAddressFields.jsx';
 import { UnitCheckInsField } from '../components/UnitCheckInsField.jsx';
+import { UnitPrimaryMembersField } from '../components/UnitPrimaryMembersField.jsx';
 import { UnitPartnerUsersField } from '../components/UnitPartnerUsersField.jsx';
 import { UnitPhotosField } from '../components/UnitPhotosField.jsx';
 import { UnitWeeklyHoursFields } from '../components/UnitWeeklyHoursFields.jsx';
@@ -26,6 +27,7 @@ const TABS = [
   { id: 'fotos', label: 'Fotos' },
   { id: 'acesso', label: 'Acesso parceiro' },
   { id: 'checkins', label: 'Check-ins' },
+  { id: 'clientes', label: 'Clientes' },
   { id: 'diarias', label: 'Diárias' },
 ];
 
@@ -663,6 +665,12 @@ export function UnitEditScreen({ network, unitId, onBack, onUpdated }) {
           {activeTab === 'checkins' ? (
             <div className="unit-edit-tab-panel" role="tabpanel">
               <UnitCheckInsField unitId={unitId} disabled={busy} />
+            </div>
+          ) : null}
+
+          {activeTab === 'clientes' ? (
+            <div className="unit-edit-tab-panel" role="tabpanel">
+              <UnitPrimaryMembersField unitId={unitId} />
             </div>
           ) : null}
         </div>

@@ -234,6 +234,10 @@ export function getUnitCheckIns(unitId, { todayOnly = true } = {}) {
   return fetchApi(`/api/admin/units/${unitId}/check-ins${query}`);
 }
 
+export function getUnitPrimaryMembers(unitId) {
+  return fetchApi(`/api/admin/units/${unitId}/primary-members`);
+}
+
 export function deleteUnit(id) {
   return fetchApi(`/api/admin/units/${id}`, {
     method: 'DELETE',
@@ -387,4 +391,29 @@ export function removeCompanyEmployee(companyId, employeeId) {
 
 export function getCompanyEmployeeProfile(companyId, employeeId) {
   return fetchApi(`/api/admin/companies/${companyId}/employees/${employeeId}/profile`);
+}
+
+export function listCompanyMonthlyStatements(companyId) {
+  return fetchApi(`/api/admin/companies/${companyId}/monthly-statements`);
+}
+
+export function getCompanyMonthlyStatement(companyId, monthKey) {
+  return fetchApi(
+    `/api/admin/companies/${companyId}/monthly-statements/${encodeURIComponent(monthKey)}`,
+  );
+}
+
+export function listCompanyMembershipFees(companyId) {
+  return fetchApi(`/api/admin/companies/${companyId}/membership-fees`);
+}
+
+export function listNetworkMembershipFees(networkId) {
+  return fetchApi(`/api/admin/networks/${networkId}/membership-fees`);
+}
+
+export function patchCompanyEmployeeCpf(companyId, employeeId, cpf) {
+  return fetchApi(`/api/admin/companies/${companyId}/employees/${employeeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ cpf }),
+  });
 }

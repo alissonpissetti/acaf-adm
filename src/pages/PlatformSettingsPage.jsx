@@ -36,6 +36,33 @@ const SYSTEM_VARIABLES = [
     step: 0.01,
   },
   {
+    id: 'checkInMaxRadiusKm',
+    key: 'checkInMaxRadiusKm',
+    kind: 'number',
+    name: 'Raio máximo check-in',
+    description:
+      'Distância máxima (km) entre o associado e a unidade para check-in automático por GPS no app. ' +
+      'Use valores altos (ex.: 999) em testes. Valor 0 desativa a validação por distância — recomendado só em homologação.',
+    suffix: 'km',
+    min: 0,
+    max: 10000,
+    step: 0.1,
+    placeholder: 'Ex.: 1 ou 999',
+  },
+  {
+    id: 'gymSwitchMinCheckinsAtUnit',
+    key: 'gymSwitchMinCheckinsAtUnit',
+    kind: 'number',
+    name: 'Check-ins para trocar unidade',
+    description:
+      'Quantidade mínima de check-ins na academia principal atual antes de o associado poder escolher outra unidade no app.',
+    suffix: 'check-ins',
+    min: 0,
+    max: 10000,
+    step: 1,
+    placeholder: 'Ex.: 12',
+  },
+  {
     id: 'evolutionApiBaseUrl',
     key: 'evolutionApiBaseUrl',
     kind: 'text',
@@ -70,6 +97,11 @@ function formatValue(row) {
   if (row.kind === 'text') {
     return row.value ? String(row.value) : '—';
   }
+  if (row.kind === 'number') {
+    const numeric = Number(String(row.value).replace(',', '.'));
+    if (Number.isNaN(numeric)) return '—';
+    return `${numeric} ${row.suffix ?? ''}`.trim();
+  }
   const numeric = Number(row.value);
   if (Number.isNaN(numeric)) return '—';
   return `${numeric}${row.suffix ?? ''}`;
@@ -94,6 +126,20 @@ function SettingForm({ title, subtitle, breadcrumbs, initial, message, onSubmit,
     setBusy(true);
     setError('');
     try {
+      if (form.kind === 'number') {
+        const parsed = Number(String(form.value ?? '').replace(',', '.'));
+        if (!Number.isFinite(parsed)) {
+          setError('Informe um número válido (use vírgula ou ponto nas casas decimais).');
+          return;
+        }
+        if (parsed < form.min || parsed > form.max) {
+          setError(`O valor deve estar entre ${form.min} e ${form.max}.`);
+          return;
+        }
+        await onSubmit({ ...form, value: parsed });
+        return;
+      }
+
       if (form.kind === 'percent') {
         const parsed = parseOptionalPercent(form.value);
         if (parsed === undefined) {
@@ -184,7 +230,7 @@ function SettingForm({ title, subtitle, breadcrumbs, initial, message, onSubmit,
                   <input
                     className={form.kind === 'secret' ? 'input input-mono' : 'input'}
                     type="text"
-                    inputMode={form.kind === 'percent' ? 'decimal' : undefined}
+                    inputMode={form.kind === 'percent' || form.kind === 'number' ? 'decimal' : undefined}
                     autoComplete="off"
                     spellCheck={false}
                     placeholder={
@@ -257,7 +303,14 @@ export function PlatformSettingsPage() {
       const domain = await getConnectDomain();
       setRows(
         SYSTEM_VARIABLES.map((variable) => {
-          const defaultValue = variable.kind === 'percent' ? 20 : '';
+          let defaultValue = '';
+          if (variable.kind === 'percent') defaultValue = 20;
+          if (variable.kind === 'number' && variable.key === 'checkInMaxRadiusKm') {
+            defaultValue = domain.checkInGeo?.maxRadiusKm ?? 1;
+          }
+          if (variable.kind === 'number' && variable.key === 'gymSwitchMinCheckinsAtUnit') {
+            defaultValue = domain.gymSwitchMinCheckinsAtUnit ?? 12;
+          }
           const value = domain[variable.key] ?? defaultValue;
           return {
             ...variable,

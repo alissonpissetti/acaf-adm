@@ -26,6 +26,7 @@ import { formatCnpjFromDigits } from '../utils/cnpj.js';
 import { appConfirm } from '../components/confirm/appConfirm.js';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
 import { formatPercentPtBr, parseOptionalPercent } from '../utils/parsePercentInput.js';
+import { PayerMembershipFeesSection } from '../components/PayerMembershipFeesSection.jsx';
 
 function acafCatalogLabel(unit) {
   const meta = unit?.acafAssociate;
@@ -833,6 +834,8 @@ export function NetworkEditScreen({
           </form>
         </div>
       </section>
+
+      <PayerMembershipFeesSection payerKind="partner" payerId={network.id} />
 
       <NetworkUnitsPanel
         networkId={network.id}

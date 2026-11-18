@@ -13,6 +13,8 @@ import { SuccessFlashEffect } from '../components/flash/FlashMessageProvider.jsx
 import { PageHeader } from '../components/PageHeader.jsx';
 import { CrudPagination } from '../components/crud/CrudListToolbar.jsx';
 import { CompanyManagersField } from '../components/CompanyManagersField.jsx';
+import { CompanyMonthlyStatementsSection } from '../components/CompanyMonthlyStatementsSection.jsx';
+import { PayerMembershipFeesSection } from '../components/PayerMembershipFeesSection.jsx';
 import { getCompany, updateCompanyStatus, deleteCompany, removeCompanyEmployee } from '../api/admin.js';
 import { appConfirm } from '../components/confirm/appConfirm.js';
 import {
@@ -467,6 +469,10 @@ export function CompanyEditScreen({
           </button>
         </div>
       </section>
+
+      <PayerMembershipFeesSection payerKind="company" payerId={companyId} showInvoice />
+
+      <CompanyMonthlyStatementsSection companyId={companyId} />
 
       <section className="panel">
         <div className="panel-header">

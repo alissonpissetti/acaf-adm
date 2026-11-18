@@ -450,8 +450,76 @@ code {
 }
 
 /* Dashboard ACAF: vidas pagantes e faixas de repasse */
-.acaf-lives-panel .panel-header--meta-only {
+.acaf-lives-panel .panel-header {
   align-items: flex-start;
+}
+
+.acaf-lives-panel__intro {
+  min-width: 0;
+  max-width: 42rem;
+}
+
+.acaf-lives-panel .panel-header h2 {
+  margin: 0;
+}
+
+.acaf-lives-panel__computed {
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.acaf-lives-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.acaf-lives-kpi-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 800px) {
+  .acaf-lives-kpi-grid,
+  .acaf-lives-kpi-grid--three {
+    grid-template-columns: 1fr;
+  }
+}
+
+.acaf-lives-kpi {
+  padding: 1.1rem 1.2rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.acaf-lives-kpi--primary {
+  background: var(--movly-sky-tint);
+  border-color: rgba(117, 121, 229, 0.22);
+}
+
+.acaf-lives-kpi--instant {
+  border-style: dashed;
+}
+
+.acaf-lives-kpi__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.acaf-lives-chip {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(117, 121, 229, 0.2);
+  color: var(--foreground-secondary);
 }
 
 .acaf-lives-hero {
@@ -473,6 +541,198 @@ code {
   .acaf-lives-hero--three {
     grid-template-columns: 1fr;
   }
+}
+
+.acaf-lives-chart {
+  margin-bottom: 1.5rem;
+  padding: 1.1rem 1.2rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.acaf-lives-chart--empty {
+  background: var(--surface-muted);
+}
+
+.acaf-lives-chart__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.acaf-lives-chart__title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.acaf-lives-chart__subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  max-width: 28rem;
+}
+
+.acaf-lives-chart__modes {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  gap: 2px;
+}
+
+.acaf-lives-chart__mode {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.acaf-lives-chart__mode.is-active {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgba(23, 20, 43, 0.08);
+  font-weight: 600;
+}
+
+.acaf-lives-chart__plot-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.acaf-lives-chart__svg {
+  display: block;
+  width: 100%;
+  min-width: 320px;
+  height: auto;
+}
+
+.acaf-lives-chart__xband {
+  position: relative;
+  width: 100%;
+  min-width: 320px;
+  height: 2.5rem;
+  margin-top: 0.1rem;
+  pointer-events: none;
+}
+
+.acaf-lives-chart__x-tick {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%) rotate(-40deg);
+  transform-origin: top center;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.acaf-lives-chart__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.acaf-lives-chart__axis-y {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+
+.acaf-lives-chart__area {
+  fill: rgba(117, 121, 229, 0.12);
+}
+
+.acaf-lives-chart__line {
+  fill: none;
+  stroke: url(#acaf-lives-line-gradient);
+  stroke: #5b5fd6;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.acaf-lives-chart__trend {
+  stroke: #16a34a;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  opacity: 0.85;
+}
+
+.acaf-lives-chart__milestone {
+  stroke: rgba(130, 84, 228, 0.35);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.acaf-lives-chart__milestone-label {
+  fill: var(--accent-strong);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.acaf-lives-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.acaf-lives-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.acaf-lives-chart__swatch {
+  width: 1.25rem;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.acaf-lives-chart__swatch--line {
+  background: #5b5fd6;
+}
+
+.acaf-lives-chart__swatch--trend {
+  background: repeating-linear-gradient(90deg, #16a34a 0 4px, transparent 4px 8px);
+}
+
+.acaf-lives-chart__swatch--milestone {
+  background: repeating-linear-gradient(90deg, rgba(130, 84, 228, 0.6) 0 3px, transparent 3px 6px);
+}
+
+.acaf-lives-chart__forecasts {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+
+.acaf-lives-chart__forecasts-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.acaf-lives-chart__forecasts ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.875rem;
+}
+
+.acaf-lives-chart__forecasts-disclaimer {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
 }
 
 .acaf-lives-value {
@@ -3561,6 +3821,82 @@ input.input-disabled:disabled {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: 1.25rem;
   align-items: start;
+}
+
+.payer-membership-fees-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.payer-membership-fees-table .col-money {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.payer-membership-fees-month-row td {
+  vertical-align: top;
+}
+
+.company-monthly-statements-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.company-monthly-statements-table .col-money,
+.company-monthly-statements-detail .col-money {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.company-monthly-statements-table .col-count,
+.company-monthly-statements-detail .col-count {
+  text-align: center;
+  width: 4.5rem;
+}
+
+.company-monthly-statements-row-selected {
+  background: #f0f4ff;
+}
+
+.company-monthly-statements-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.company-monthly-statements-detail-header h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.company-monthly-statements-summary {
+  margin-bottom: 0.75rem;
+}
+
+.company-monthly-statements-usage-lead {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.company-monthly-statements-subtitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .company-monthly-statements-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Empresas corporativas — detalhe e perfil de colaborador (layout denso) */

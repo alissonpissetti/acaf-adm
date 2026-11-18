@@ -119,12 +119,12 @@ function MessageReactions({ reactions }) {
 }
 
 const WHATSAPP_ROUTE = '/m/comercial/whatsapp';
+const WHATSAPP_MESSAGES_INITIAL_LIMIT = 100;
 const THREADS_SOCKET_DEBOUNCE_MS = 600;
 const THREADS_MIN_INTERVAL_MS = 5_000;
 const MESSAGES_BACKGROUND_MIN_MS = 45_000;
 const MESSAGES_OPEN_CHAT_MIN_MS = 2_500;
 const MESSAGES_REALTIME_URGENT_MIN_MS = 400;
-const OPEN_CHAT_POLL_MS = 5_000;
 const OPEN_CHAT_POLL_NO_SOCKET_MS = 12_000;
 
 function contactKeysFromActivity(payload) {
@@ -368,11 +368,14 @@ export function WhatsAppInboxPage() {
         }
         setError('');
       }
-      const watchThread = Boolean(background && (realtime || urgent));
+      const socketLive = inboxSocketConnectedRef.current;
+      const wantsRealtime = Boolean(background && (realtime || urgent));
+      const watchThread = wantsRealtime && !socketLive;
       const useBlockingRemote = Boolean(force);
       try {
         const localRows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone, {
-          syncRemote: watchThread ? 'auto' : false,
+          limit: WHATSAPP_MESSAGES_INITIAL_LIMIT,
+          syncRemote: useBlockingRemote ? true : watchThread ? 'auto' : false,
           watch: watchThread,
         });
         if (requestId !== loadMessagesRequestRef.current) return;
@@ -408,26 +411,39 @@ export function WhatsAppInboxPage() {
         }
       }
 
-      if ((silent && !useBlockingRemote) || requestId !== loadMessagesRequestRef.current) return;
+      if (requestId !== loadMessagesRequestRef.current) return;
       if (activeThreadRef.current?.threadKey !== threadKey) return;
 
-      setSyncingMessages(true);
-      const remoteRequestId = requestId;
-      try {
-        const remoteRows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone, {
-          syncRemote: true,
-          watch: watchThread,
-        });
-        if (remoteRequestId !== loadMessagesRequestRef.current) return;
-        if (activeThreadRef.current?.threadKey !== threadKey) return;
-        applyThreadMessages(threadKey, remoteRows);
-      } catch {
-        /* mantém histórico local já exibido */
-      } finally {
-        if (remoteRequestId === loadMessagesRequestRef.current) {
-          setSyncingMessages(false);
-        }
-      }
+      const syncWithEvolution = useBlockingRemote
+        ? async () => {
+            setSyncingMessages(true);
+            const remoteRequestId = requestId;
+            try {
+              const remoteRows = await fetchWhatsAppThreadMessages(thread.instanceId, thread.contactPhone, {
+                limit: WHATSAPP_MESSAGES_INITIAL_LIMIT,
+                syncRemote: true,
+                watch: watchThread,
+              });
+              if (remoteRequestId !== loadMessagesRequestRef.current) return;
+              if (activeThreadRef.current?.threadKey !== threadKey) return;
+              applyThreadMessages(threadKey, remoteRows);
+            } catch {
+              /* mantém histórico local já exibido */
+            } finally {
+              if (remoteRequestId === loadMessagesRequestRef.current) {
+                setSyncingMessages(false);
+              }
+            }
+          }
+        : () => {
+            window.setTimeout(() => {
+              if (activeThreadRef.current?.threadKey !== threadKey) return;
+              void loadMessages(thread, { background: true, realtime: true });
+            }, 250);
+          };
+
+      if (silent && !useBlockingRemote) return;
+      void syncWithEvolution();
     },
     [applyThreadMessages],
   );
@@ -499,6 +515,7 @@ export function WhatsAppInboxPage() {
 
   const messagesScrollRef = useRef(null);
   const activeThreadRef = useRef(null);
+  const inboxSocketConnectedRef = useRef(false);
   const threadsRefreshTimerRef = useRef(null);
   const threadsCountRef = useRef(0);
   threadsCountRef.current = threads.length;
@@ -651,6 +668,10 @@ export function WhatsAppInboxPage() {
   });
 
   useEffect(() => {
+    inboxSocketConnectedRef.current = inboxSocketConnected;
+  }, [inboxSocketConnected]);
+
+  useEffect(() => {
     const cacheKey = whatsAppThreadsCacheKey(instanceFilter, inboxListView);
     const cached = readWhatsAppThreadsCache(cacheKey);
     if (cached?.threads?.length) {
@@ -722,7 +743,7 @@ export function WhatsAppInboxPage() {
       return undefined;
     }
 
-    void loadMessages(activeThread, { force: true });
+    void loadMessages(activeThread);
 
     return () => {
       loadMessagesRequestRef.current += 1;
@@ -732,9 +753,10 @@ export function WhatsAppInboxPage() {
 
   useEffect(() => {
     if (!activeThread?.threadKey) return undefined;
+    if (inboxSocketConnected) return undefined;
 
     const threadKey = activeThread.threadKey;
-    const pollMs = inboxSocketConnected ? OPEN_CHAT_POLL_MS : OPEN_CHAT_POLL_NO_SOCKET_MS;
+    const pollMs = OPEN_CHAT_POLL_NO_SOCKET_MS;
     const timer = window.setInterval(() => {
       const open = activeThreadRef.current;
       if (open?.threadKey !== threadKey) return;
@@ -861,11 +883,21 @@ export function WhatsAppInboxPage() {
                 <X size={20} aria-hidden="true" />
               </button>
               <span className="whatsapp-wa-sidebar__title">Conversas</span>
-              {!inboxSocketConnected ? (
-                <span className="whatsapp-wa-realtime-hint" title="Atualização automática a cada poucos segundos">
-                  sincronizando…
+              {inboxSocketConnected ? (
+                <span
+                  className="whatsapp-wa-realtime-hint whatsapp-wa-realtime-hint--live"
+                  title="Novas mensagens chegam pelo canal ao vivo"
+                >
+                  Ao vivo
                 </span>
-              ) : null}
+              ) : (
+                <span
+                  className="whatsapp-wa-realtime-hint whatsapp-wa-realtime-hint--poll"
+                  title="Canal ao vivo reconectando; a conversa aberta atualiza a cada poucos segundos"
+                >
+                  Reconectando…
+                </span>
+              )}
               {totalUnread > 0 ? (
                 <span className="whatsapp-wa-sidebar__unread-pill">
                   {totalUnread > 99 ? '99+' : totalUnread}
@@ -1087,9 +1119,17 @@ export function WhatsAppInboxPage() {
                   />
                   {syncingMessages ? (
                     <p className="whatsapp-wa-chat-head__meta muted" role="status">
-                      Sincronizando mensagens…
+                      Sincronizando com o WhatsApp…
                     </p>
-                  ) : null}
+                  ) : inboxSocketConnected ? (
+                    <p className="whatsapp-wa-chat-head__meta whatsapp-wa-chat-head__meta--live" role="status">
+                      Ao vivo · histórico local
+                    </p>
+                  ) : (
+                    <p className="whatsapp-wa-chat-head__meta muted" role="status">
+                      Atualização periódica (sem ao vivo)
+                    </p>
+                  )}
                 </div>
                 <div className="whatsapp-wa-chat-head__actions">
                   <button

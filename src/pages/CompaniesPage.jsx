@@ -78,6 +78,7 @@ export function CompaniesPage() {
         key={`${selectedId}-${employeeId}`}
         companyId={selectedId}
         employeeId={employeeId}
+        readOnly={isViewing}
         onBack={goBackToCompany}
       />
     );

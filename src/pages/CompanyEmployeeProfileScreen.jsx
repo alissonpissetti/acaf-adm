@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { getCompanyEmployeeProfile } from '../api/admin.js';
+import { getCompanyEmployeeProfile, patchCompanyEmployeeCpf } from '../api/admin.js';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { formatDate, formatDateTime, formatMoney } from '../utils/finance.js';
+import { formatCpfInput, normalizeCpf } from '../utils/person.js';
+import { isValidCpf } from '../utils/pix.js';
 
 const EMPLOYEE_STATUS_LABEL = {
   pending: 'Pendente',
@@ -40,19 +42,62 @@ function StatCard({ label, value, hint }) {
   );
 }
 
-export function CompanyEmployeeProfileScreen({ companyId, employeeId, onBack }) {
+export function CompanyEmployeeProfileScreen({
+  companyId,
+  employeeId,
+  readOnly = false,
+  onBack,
+}) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cpfDraft, setCpfDraft] = useState('');
+  const [cpfMessage, setCpfMessage] = useState('');
+  const [cpfError, setCpfError] = useState('');
+  const [cpfBusy, setCpfBusy] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setError('');
     getCompanyEmployeeProfile(companyId, employeeId)
-      .then(setProfile)
+      .then((data) => {
+        setProfile(data);
+        setCpfDraft(data.employee?.cpf ?? '');
+        setCpfMessage('');
+        setCpfError('');
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [companyId, employeeId]);
+
+  const saveCpf = async (event) => {
+    event.preventDefault();
+    if (readOnly) return;
+
+    const digits = normalizeCpf(cpfDraft);
+    if (digits && !isValidCpf(digits)) {
+      setCpfError('CPF inválido. Confira os 11 dígitos.');
+      setCpfMessage('');
+      return;
+    }
+
+    setCpfBusy(true);
+    setCpfError('');
+    setCpfMessage('');
+    try {
+      const result = await patchCompanyEmployeeCpf(companyId, employeeId, digits || null);
+      const nextCpf = result.employee?.cpf ?? '';
+      setCpfDraft(nextCpf);
+      setProfile((prev) =>
+        prev ? { ...prev, employee: { ...prev.employee, cpf: nextCpf || null } } : prev,
+      );
+      setCpfMessage(digits ? 'CPF atualizado.' : 'CPF removido.');
+    } catch (err) {
+      setCpfError(err.message || 'Não foi possível salvar o CPF.');
+    } finally {
+      setCpfBusy(false);
+    }
+  };
 
   if (loading) {
     return <AppLoadingPanel label="Carregando perfil do colaborador…" />;
@@ -72,7 +117,7 @@ export function CompanyEmployeeProfileScreen({ companyId, employeeId, onBack }) 
     );
   }
 
-  const { employee, company, client } = profile;
+  const { employee, company, client, appActivation } = profile;
   const primary = client.primaryHistory ?? { changes: [] };
 
   return (
@@ -102,7 +147,8 @@ export function CompanyEmployeeProfileScreen({ companyId, employeeId, onBack }) 
               <span>
                 {employee.email || 'E-mail não informado'}
                 {employee.mobilePhone ? ` · ${employee.mobilePhone}` : ''}
-                {employee.cpf ? ` · CPF ${employee.cpf}` : ''}
+                {readOnly && employee.cpf ? ` · CPF ${employee.cpf}` : ''}
+                {readOnly && !employee.cpf ? ' · CPF não informado' : ''}
               </span>
               <span>
                 Empresa: <strong>{client.companyName || company.tradeName}</strong>
@@ -126,6 +172,85 @@ export function CompanyEmployeeProfileScreen({ companyId, employeeId, onBack }) 
               }
             />
           </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Dados de ativação</h2>
+        </div>
+        <div className="panel-body">
+          <p className="muted" style={{ marginTop: 0 }}>
+            O colaborador ativa o benefício no app com o código da empresa e o CPF cadastrado aqui.
+          </p>
+          {readOnly ? (
+            <dl className="detail-grid detail-grid-dl">
+              <div>
+                <dt>CPF</dt>
+                <dd>{employee.cpf || '—'}</dd>
+              </div>
+              <div>
+                <dt>Status RH</dt>
+                <dd>{EMPLOYEE_STATUS_LABEL[employee.status] ?? employee.status}</dd>
+              </div>
+              <div>
+                <dt>Ativado no app em</dt>
+                <dd>
+                  {employee.activatedAt
+                    ? new Date(employee.activatedAt).toLocaleString('pt-BR')
+                    : '—'}
+                </dd>
+              </div>
+              {appActivation ? (
+                <>
+                  <div>
+                    <dt>Plano ativo no app</dt>
+                    <dd>{appActivation.connectActive ? 'Sim' : 'Não'}</dd>
+                  </div>
+                  <div>
+                    <dt>E-mail do titular no app</dt>
+                    <dd>{appActivation.connectHolderEmail || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Usuário plataforma (RH × app)</dt>
+                    <dd>
+                      {appActivation.employeeUserId === appActivation.connectUserId
+                        ? 'Vinculado'
+                        : appActivation.connectUserId
+                          ? `Divergente (RH ${appActivation.employeeUserId?.slice(0, 8)}… · app ${appActivation.connectUserId?.slice(0, 8)}…)`
+                          : 'Sem vínculo no app'}
+                    </dd>
+                  </div>
+                </>
+              ) : null}
+            </dl>
+          ) : (
+            <form className="form-grid" onSubmit={(ev) => void saveCpf(ev)} style={{ maxWidth: '28rem' }}>
+              <label>
+                <span>CPF</span>
+                <input
+                  value={cpfDraft}
+                  onChange={(e) => {
+                    setCpfDraft(formatCpfInput(e.target.value));
+                    setCpfError('');
+                    setCpfMessage('');
+                  }}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  disabled={cpfBusy}
+                />
+                <small className="muted">Deixe em branco para remover o CPF do cadastro.</small>
+              </label>
+              {cpfError ? <div className="alert-banner alert-banner-error">{cpfError}</div> : null}
+              {cpfMessage ? <div className="alert-banner alert-banner-success">{cpfMessage}</div> : null}
+              <div>
+                <button type="submit" className="btn-primary btn-sm" disabled={cpfBusy}>
+                  {cpfBusy ? 'Salvando…' : 'Salvar CPF'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </section>
 

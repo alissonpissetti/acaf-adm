@@ -167,7 +167,7 @@ export function fetchWhatsAppThreadMessages(instanceId, contactPhone, options = 
     return Promise.reject(new Error('Conversa inválida (contato sem identificação).'));
   }
   const params = new URLSearchParams();
-  params.set('limit', String(options.limit ?? 300));
+  params.set('limit', String(options.limit ?? 100));
   if (options.syncRemote === true) params.set('remote', '1');
   else if (options.syncRemote === false) params.set('remote', '0');
   if (options.watch) params.set('watch', '1');

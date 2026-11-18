@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getAdminOverview } from '../api/admin.js';
 import { getHealth } from '../api/client.js';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { PayingLivesEvolutionChart } from '../components/PayingLivesEvolutionChart.jsx';
 import { API_URL } from '../config.js';
 
 const OVERVIEW_POLL_MS = 30_000;
@@ -134,48 +135,65 @@ export function DashboardPage() {
 
       {overview?.acafPayingLivesCount != null ? (
         <section className="panel acaf-lives-panel">
-          <div className="panel-header panel-header--meta-only">
-            <div>
+          <div className="panel-header">
+            <div className="acaf-lives-panel__intro">
               <h2>Vidas pagantes e repasse</h2>
               <p className="panel-subtitle muted">
-                Contagem em tempo quase real (atualiza a cada {OVERVIEW_POLL_MS / 1000}s). Snapshots diários alimentam o
-                histórico para aplicar as regras de permanência (90 dias corridos para melhorar o repasse, 30 para
-                reduzir). Vidas = assinantes ativos (plano) com academia principal em unidade associada listada no
-                catálogo.
+                Atualização a cada {OVERVIEW_POLL_MS / 1000}s. O histórico diário (Brasil) alimenta repasse e
+                permanência — 90 dias para melhorar o %, 30 para reduzir.
               </p>
             </div>
             {overview.acafOverviewComputedAt ? (
-              <span className="panel-meta muted">Calculado em {formatShortIso(overview.acafOverviewComputedAt)}</span>
+              <span className="panel-meta muted acaf-lives-panel__computed">
+                Calculado em {formatShortIso(overview.acafOverviewComputedAt)}
+              </span>
             ) : null}
           </div>
           <div className="panel-body">
             <div
-              className={`acaf-lives-hero${overview.acafRepasseTierMismatch ? ' acaf-lives-hero--three' : ''}`}
+              className={`acaf-lives-kpi-grid${overview.acafRepasseTierMismatch ? ' acaf-lives-kpi-grid--three' : ''}`}
             >
-              <div>
+              <article className="acaf-lives-kpi acaf-lives-kpi--primary">
                 <span className="stat-label">Vidas pagantes</span>
                 <strong className="acaf-lives-value">{formatPtNumber(overview.acafPayingLivesCount)}</strong>
-              </div>
-              <div className="acaf-lives-tier">
+                {overview.acafPayingLivesDiagnostics ? (
+                  <div className="acaf-lives-kpi__chips">
+                    <span className="acaf-lives-chip">
+                      {formatPtNumber(overview.acafPayingLivesDiagnostics.payingMembersActiveFlag)} ativos
+                    </span>
+                    <span className="acaf-lives-chip">
+                      {formatPtNumber(overview.acafPayingLivesDiagnostics.checkInHoldersThisMonth)} check-ins (
+                      {overview.acafPayingLivesDiagnostics.monthPrefix})
+                    </span>
+                    <span className="acaf-lives-chip">
+                      {formatPtNumber(overview.acafPayingLivesDiagnostics.connectMembersTotal)} titulares
+                    </span>
+                  </div>
+                ) : null}
+              </article>
+              <article className="acaf-lives-kpi">
                 <span className="stat-label">Repasse vigente</span>
                 <strong className="acaf-repasse-value">{formatPtPercent(overview.acafRepassePercent)}</strong>
                 <span className="muted acaf-lives-hint">
-                  vigente desde {formatPtDateOnly(overview.acafEffectiveRepasseSinceDate) || '—'} · alterações conforme
-                  permanência (histórico diário)
+                  desde {formatPtDateOnly(overview.acafEffectiveRepasseSinceDate) || '—'}
                 </span>
-              </div>
+              </article>
               {overview.acafRepasseTierMismatch ? (
-                <div className="acaf-lives-tier acaf-lives-tier--instant">
-                  <span className="stat-label">Faixa pelo número de vidas (hoje)</span>
+                <article className="acaf-lives-kpi acaf-lives-kpi--instant">
+                  <span className="stat-label">Faixa instantânea (hoje)</span>
                   <strong className="acaf-repasse-value">
                     {formatPtPercent(overview.acafInstantaneousRepassePercent)}
                   </strong>
-                  <span className="muted acaf-lives-hint">
-                    o percentual contratual só muda depois dos dias de permanência na faixa de destino
-                  </span>
-                </div>
+                  <span className="muted acaf-lives-hint">contrato muda após dias de permanência</span>
+                </article>
               ) : null}
             </div>
+
+            <PayingLivesEvolutionChart
+              snapshots={overview.acafPayingLivesSnapshots}
+              liveCount={overview.acafPayingLivesCount}
+              tiers={overview.acafRepasseTiers}
+            />
 
             {overview.acafRepassePersistence ? (
               <div className="acaf-repasse-persistence muted">
