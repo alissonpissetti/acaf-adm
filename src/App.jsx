@@ -22,6 +22,7 @@ import {
   ConnectPlansPage,
   CostCentersPage,
   DashboardPage,
+  CronogramaPage,
   DepartmentsPage,
   EvolutionInstancesPage,
   JobPositionsPage,
@@ -101,6 +102,14 @@ export default function App() {
                         element={
                           <Suspense fallback={<AdminRouteFallback />}>
                             <DashboardPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/operacao/cronograma"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <CronogramaPage />
                           </Suspense>
                         }
                       />

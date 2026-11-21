@@ -139,8 +139,9 @@ export function DashboardPage() {
             <div className="acaf-lives-panel__intro">
               <h2>Vidas pagantes e repasse</h2>
               <p className="panel-subtitle muted">
-                Atualização a cada {OVERVIEW_POLL_MS / 1000}s. O histórico diário (Brasil) alimenta repasse e
-                permanência — 90 dias para melhorar o %, 30 para reduzir.
+                Vida pagante = titular único com check-in de plano no mês civil (Brasil). Atualização a cada{' '}
+                {OVERVIEW_POLL_MS / 1000}s; histórico diário alimenta repasse — 90 dias para melhorar o %, 30 para
+                reduzir.
               </p>
             </div>
             {overview.acafOverviewComputedAt ? (
@@ -154,21 +155,40 @@ export function DashboardPage() {
               className={`acaf-lives-kpi-grid${overview.acafRepasseTierMismatch ? ' acaf-lives-kpi-grid--three' : ''}`}
             >
               <article className="acaf-lives-kpi acaf-lives-kpi--primary">
-                <span className="stat-label">Vidas pagantes</span>
+                <span className="stat-label">Vidas pagantes (mês)</span>
                 <strong className="acaf-lives-value">{formatPtNumber(overview.acafPayingLivesCount)}</strong>
                 {overview.acafPayingLivesDiagnostics ? (
                   <div className="acaf-lives-kpi__chips">
                     <span className="acaf-lives-chip">
-                      {formatPtNumber(overview.acafPayingLivesDiagnostics.payingMembersActiveFlag)} ativos
-                    </span>
-                    <span className="acaf-lives-chip">
-                      {formatPtNumber(overview.acafPayingLivesDiagnostics.checkInHoldersThisMonth)} check-ins (
+                      {formatPtNumber(overview.acafPayingLivesDiagnostics.checkInHoldersThisMonth)} titulares únicos (
                       {overview.acafPayingLivesDiagnostics.monthPrefix})
                     </span>
                     <span className="acaf-lives-chip">
-                      {formatPtNumber(overview.acafPayingLivesDiagnostics.connectMembersTotal)} titulares
+                      {formatPtNumber(overview.acafPayingLivesDiagnostics.checkInEventsThisMonth)} check-ins no log
                     </span>
+                    {overview.acafPayingLivesDiagnostics.pendingHoldersThisMonth > 0 ? (
+                      <span className="acaf-lives-chip">
+                        {formatPtNumber(overview.acafPayingLivesDiagnostics.pendingHoldersThisMonth)} pendentes na
+                        recepção
+                      </span>
+                    ) : null}
                   </div>
+                ) : null}
+                {overview.acafPayingLivesDiagnostics?.checkInLogTotal === 0 ? (
+                  <p className="muted acaf-lives-hint" style={{ marginTop: '0.75rem' }}>
+                    Nenhum check-in de plano no banco (<code>checkInLog</code> vazio e sem pendências). O KPI só sobe
+                    com check-in de plano (código <code>CHK-…</code>) confirmado na recepção ou
+                    pendente aguardando aprovação — diária e mensagem de sucesso só no app sem gravar na API não entram.
+                  </p>
+                ) : overview.acafPayingLivesDiagnostics?.count === 0 &&
+                  overview.acafPayingLivesDiagnostics?.lastPlanCheckIn ? (
+                  <p className="muted acaf-lives-hint" style={{ marginTop: '0.75rem' }}>
+                    Há check-in de plano no histórico, mas fora do mês {overview.acafPayingLivesDiagnostics.monthPrefix}
+                    . Último: {overview.acafPayingLivesDiagnostics.lastPlanCheckIn.holderName || '—'} em{' '}
+                    {formatPtDateOnly(overview.acafPayingLivesDiagnostics.lastPlanCheckIn.validatedAt?.slice(0, 10)) ||
+                      '—'}
+                    .
+                  </p>
                 ) : null}
               </article>
               <article className="acaf-lives-kpi">

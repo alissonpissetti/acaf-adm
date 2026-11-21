@@ -11,6 +11,7 @@ import { inactiveBadgeClass, inactiveLabel } from '../crud/crudUtils.js';
 import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { AssociationPortalUsersField } from '../components/AssociationPortalUsersField.jsx';
 
 const EMPTY = {
   slug: '',
@@ -21,7 +22,17 @@ const EMPTY = {
   active: true,
 };
 
-function AssociationForm({ title, subtitle, breadcrumbs, initial, onSubmit, onCancel, onEdit }) {
+function AssociationForm({
+  title,
+  subtitle,
+  breadcrumbs,
+  initial,
+  onSubmit,
+  onCancel,
+  onEdit,
+  associationId,
+  portalUsersEditable = false,
+}) {
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -135,6 +146,14 @@ function AssociationForm({ title, subtitle, breadcrumbs, initial, onSubmit, onCa
           </form>
         </div>
       </section>
+      {associationId ? (
+        <AssociationPortalUsersField
+          associationId={associationId}
+          associationName={initial.name}
+          partnersPermissionKey={initial.partnersPermissionKey}
+          readOnly={!portalUsersEditable}
+        />
+      ) : null}
     </div>
   );
 }
@@ -218,6 +237,8 @@ export default function AssociationsPage() {
 
     return (
       <AssociationForm
+        associationId={selected.id}
+        portalUsersEditable={canManage}
         title={router.isViewing ? selected.name : `Editar · ${selected.name}`}
         subtitle={`Slug: ${selected.slug}`}
         breadcrumbs={[{ label: 'Associações', onClick: router.goToList }, { label: selected.name }]}

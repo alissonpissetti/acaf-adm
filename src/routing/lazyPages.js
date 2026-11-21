@@ -15,6 +15,7 @@ export const WhatsAppInboxPage = lazyNamed(
   'WhatsAppInboxPage',
 );
 export const DashboardPage = lazyNamed(() => import('../pages/DashboardPage.jsx'), 'DashboardPage');
+export const CronogramaPage = lazyNamed(() => import('../pages/CronogramaPage.jsx'), 'CronogramaPage');
 export const NetworksPage = lazyNamed(() => import('../pages/NetworksPage.jsx'), 'NetworksPage');
 export const NetworkDetailRedirect = lazyNamed(
   () => import('../pages/NetworkDetailRedirect.jsx'),

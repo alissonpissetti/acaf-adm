@@ -113,6 +113,10 @@ export function updateAssociation(id, payload) {
   });
 }
 
+export function fetchAssociationUsers(associationId) {
+  return fetchApi(`/api/admin/associations/${encodeURIComponent(associationId)}/users`);
+}
+
 export const PARTNER_LEGAL_SLUG_ONBOARDING = 'partner_onboarding';
 export const DOCUMENTS_VIEW_PERMISSION = 'operacao.termos-parceiro';
 export const DOCUMENTS_MANAGE_PERMISSION = 'operacao.termos-parceiro.manage';

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { updateMyProfile } from '../api/auth.js';
 import { fetchJobPositions, fetchUserGroups } from '../api/access-control.js';
+import { fetchAssociations } from '../api/admin.js';
 import { deleteUser, updateUser } from '../api/users.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { UserAvatarField } from '../components/UserAvatarField.jsx';
@@ -29,6 +30,7 @@ function personFieldsFromUser(user) {
     password: '',
     userGroupId: user.userGroupId ?? '',
     jobPositionId: user.jobPositionId ?? '',
+    associationId: user.associationId ?? '',
   };
 }
 
@@ -39,6 +41,7 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
   const [avatarColor, setAvatarColor] = useState(user.avatarColor ?? null);
   const [groups, setGroups] = useState([]);
   const [positions, setPositions] = useState([]);
+  const [associationOptions, setAssociationOptions] = useState([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,14 +57,16 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
   }, [user]);
 
   useEffect(() => {
-    Promise.all([fetchUserGroups(), fetchJobPositions()])
-      .then(([groupRows, positionRows]) => {
+    Promise.all([fetchUserGroups(), fetchJobPositions(), fetchAssociations()])
+      .then(([groupRows, positionRows, associationRows]) => {
         setGroups(groupRows);
         setPositions(positionRows);
+        setAssociationOptions(Array.isArray(associationRows) ? associationRows : []);
       })
       .catch(() => {
         setGroups([]);
         setPositions([]);
+        setAssociationOptions([]);
       });
   }, []);
 
@@ -79,6 +84,7 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
         active: form.active,
         userGroupId: form.userGroupId || null,
         jobPositionId: form.jobPositionId || null,
+        associationId: form.associationId || null,
       };
       if (form.password.trim()) {
         patch.password = form.password;
@@ -269,6 +275,36 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="field-span-2">
+              <span>Associação (portal de parceiros)</span>
+              {readOnly ? (
+                <input
+                  type="text"
+                  value={
+                    associationOptions.find((a) => a.id === form.associationId)?.name ??
+                    user.associationName ??
+                    '—'
+                  }
+                  disabled
+                />
+              ) : (
+                <select
+                  value={form.associationId}
+                  onChange={(e) => setForm({ ...form, associationId: e.target.value })}
+                >
+                  <option value="">Nenhuma — sem acesso ao portal da associação</option>
+                  {associationOptions.map((association) => (
+                    <option key={association.id} value={association.id}>
+                      {association.name} ({association.slug})
+                    </option>
+                  ))}
+                </select>
+              )}
+              <small className="muted">
+                Define qual associação o usuário vê ao entrar no painel em parceiros associados (porta 5178).
+              </small>
             </label>
 
             {!readOnly ? (

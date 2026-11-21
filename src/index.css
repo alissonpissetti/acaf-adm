@@ -2352,6 +2352,66 @@ textarea {
   margin-left: 0.25rem;
 }
 
+.partner-user-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.partner-user-meta {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.partner-user-meta .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partner-user-subline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: normal;
+}
+
+.association-portal-users .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.association-portal-users-body.partner-users-field {
+  border-top: none;
+  padding-top: 0;
+}
+
+.association-portal-users-linked {
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.association-portal-users-linked-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.association-portal-users-count {
+  font-weight: 500;
+}
+
 .partner-users-create-form {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
