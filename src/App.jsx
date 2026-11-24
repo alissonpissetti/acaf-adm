@@ -33,6 +33,7 @@ import {
   MarketingFormPage,
   MarketingGoPage,
   MarketingLandingPagesPage,
+  SocialCalendarPage,
   ModalitiesPage,
   ModulesPage,
   NetworkDetailRedirect,
@@ -248,6 +249,14 @@ export default function App() {
                         element={
                           <Suspense fallback={<AdminRouteFallback />}>
                             <MarketingLandingPagesPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/m/marketing/redes-sociais"
+                        element={
+                          <Suspense fallback={<AdminRouteFallback />}>
+                            <SocialCalendarPage />
                           </Suspense>
                         }
                       />

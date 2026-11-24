@@ -57,6 +57,10 @@ export const MarketingLandingPagesPage = lazyNamed(
   () => import('../pages/MarketingLandingPagesPage.jsx'),
   'MarketingLandingPagesPage',
 );
+export const SocialCalendarPage = lazyNamed(
+  () => import('../pages/SocialCalendarPage.jsx'),
+  'SocialCalendarPage',
+);
 export const PayablesPage = lazyNamed(() => import('../pages/PayablesPage.jsx'), 'PayablesPage');
 export const ReceivablesPage = lazyNamed(() => import('../pages/ReceivablesPage.jsx'), 'ReceivablesPage');
 export const CashFlowPage = lazyNamed(() => import('../pages/CashFlowPage.jsx'), 'CashFlowPage');

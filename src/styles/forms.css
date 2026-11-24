@@ -1,0 +1,127 @@
+/*
+ * Movly Admin — formulários
+ * Tipografia Figtree nos controles; rótulos em sentence case, peso 600.
+ */
+
+.input,
+input.input,
+textarea.input,
+select.input {
+  font-family: var(--font-body);
+  font-size: var(--form-control-size);
+  font-weight: 400;
+  line-height: var(--form-control-line);
+  letter-spacing: 0.01em;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='color']):not([type='submit']):not([type='button']):not([type='reset']),
+select,
+textarea {
+  font-family: var(--font-body);
+  font-size: var(--form-control-size);
+  font-weight: 400;
+  line-height: var(--form-control-line);
+  letter-spacing: 0.01em;
+  color: var(--foreground);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9aa3b8;
+  opacity: 1;
+  font-weight: 400;
+}
+
+.field-label,
+.field-label-block,
+.field-block .field-label,
+.cronograma-task-field-label,
+.company-managers-label,
+.module-form-heading label,
+.support-modal-body .field-label {
+  display: block;
+  margin-bottom: var(--form-label-gap);
+  font-family: var(--font-body);
+  font-size: var(--form-label-size);
+  font-weight: var(--form-label-weight);
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--form-label-color);
+}
+
+.field-block {
+  gap: var(--form-label-gap);
+}
+
+.field-block > span:not(.sr-only):not(.field-hint):not(.muted),
+label.field-block > span:first-child,
+label:not(.cronograma-checkbox):not(.cronograma-task-hide-activity) > span:first-child:not(.field-hint) {
+  font-family: var(--font-body);
+  font-size: var(--form-label-size);
+  font-weight: var(--form-label-weight);
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--form-label-color);
+  margin-bottom: var(--form-label-gap);
+}
+
+.field-hint,
+.field-block .field-hint,
+.form-error {
+  font-size: var(--form-hint-size);
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.cronograma-field {
+  font-size: inherit;
+  font-weight: 400;
+  gap: var(--form-label-gap);
+}
+
+.cronograma-field input,
+.cronograma-field select,
+.cronograma-field textarea {
+  font-size: var(--form-control-size);
+  line-height: var(--form-control-line);
+  min-height: var(--form-control-min-height);
+}
+
+.cronograma-assignee-search-input {
+  font-size: var(--form-control-size);
+  font-weight: 400;
+}
+
+.commercial-lead-modal-content .field-block .field-label,
+.commercial-lead-modal-content .field-block > span:not(.sr-only),
+.commercial-lead-modal-fields .field-block .field-label,
+.commercial-lead-modal-fields .field-block > span:not(.sr-only) {
+  font-size: var(--form-label-size);
+  font-weight: var(--form-label-weight);
+  letter-spacing: 0.01em;
+  color: var(--form-label-color);
+}
+
+.commercial-lead-modal-content .field-block .input,
+.commercial-lead-modal-content .field-block input,
+.commercial-lead-modal-content .field-block select,
+.commercial-lead-modal-content .field-block textarea,
+.commercial-lead-modal-fields .field-block .input,
+.commercial-lead-modal-fields .field-block input,
+.commercial-lead-modal-fields .field-block select,
+.commercial-lead-modal-fields .field-block textarea {
+  font-size: var(--form-control-size);
+  line-height: var(--form-control-line);
+  min-height: 2.25rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.support-modal-body .input,
+.support-modal-body input,
+.support-modal-body select,
+.support-modal-body textarea {
+  font-size: var(--form-control-size);
+  line-height: var(--form-control-line);
+}

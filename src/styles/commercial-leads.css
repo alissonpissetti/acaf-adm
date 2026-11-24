@@ -1889,20 +1889,21 @@
 
 .commercial-lead-modal-content .field-block .field-label,
 .commercial-lead-modal-content .field-block > span:not(.sr-only) {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-muted);
+  font-size: var(--form-label-size, 0.8125rem);
+  font-weight: var(--form-label-weight, 600);
+  letter-spacing: 0.01em;
+  color: var(--form-label-color, var(--foreground-secondary));
 }
 
 .commercial-lead-modal-content .field-block .input,
 .commercial-lead-modal-content .field-block input,
 .commercial-lead-modal-content .field-block select,
 .commercial-lead-modal-content .field-block textarea {
-  min-height: 2rem;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.8125rem;
-  border-radius: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.65rem;
+  font-size: var(--form-control-size, 0.9375rem);
+  line-height: var(--form-control-line, 1.45);
+  border-radius: 0.5rem;
 }
 
 .commercial-lead-modal-fields .field-block .input,

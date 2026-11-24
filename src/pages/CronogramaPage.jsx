@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Copy, Maximize2, Minimize2 } from 'lucide-react';
 import { appConfirm } from '../components/confirm/appConfirm.js';
 import {
+  addProjectTaskComment,
   createProjectTask,
   deleteProjectTask,
+  fetchProjectTaskComments,
   fetchProjectTaskEvents,
   listProjectTasks,
   patchProjectTask,
@@ -11,6 +14,7 @@ import {
 import { getUsers } from '../api/users.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { CronogramaGantt } from '../components/cronograma/CronogramaGantt.jsx';
+import { CronogramaMobileList } from '../components/cronograma/CronogramaMobileList.jsx';
 import { CronogramaTaskEditor } from '../components/cronograma/CronogramaTaskEditor.jsx';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
@@ -26,6 +30,7 @@ import {
   weightedProgressPercent,
 } from '../lib/cronogramaMetrics.js';
 import { buildOwnerUserDirectory } from '../lib/cronogramaOwners.js';
+import { useCronogramaMobileLayout } from '../lib/useCronogramaMobileLayout.js';
 import '../styles/cronograma.css';
 
 const LW_KEY = 'movly-gantt-lw';
@@ -78,8 +83,10 @@ function loadColumnWidth() {
 }
 
 export function CronogramaPage() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user: authUser } = useAuth();
   const canManage = hasPermission('operacao.cronograma.manage');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openedTaskFromUrl = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -93,8 +100,19 @@ export function CronogramaPage() {
   const [editingTask, setEditingTask] = useState(null);
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [fullscreen, setFullscreen] = useState(readFullscreenPreference);
   const [ownerUsers, setOwnerUsers] = useState([]);
+  const mobileLayout = useCronogramaMobileLayout();
+
+  useEffect(() => {
+    if (mobileLayout && fullscreen) {
+      setFullscreen(false);
+      writeFullscreenPreference(false);
+    }
+  }, [mobileLayout, fullscreen]);
 
   const setColumnWidth = useCallback((w, persist) => {
     const next = Math.max(200, Math.min(620, Math.round(w)));
@@ -203,27 +221,59 @@ export function CronogramaPage() {
     return [...PROJECT_PHASES, ...extra];
   }, [tasks]);
 
+  const reloadTaskSidePanel = useCallback(async (taskId) => {
+    if (!taskId) {
+      setEvents([]);
+      setComments([]);
+      return;
+    }
+    setLoadingEvents(true);
+    setLoadingComments(true);
+    try {
+      const [evRows, commentRows] = await Promise.all([
+        fetchProjectTaskEvents(taskId),
+        fetchProjectTaskComments(taskId),
+      ]);
+      setEvents(Array.isArray(evRows) ? evRows : []);
+      setComments(Array.isArray(commentRows) ? commentRows : []);
+    } catch {
+      setEvents([]);
+      setComments([]);
+    } finally {
+      setLoadingEvents(false);
+      setLoadingComments(false);
+    }
+  }, []);
+
   const openEditor = async (task) => {
     setEditingTask(task);
     setEditorOpen(true);
     setEvents([]);
+    setComments([]);
     if (task?.id) {
-      setLoadingEvents(true);
-      try {
-        const rows = await fetchProjectTaskEvents(task.id);
-        setEvents(Array.isArray(rows) ? rows : []);
-      } catch {
-        setEvents([]);
-      } finally {
-        setLoadingEvents(false);
-      }
+      await reloadTaskSidePanel(task.id);
     }
   };
+
+  useEffect(() => {
+    const taskId = searchParams.get('task');
+    if (!taskId || loading || openedTaskFromUrl.current) return;
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    openedTaskFromUrl.current = true;
+    void openEditor(task);
+  }, [loading, tasks, searchParams]);
 
   const closeEditor = () => {
     setEditorOpen(false);
     setEditingTask(null);
     setEvents([]);
+    setComments([]);
+    if (searchParams.get('task')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('task');
+      setSearchParams(next, { replace: true });
+    }
   };
 
   const onTogglePhase = (phase) => {
@@ -252,8 +302,10 @@ export function CronogramaPage() {
       return next;
     });
     setFilter('all');
-    const idx = PROJECT_PHASES.indexOf(phase);
-    const el = document.getElementById(`cronograma-ph-${idx}`);
+    const idx = phases.indexOf(phase);
+    if (idx < 0) return;
+    const el =
+      document.getElementById(`cronograma-ph-${idx}`) ?? document.getElementById(`cronograma-mob-ph-${idx}`);
     el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
@@ -265,11 +317,27 @@ export function CronogramaPage() {
     try {
       const saved = await patchProjectTask(id, body);
       setTasks((rows) => rows.map((t) => (t.id === id ? saved : t)));
+      setEditingTask(saved);
       setToast('Salvo');
-      closeEditor();
+      await reloadTaskSidePanel(id);
     } catch (e) {
       setTasks(snapshot.length ? snapshot : rollbackTasks);
       setToast(e instanceof Error ? e.message : 'Não foi possível salvar.');
+    }
+  };
+
+  const onSubmitComment = async (text) => {
+    if (!editingTask?.id || !canManage) return false;
+    setSubmittingComment(true);
+    try {
+      const created = await addProjectTaskComment(editingTask.id, text);
+      setComments((rows) => [...rows, created]);
+      return true;
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Não foi possível enviar o comentário.');
+      return false;
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
@@ -285,8 +353,9 @@ export function CronogramaPage() {
     try {
       const created = await createProjectTask(body);
       setTasks((rows) => rows.map((t) => (t.id === tempId ? created : t)));
+      setEditingTask(created);
       setToast('Tarefa criada');
-      closeEditor();
+      await reloadTaskSidePanel(created.id);
     } catch (e) {
       setTasks(snapshot);
       setToast(e instanceof Error ? e.message : 'Não foi possível criar.');
@@ -325,7 +394,7 @@ export function CronogramaPage() {
   const pilot = pilotDate(tasks);
   const daysPilot = daysUntil(pilot, today);
 
-  const fullscreenToggleBtn = (
+  const fullscreenToggleBtn = mobileLayout ? null : (
     <button
       type="button"
       className={`btn btn-ghost cronograma-fullscreen-btn${fullscreen ? ' cronograma-fullscreen-btn--on' : ''}`}
@@ -481,21 +550,33 @@ export function CronogramaPage() {
         </p>
       ) : null}
 
-      <div className="cronograma-gantt-shell">
-        <CronogramaGantt
+      {mobileLayout ? (
+        <CronogramaMobileList
           tasks={tasks}
           filter={filter}
           query={query}
           collapsedPhases={collapsedPhases}
           onTogglePhase={onTogglePhase}
           onOpenTask={openEditor}
-          onDeleteTask={deleteTask}
-          canManage={canManage}
-          columnWidth={columnWidth}
-          onColumnWidthChange={setColumnWidth}
           ownerUserDirectory={ownerUserDirectory}
         />
-      </div>
+      ) : (
+        <div className="cronograma-gantt-shell">
+          <CronogramaGantt
+            tasks={tasks}
+            filter={filter}
+            query={query}
+            collapsedPhases={collapsedPhases}
+            onTogglePhase={onTogglePhase}
+            onOpenTask={openEditor}
+            onDeleteTask={deleteTask}
+            canManage={canManage}
+            columnWidth={columnWidth}
+            onColumnWidthChange={setColumnWidth}
+            ownerUserDirectory={ownerUserDirectory}
+          />
+        </div>
+      )}
 
       <CronogramaTaskEditor
         open={editorOpen}
@@ -504,10 +585,19 @@ export function CronogramaPage() {
         phases={phases}
         events={events}
         loadingEvents={loadingEvents}
+        comments={comments}
+        loadingComments={loadingComments}
+        submittingComment={submittingComment}
+        onSubmitComment={onSubmitComment}
         adminUsers={ownerUsers}
+        currentUserId={authUser?.id}
         onClose={closeEditor}
         onSave={onSave}
         onDelete={onDeleteFromEditor}
+        onAttachmentError={(message) => setToast(message)}
+        onActivityRefresh={() =>
+          editingTask?.id ? reloadTaskSidePanel(editingTask.id) : Promise.resolve()
+        }
       />
 
       {toast ? (
@@ -520,7 +610,11 @@ export function CronogramaPage() {
 
   return (
     <PermissionGate permission="operacao.cronograma" fallback={<AppLoadingPanel />}>
-      <div className={`page-stack cronograma-page${fullscreen ? ' cronograma-page--fullscreen' : ''}`}>
+      <div
+        className={`page-stack cronograma-page${fullscreen ? ' cronograma-page--fullscreen' : ''}${
+          mobileLayout ? ' cronograma-page--mobile' : ''
+        }`}
+      >
         {!fullscreen ? (
           <PageHeader
             title="Cronograma"
