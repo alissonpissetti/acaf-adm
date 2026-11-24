@@ -1,5 +1,6 @@
 .admin-shell {
   --sidebar-width: 16.25rem;
+  --sidebar-width-collapsed: 4.5rem;
   --admin-header-height: 4rem;
   --sidebar-bg: var(--movly-ink);
   --sidebar-bg-elevated: rgba(255, 255, 255, 0.06);
@@ -13,6 +14,11 @@
   grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100vh;
   background: #eef1f8;
+  transition: grid-template-columns 0.22s ease;
+}
+
+.admin-shell--sidebar-collapsed {
+  --sidebar-width: var(--sidebar-width-collapsed);
 }
 
 .admin-sidebar {
@@ -276,8 +282,114 @@
 
 .admin-topbar-left {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.admin-sidebar-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.375rem;
+  height: 2.375rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: #fff;
+  color: var(--foreground);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.admin-sidebar-collapse-toggle:hover {
+  background: var(--surface-muted);
+  border-color: var(--select-border);
+}
+
+.admin-sidebar-collapse-toggle[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, #fff);
+}
+
+.admin-shell--sidebar-collapsed .admin-brand-copy {
+  display: none;
+}
+
+.admin-shell--sidebar-collapsed .admin-brand {
+  justify-content: center;
+  padding-inline: 0.35rem;
+}
+
+.admin-shell--sidebar-collapsed .module-sidebar-section-label,
+.admin-shell--sidebar-collapsed .module-sidebar-label,
+.admin-shell--sidebar-collapsed .module-sidebar-chevron {
+  display: none;
+}
+
+.admin-shell--sidebar-collapsed .module-sidebar-toggle {
+  justify-content: center;
+  padding-inline: 0.35rem;
+}
+
+.admin-shell--sidebar-collapsed .module-sidebar-nav {
+  padding-inline: 0.35rem;
+}
+
+.admin-shell--sidebar-collapsed .admin-sidebar-user-text {
+  display: none;
+}
+
+.admin-shell--sidebar-collapsed .admin-sidebar-user-card {
+  justify-content: center;
+  padding-inline: 0.35rem;
+}
+
+.admin-shell--sidebar-collapsed .module-sidebar-group {
+  position: relative;
+}
+
+.module-sidebar-flyout {
+  position: absolute;
+  left: calc(100% + 0.35rem);
+  top: 0;
+  z-index: 160;
+  min-width: 12.5rem;
+  max-width: min(16rem, 70vw);
+  max-height: min(70vh, 24rem);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 0.75rem;
+  background: var(--sidebar-bg);
+  box-shadow:
+    12px 0 32px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.module-sidebar-flyout::before {
+  content: '';
+  position: absolute;
+  left: -0.4rem;
+  top: 0.85rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--sidebar-border);
+  border-bottom: 1px solid var(--sidebar-border);
+  transform: rotate(45deg);
+}
+
+.module-sidebar-flyout .module-sidebar-child-link {
+  padding-left: 0.75rem;
 }
 
 .module-sidebar-nav {
@@ -519,6 +631,13 @@
 }
 
 @media (max-width: 960px) {
+  .admin-shell--sidebar-collapsed {
+    --sidebar-width: 16.25rem;
+  }
+
+  .admin-sidebar-collapse-toggle {
+    display: none;
+  }
   .admin-shell {
     --mobile-bar-height: 3.5rem;
     grid-template-columns: 1fr;

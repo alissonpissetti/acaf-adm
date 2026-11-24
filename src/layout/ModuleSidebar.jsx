@@ -10,7 +10,58 @@ function moduleHasExternalItems(module) {
   return module.items.some((item) => isExternalRoute(item.route));
 }
 
-export function ModuleSidebar({ onNavigate }) {
+function ModuleChildLinks({ module, location, onNavigate, className }) {
+  return (
+    <div
+      className={className}
+      id={`module-items-${module.id}`}
+      role="group"
+      aria-label={`Telas: ${module.name}`}
+    >
+      {module.items.map((item) => {
+        const external = isExternalRoute(item.route);
+
+        if (external) {
+          return (
+            <a
+              key={item.id}
+              href={item.route}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="module-sidebar-child-link module-sidebar-child-link--external"
+              onClick={onNavigate}
+            >
+              <span>{item.label}</span>
+              <ExternalLink
+                size={13}
+                strokeWidth={2}
+                className="module-sidebar-external-icon"
+                aria-hidden="true"
+              />
+            </a>
+          );
+        }
+
+        return (
+          <NavLink
+            key={item.id}
+            to={item.route}
+            className={() =>
+              isNavigationItemActive(item, location)
+                ? 'module-sidebar-child-link active'
+                : 'module-sidebar-child-link'
+            }
+            onClick={onNavigate}
+          >
+            {item.label}
+          </NavLink>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ModuleSidebar({ onNavigate, collapsed = false }) {
   const { modules, loading } = useNavigation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -29,10 +80,27 @@ export function ModuleSidebar({ onNavigate }) {
   }, [activeModule?.id]);
 
   useEffect(() => {
+    if (collapsed) return;
     if (!navRef.current) return;
     const activeLink = navRef.current.querySelector('.module-sidebar-child-link.active');
     activeLink?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [location.pathname, activeModule?.id]);
+  }, [location.pathname, activeModule?.id, collapsed]);
+
+  useEffect(() => {
+    if (!collapsed) return undefined;
+    const onPointerDown = (ev) => {
+      if (!navRef.current?.contains(ev.target)) {
+        setExpandedModuleIds(new Set());
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [collapsed]);
+
+  useEffect(() => {
+    if (!collapsed) return;
+    setExpandedModuleIds(new Set());
+  }, [collapsed, location.pathname]);
 
   if (loading) {
     return (
@@ -50,14 +118,63 @@ export function ModuleSidebar({ onNavigate }) {
     );
   }
 
+  const handleNavigate = () => {
+    if (collapsed) setExpandedModuleIds(new Set());
+    onNavigate?.();
+  };
+
   return (
-    <nav className="module-sidebar-nav" aria-label="Módulos" ref={navRef}>
+    <nav
+      className={`module-sidebar-nav${collapsed ? ' is-collapsed' : ''}`}
+      aria-label="Módulos"
+      ref={navRef}
+    >
       <div className="module-sidebar-section-label">Módulos</div>
       {modules.map((module) => {
         const isActiveModule = activeModule?.id === module.id;
         const isOpen = expandedModuleIds.has(module.id);
         const hasItems = module.items.length > 0;
         const externalModule = moduleHasExternalItems(module);
+
+        const onModuleClick = () => {
+          if (!hasItems) return;
+
+          if (collapsed) {
+            setExpandedModuleIds((prev) => {
+              if (prev.has(module.id)) return new Set();
+              return new Set([module.id]);
+            });
+            return;
+          }
+
+          if (externalModule) {
+            setExpandedModuleIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(module.id)) next.delete(module.id);
+              else next.add(module.id);
+              return next;
+            });
+            return;
+          }
+
+          if (isActiveModule) {
+            setExpandedModuleIds((prev) => new Set(prev).add(module.id));
+            return;
+          }
+
+          if (isOpen) {
+            setExpandedModuleIds((prev) => {
+              const next = new Set(prev);
+              next.delete(module.id);
+              return next;
+            });
+            return;
+          }
+
+          setExpandedModuleIds((prev) => new Set(prev).add(module.id));
+          const firstInternal = module.items.find((item) => !isExternalRoute(item.route));
+          if (firstInternal) navigate(firstInternal.route);
+        };
 
         return (
           <div
@@ -67,41 +184,11 @@ export function ModuleSidebar({ onNavigate }) {
             <button
               type="button"
               className={isOpen || isActiveModule ? 'module-sidebar-toggle active' : 'module-sidebar-toggle'}
-              title={module.name}
+              title={collapsed ? module.name : module.name}
               aria-expanded={isOpen}
               aria-controls={`module-items-${module.id}`}
               aria-current={isActiveModule ? 'true' : undefined}
-              onClick={() => {
-                if (!hasItems) return;
-
-                if (externalModule) {
-                  setExpandedModuleIds((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(module.id)) next.delete(module.id);
-                    else next.add(module.id);
-                    return next;
-                  });
-                  return;
-                }
-
-                if (isActiveModule) {
-                  setExpandedModuleIds((prev) => new Set(prev).add(module.id));
-                  return;
-                }
-
-                if (isOpen) {
-                  setExpandedModuleIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(module.id);
-                    return next;
-                  });
-                  return;
-                }
-
-                setExpandedModuleIds((prev) => new Set(prev).add(module.id));
-                const firstInternal = module.items.find((item) => !isExternalRoute(item.route));
-                if (firstInternal) navigate(firstInternal.route);
-              }}
+              onClick={onModuleClick}
             >
               <span className="module-sidebar-icon" aria-hidden="true">
                 <ModuleIcon name={module.icon} size={18} />
@@ -112,53 +199,22 @@ export function ModuleSidebar({ onNavigate }) {
               </span>
             </button>
 
-            {isOpen && hasItems ? (
-              <div
+            {isOpen && hasItems && !collapsed ? (
+              <ModuleChildLinks
+                module={module}
+                location={location}
+                onNavigate={handleNavigate}
                 className="module-sidebar-children"
-                id={`module-items-${module.id}`}
-                role="group"
-                aria-label={`Telas: ${module.name}`}
-              >
-                {module.items.map((item) => {
-                  const external = isExternalRoute(item.route);
+              />
+            ) : null}
 
-                  if (external) {
-                    return (
-                      <a
-                        key={item.id}
-                        href={item.route}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="module-sidebar-child-link module-sidebar-child-link--external"
-                        onClick={onNavigate}
-                      >
-                        <span>{item.label}</span>
-                        <ExternalLink
-                          size={13}
-                          strokeWidth={2}
-                          className="module-sidebar-external-icon"
-                          aria-hidden="true"
-                        />
-                      </a>
-                    );
-                  }
-
-                  return (
-                    <NavLink
-                      key={item.id}
-                      to={item.route}
-                      className={() =>
-                        isNavigationItemActive(item, location)
-                          ? 'module-sidebar-child-link active'
-                          : 'module-sidebar-child-link'
-                      }
-                      onClick={onNavigate}
-                    >
-                      {item.label}
-                    </NavLink>
-                  );
-                })}
-              </div>
+            {isOpen && hasItems && collapsed ? (
+              <ModuleChildLinks
+                module={module}
+                location={location}
+                onNavigate={handleNavigate}
+                className="module-sidebar-children module-sidebar-flyout"
+              />
             ) : null}
           </div>
         );

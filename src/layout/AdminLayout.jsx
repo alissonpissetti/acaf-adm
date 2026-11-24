@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, PanelLeft, PanelLeftClose, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { NavigationProvider, useActiveModuleItem } from '../navigation/NavigationContext.jsx';
 import { ModuleSidebar } from './ModuleSidebar.jsx';
@@ -11,6 +11,7 @@ import { UserProfilePanel } from '../components/UserProfilePanel.jsx';
 import { MOVLY_WORDMARK } from '../brand/displayName.js';
 import { BrandLogo } from '../components/BrandLogo.jsx';
 import { FlashMessageProvider } from '../components/flash/FlashMessageProvider.jsx';
+import { useAdminSidebarCollapsed } from './useAdminSidebarCollapsed.js';
 import './AdminLayout.css';
 
 function AdminLayoutInner() {
@@ -20,6 +21,7 @@ function AdminLayoutInner() {
   const { module } = useActiveModuleItem(location.pathname, location.search);
   /** Contexto do módulo na shell; título da tela fica no PageHeader do conteúdo (PREMISSAS-VISUAIS). */
   const shellTitle = module?.name ?? `${MOVLY_WORDMARK} Admin`;
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useAdminSidebarCollapsed();
   const [navOpen, setNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -54,7 +56,11 @@ function AdminLayoutInner() {
   };
 
   return (
-    <div className={`admin-shell${navOpen ? ' admin-shell-nav-open' : ''}`}>
+    <div
+      className={`admin-shell${navOpen ? ' admin-shell-nav-open' : ''}${
+        sidebarCollapsed ? ' admin-shell--sidebar-collapsed' : ''
+      }`}
+    >
       <header className="admin-mobile-bar" aria-label="Barra principal mobile">
         <button
           type="button"
@@ -110,7 +116,7 @@ function AdminLayoutInner() {
           </button>
         </div>
 
-        <ModuleSidebar onNavigate={() => setNavOpen(false)} />
+        <ModuleSidebar collapsed={sidebarCollapsed} onNavigate={() => setNavOpen(false)} />
 
         <footer className="admin-sidebar-footer">
           <div className="admin-sidebar-user-card">
@@ -132,6 +138,20 @@ function AdminLayoutInner() {
       <div className="admin-main">
         <header className="admin-topbar">
           <div className="admin-topbar-left">
+            <button
+              type="button"
+              className="admin-sidebar-collapse-toggle"
+              aria-pressed={sidebarCollapsed}
+              aria-label={sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+              title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+              onClick={toggleCollapsed}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeft size={20} strokeWidth={2} aria-hidden />
+              ) : (
+                <PanelLeftClose size={20} strokeWidth={2} aria-hidden />
+              )}
+            </button>
             <div className="admin-topbar-title">{shellTitle}</div>
           </div>
           <div className="admin-topbar-actions">

@@ -2,8 +2,10 @@ import { apiUrl } from '../config.js';
 
 import { isArteVideo } from './socialPostRules.js';
 
-/** URL de mídia servida pela API (imagem ou vídeo). */
+/** URL pública da arte (storage remoto) ou fallback via API. */
 export function arteImageSrc(arte) {
+  const remote = arte?.urlPublica?.trim();
+  if (remote && !remote.includes('/api/social-posts/media/')) return remote;
   const id = arte?.id?.trim();
   if (!id) return null;
   return apiUrl(`/api/social-posts/media/${id}`);
@@ -25,7 +27,8 @@ export function arteDownloadFilename(arte, postCodigo) {
 export async function downloadArteImage(src, filename) {
   const name = filename || 'arte-movly.png';
   try {
-    const res = await fetch(src, { credentials: 'include' });
+    const useAuth = src.includes('/api/social-posts/media/');
+    const res = await fetch(src, useAuth ? { credentials: 'include' } : { mode: 'cors' });
     if (!res.ok) throw new Error('Falha ao baixar');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
