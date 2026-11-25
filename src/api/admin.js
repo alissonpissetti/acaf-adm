@@ -60,11 +60,11 @@ export function purgeAcafImportedNetworks() {
   });
 }
 
-/** Gera link do portal parceiro (14 dias): onboarding se a rede ainda não tem acesso, equipe se já tem. */
-export function createPartnerOnboardingInvite(networkId) {
+/** Gera ou reutiliza link persistido do portal parceiro (14 dias) — `onboarding` ou `team`. */
+export function createPartnerOnboardingInvite(networkId, kind = 'onboarding') {
   return fetchApi(`/api/admin/networks/${encodeURIComponent(networkId)}/partner-onboarding-invite`, {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ kind }),
   });
 }
 

@@ -13,6 +13,7 @@ import {
   partnerAccessStatusLabel,
   partnerAccessStatusSortRank,
 } from '../utils/networkPartnerAccessFilter.js';
+import { networkMatchesNameOrCnpj } from '../utils/networkCnpjSearch.js';
 
 /**
  * Cabeçalhos da tabela de parceiros (`headerHint` → atributo title / abbr na coluna).
@@ -55,6 +56,8 @@ export function NetworksList({
   onMapCityFilterChange,
   partnerAccessFilter = 'all',
   onPartnerAccessFilterChange,
+  searchQuery: controlledSearchQuery,
+  onSearchQueryChange: controlledOnSearchQueryChange,
 }) {
   const flash = useFlashMessage();
   const [selectedIds, setSelectedIds] = useState(() => new Set());
@@ -71,7 +74,20 @@ export function NetworksList({
     defaultSort: { key: 'name', direction: 'asc' },
     storageKey: LIST_PREFERENCE_KEYS.networks,
     getSortValue,
+    matchesSearch: networkMatchesNameOrCnpj,
   });
+
+  useEffect(() => {
+    if (controlledSearchQuery === undefined) return;
+    if (list.query !== controlledSearchQuery) {
+      list.onQueryChange(controlledSearchQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sincroniza busca controlada pelo pai (mapa / lista+mapa)
+  }, [controlledSearchQuery]);
+
+  const effectiveQuery =
+    controlledSearchQuery !== undefined ? controlledSearchQuery : list.query;
+  const effectiveOnQueryChange = controlledOnSearchQueryChange ?? list.onQueryChange;
 
   const filterDefinitions = useMemo(() => {
     const defs = [];
@@ -293,9 +309,9 @@ export function NetworksList({
       onAdd={onAdd}
       loading={loading}
       error={error}
-      query={list.query}
-      onQueryChange={list.onQueryChange}
-      searchPlaceholder="Buscar por nome da rede"
+      query={effectiveQuery}
+      onQueryChange={effectiveOnQueryChange}
+      searchPlaceholder="Buscar por nome da rede ou CNPJ"
       toolbarLayout="compact"
       filterDefinitions={filterDefinitions}
       fieldFilters={toolbarFieldFilters}

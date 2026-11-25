@@ -23,6 +23,21 @@ import {
   writeNetworksViewMode,
 } from '../utils/networksPageStorage.js';
 import { showDangerTools } from '../config.js';
+import {
+  enrichNetworksWithUnitCnpjs,
+  networkMatchesNameOrCnpj,
+} from '../utils/networkCnpjSearch.js';
+import {
+  LIST_PREFERENCE_KEYS,
+  loadListPreferences,
+  saveListPreferences,
+} from '../utils/listPreferencesStorage.js';
+
+const NETWORKS_LIST_PREFS_KEY = LIST_PREFERENCE_KEYS.networks;
+
+function readInitialNetworksPagePrefs() {
+  return loadListPreferences(NETWORKS_LIST_PREFS_KEY);
+}
 
 export function NetworksPage() {
   const flash = useFlashMessage();
@@ -42,12 +57,25 @@ export function NetworksPage() {
   const [purgeBusy, setPurgeBusy] = useState(false);
   /** @type {'both' | 'list' | 'map'} */
   const [listLayout, setListLayout] = useState(() => readNetworksViewMode());
+  const initialListPrefs = useMemo(() => readInitialNetworksPagePrefs(), []);
   /** @type {import('../utils/networkPartnerAccessFilter.js').NetworkPartnerAccessFilter} */
-  const [partnerAccessFilter, setPartnerAccessFilter] = useState('all');
+  const [partnerAccessFilter, setPartnerAccessFilter] = useState(
+    () => initialListPrefs?.networksPage?.partnerAccess ?? 'all',
+  );
   const [units, setUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(true);
-  const [mapCityFilter, setMapCityFilter] = useState('');
-  const [mapLayerMode, setMapLayerMode] = useState('units');
+  const [mapCityFilter, setMapCityFilter] = useState(
+    () => initialListPrefs?.networksPage?.mapCity ?? '',
+  );
+  const [mapLayerMode, setMapLayerMode] = useState(
+    () => initialListPrefs?.networksPage?.mapLayerMode ?? 'units',
+  );
+  const [networkSearchQuery, setNetworkSearchQuery] = useState(() => initialListPrefs?.query ?? '');
+
+  const networksEnriched = useMemo(
+    () => enrichNetworksWithUnitCnpjs(networks, units),
+    [networks, units],
+  );
 
   const selectedNetwork = useMemo(
     () => networks.find((network) => network.id === selectedId) ?? null,
@@ -57,11 +85,6 @@ export function NetworksPage() {
   const filteredNetworks = useMemo(
     () => filterNetworksByPartnerAccess(partnerAccessFilter, networks),
     [networks, partnerAccessFilter],
-  );
-
-  const filteredNetworkIds = useMemo(
-    () => (partnerAccessFilter === 'all' ? null : new Set(filteredNetworks.map((n) => n.id))),
-    [filteredNetworks, partnerAccessFilter],
   );
 
   const load = async () => {
@@ -97,6 +120,22 @@ export function NetworksPage() {
     writeNetworksViewMode(listLayout);
   }, [listLayout]);
 
+  useEffect(() => {
+    const existing = loadListPreferences(NETWORKS_LIST_PREFS_KEY) ?? {};
+    const patch = {
+      ...existing,
+      networksPage: {
+        partnerAccess: partnerAccessFilter,
+        mapCity: mapCityFilter,
+        mapLayerMode,
+      },
+    };
+    if (listLayout !== 'list') {
+      patch.query = networkSearchQuery;
+    }
+    saveListPreferences(NETWORKS_LIST_PREFS_KEY, patch);
+  }, [partnerAccessFilter, mapCityFilter, mapLayerMode, networkSearchQuery, listLayout]);
+
   const mapCityOptions = useMemo(() => listCityOptions(units), [units]);
   const mapCityLabel = useMemo(
     () => mapCityOptions.find((c) => c.key === mapCityFilter)?.label ?? '',
@@ -104,13 +143,30 @@ export function NetworksPage() {
   );
 
   const networksForList = useMemo(() => {
-    let rows = filterNetworksByPartnerAccess(partnerAccessFilter, networks);
+    let rows = filterNetworksByPartnerAccess(partnerAccessFilter, networksEnriched);
     const ids = networkIdsInCity(units, mapCityFilter);
     if (ids) {
       rows = rows.filter((n) => ids.has(n.id));
     }
     return rows;
-  }, [networks, units, mapCityFilter, partnerAccessFilter]);
+  }, [networksEnriched, units, mapCityFilter, partnerAccessFilter]);
+
+  const mapNetworkIdsFilter = useMemo(() => {
+    const fromPartner =
+      partnerAccessFilter === 'all' ? null : new Set(filteredNetworks.map((n) => n.id));
+    const fromSearch = networkSearchQuery.trim()
+      ? new Set(
+          filterNetworksByPartnerAccess(partnerAccessFilter, networksEnriched)
+            .filter((n) => networkMatchesNameOrCnpj(n, networkSearchQuery))
+            .map((n) => n.id),
+        )
+      : null;
+    if (!fromPartner && !fromSearch) return null;
+    if (fromPartner && fromSearch) {
+      return new Set([...fromPartner].filter((id) => fromSearch.has(id)));
+    }
+    return fromPartner ?? fromSearch;
+  }, [filteredNetworks, partnerAccessFilter, networksEnriched, networkSearchQuery]);
 
   const goToList = () => {
     setSearchParams({});
@@ -328,6 +384,17 @@ export function NetworksPage() {
           <div className="networks-page-filters-card" role="region" aria-label="Filtros da página">
             <p className="crud-list-toolbar-title">Filtros</p>
             <label className="crud-toolbar-field">
+              <span className="crud-toolbar-label">Buscar (nome ou CNPJ)</span>
+              <input
+                className="input crud-toolbar-input"
+                type="search"
+                value={networkSearchQuery}
+                onChange={(e) => setNetworkSearchQuery(e.target.value)}
+                placeholder="CNPJ completo ou trecho"
+                autoComplete="off"
+              />
+            </label>
+            <label className="crud-toolbar-field">
               <span className="crud-toolbar-label">Acesso portal parceiro</span>
               <select
                 className="crud-toolbar-select"
@@ -381,7 +448,7 @@ export function NetworksPage() {
           onCityFilterChange={setMapCityFilter}
           layerMode={mapLayerMode}
           onLayerModeChange={setMapLayerMode}
-          networkIdsFilter={filteredNetworkIds}
+          networkIdsFilter={mapNetworkIdsFilter}
         />
       ) : null}
       {listLayout !== 'map' ? (
@@ -403,7 +470,9 @@ export function NetworksPage() {
           mapCityOptions={mapCityOptions}
           onMapCityFilterChange={setMapCityFilter}
           partnerAccessFilter={partnerAccessFilter}
-          onPartnerAccessFilterChange={listLayout === 'list' ? setPartnerAccessFilter : undefined}
+          onPartnerAccessFilterChange={setPartnerAccessFilter}
+          searchQuery={listLayout !== 'map' ? networkSearchQuery : undefined}
+          onSearchQueryChange={listLayout !== 'map' ? setNetworkSearchQuery : undefined}
         />
       ) : null}
       <AcafAssociatesImportPanel onImported={load} />

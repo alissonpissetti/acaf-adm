@@ -1,0 +1,30 @@
+.network-partner-invite-block {
+  margin-top: 1.25rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--border, #e2e5ee);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+
+.network-partner-invite-block-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.network-partner-invite-block-lead {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.network-partner-invite-link {
+  margin-top: 0.75rem;
+}
+
+.network-partner-invite-link-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.35rem;
+}

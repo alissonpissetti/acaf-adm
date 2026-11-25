@@ -23,10 +23,12 @@ import { formatUnitLocation } from '../utils/address.js';
 import { formatTodayHours } from '../utils/weeklySchedule.js';
 import { networkSocialFromNetwork } from '../utils/networkSocial.js';
 import { formatCnpjFromDigits } from '../utils/cnpj.js';
+import { formatMobilePhoneInput, formatMobilePhoneDisplay, normalizeMobilePhone } from '../utils/person.js';
 import { appConfirm } from '../components/confirm/appConfirm.js';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
 import { formatPercentPtBr, parseOptionalPercent } from '../utils/parsePercentInput.js';
 import { PayerMembershipFeesSection } from '../components/PayerMembershipFeesSection.jsx';
+import '../styles/network-partner-invites.css';
 
 function acafCatalogLabel(unit) {
   const meta = unit?.acafAssociate;
@@ -284,6 +286,36 @@ function NetworkUnitsPanel({
   );
 }
 
+function PartnerInviteLinkRow({ linkMeta, onCopy }) {
+  const statusLabel = linkMeta.used ? 'Utilizado' : linkMeta.expired ? 'Expirado' : 'Ativo';
+  const statusClass = linkMeta.used
+    ? 'badge-muted'
+    : linkMeta.expired
+      ? 'badge-warning'
+      : 'badge-success';
+  return (
+    <div className="network-partner-invite-link">
+      <div className="network-partner-invite-link-head">
+        <span className={`badge ${statusClass}`}>{statusLabel}</span>
+        {linkMeta.expiresAt ? (
+          <span className="muted" style={{ fontSize: '0.8125rem' }}>
+            Válido até {new Date(linkMeta.expiresAt).toLocaleString('pt-BR')}
+          </span>
+        ) : null}
+      </div>
+      <input className="input" readOnly value={linkMeta.inviteUrl} aria-label="Link do convite" />
+      <div className="form-actions" style={{ marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <button type="button" className="btn-ghost btn-sm" onClick={() => void onCopy()}>
+          Copiar
+        </button>
+        <a className="btn-ghost btn-sm" href={linkMeta.inviteUrl} target="_blank" rel="noopener noreferrer">
+          Abrir
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function NetworkEditScreen({
   network,
   readOnly = false,
@@ -305,11 +337,16 @@ export function NetworkEditScreen({
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [onboardingUrl, setOnboardingUrl] = useState('');
-  const [onboardingExpiresAt, setOnboardingExpiresAt] = useState('');
-  const [onboardingBusy, setOnboardingBusy] = useState(false);
+  const [onboardingLink, setOnboardingLink] = useState(network.partnerInviteLinks?.onboarding ?? null);
+  const [teamLink, setTeamLink] = useState(network.partnerInviteLinks?.team ?? null);
+  const [onboardingLinkBusy, setOnboardingLinkBusy] = useState(false);
+  const [teamLinkBusy, setTeamLinkBusy] = useState(false);
   const [onboardingEmailBusy, setOnboardingEmailBusy] = useState(false);
+  const [partnerContactName, setPartnerContactName] = useState(network.partnerContactName ?? '');
   const [partnerContactEmail, setPartnerContactEmail] = useState(network.partnerContactEmail ?? '');
+  const [partnerContactPhoneDisplay, setPartnerContactPhoneDisplay] = useState(
+    network.partnerContactPhone ? formatMobilePhoneDisplay(network.partnerContactPhone) : '',
+  );
   const [platformDefaults, setPlatformDefaults] = useState({ connectFeePercent: 20, dailyFeePercent: 20 });
   const [connectOverrideInput, setConnectOverrideInput] = useState('');
   const [dailyOverrideInput, setDailyOverrideInput] = useState('');
@@ -321,7 +358,7 @@ export function NetworkEditScreen({
   );
   const inviteSentToday = Boolean(network.onboardingInviteEmailSentToday);
   const inviteActionsLocked =
-    busy || onboardingBusy || onboardingEmailBusy || unitsLoading || units.length === 0;
+    busy || onboardingLinkBusy || teamLinkBusy || onboardingEmailBusy || unitsLoading || units.length === 0;
 
   const cadastralSummary = useMemo(() => {
     const bits = [networkName.trim() || network.name];
@@ -348,7 +385,11 @@ export function NetworkEditScreen({
    * senão um load() com o mesmo id desfazia "Remover logo" antes de salvar. */
   useEffect(() => {
     setNetworkName(network.name);
+    setPartnerContactName(network.partnerContactName ?? '');
     setPartnerContactEmail(network.partnerContactEmail ?? '');
+    setPartnerContactPhoneDisplay(
+      network.partnerContactPhone ? formatMobilePhoneDisplay(network.partnerContactPhone) : '',
+    );
     setSocial(networkSocialFromNetwork(network));
     setConnectOverrideInput(
       network.connectFeePercentOverride != null ? String(network.connectFeePercentOverride) : '',
@@ -356,10 +397,10 @@ export function NetworkEditScreen({
     setDailyOverrideInput(
       network.dailyFeePercentOverride != null ? String(network.dailyFeePercentOverride) : '',
     );
+    setOnboardingLink(network.partnerInviteLinks?.onboarding ?? null);
+    setTeamLink(network.partnerInviteLinks?.team ?? null);
     setError('');
     setMessage('');
-    setOnboardingUrl('');
-    setOnboardingExpiresAt('');
     loadUnits();
   }, [network]);
 
@@ -367,9 +408,9 @@ export function NetworkEditScreen({
     setLogoUrl(network.logoUrl ?? null);
     setLogoFile(null);
     setLogoRemovePending(false);
-    setOnboardingUrl('');
-    setOnboardingExpiresAt('');
-  }, [network.id]);
+    setOnboardingLink(network.partnerInviteLinks?.onboarding ?? null);
+    setTeamLink(network.partnerInviteLinks?.team ?? null);
+  }, [network.id, network.partnerInviteLinks]);
 
   useEffect(() => {
     getPlatformFeeDefaults()
@@ -403,7 +444,11 @@ export function NetworkEditScreen({
         social,
         connectFeePercentOverride: connectParsed,
         dailyFeePercentOverride: dailyParsed,
+        partnerContactName: partnerContactName.trim() ? partnerContactName.trim() : null,
         partnerContactEmail: partnerContactEmail.trim() ? partnerContactEmail.trim() : null,
+        partnerContactPhone: partnerContactPhoneDisplay.trim()
+          ? normalizeMobilePhone(partnerContactPhoneDisplay)
+          : null,
       };
       if (logoRemovePending && !logoFile) {
         patch.logoUrl = null;
@@ -446,9 +491,29 @@ export function NetworkEditScreen({
     onUpdated?.();
   };
 
-  const applyInviteResult = (res) => {
-    setOnboardingUrl(res.inviteUrl ?? '');
-    setOnboardingExpiresAt(res.expiresAt ?? '');
+  const applyInviteResult = (kind, res) => {
+    const meta = {
+      inviteUrl: res.inviteUrl ?? '',
+      expiresAt: res.expiresAt ?? '',
+      inviteKind: res.inviteKind ?? kind,
+      used: false,
+      expired: false,
+    };
+    if (kind === 'team') {
+      setTeamLink(meta);
+    } else {
+      setOnboardingLink(meta);
+    }
+  };
+
+  const copyInviteUrl = async (url) => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      flash.success('Link copiado para a área de transferência.', 4000);
+    } catch {
+      flash.error('Não foi possível copiar. Selecione o campo e copie manualmente.');
+    }
   };
 
   const sendOnboardingEmail = async () => {
@@ -456,7 +521,8 @@ export function NetworkEditScreen({
     setError('');
     try {
       const res = await sendPartnerOnboardingInviteEmail(network.id);
-      applyInviteResult(res);
+      const mailKind = res.inviteKind === 'team' ? 'team' : 'onboarding';
+      applyInviteResult(mailKind, res);
       const kind =
         res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
       flash.success(
@@ -471,33 +537,25 @@ export function NetworkEditScreen({
     }
   };
 
-  const generateOnboardingLink = async () => {
-    setOnboardingBusy(true);
+  const generatePartnerInviteLink = async (kind) => {
+    const setBusyFlag = kind === 'team' ? setTeamLinkBusy : setOnboardingLinkBusy;
+    setBusyFlag(true);
     setError('');
     try {
-      const res = await createPartnerOnboardingInvite(network.id);
-      applyInviteResult(res);
-      const kind = res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
+      const res = await createPartnerOnboardingInvite(network.id, kind);
+      applyInviteResult(kind, res);
+      const label = kind === 'team' ? 'equipe' : 'onboarding';
       flash.success(
-        kind === 'equipe'
-          ? 'Link aberto de equipe gerado. Copie ou abra nesta tela (válido por 14 dias).'
-          : 'Link de cadastro gerado. Copie e envie ao parceiro (válido por 14 dias).',
+        res.reused
+          ? `Link de ${label} já existente — exibido abaixo (válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}).`
+          : `Link de ${label} gerado (válido 14 dias) e fixado nesta tela.`,
         8000,
       );
+      onUpdated?.();
     } catch (err) {
       setError(err.message);
     } finally {
-      setOnboardingBusy(false);
-    }
-  };
-
-  const copyOnboardingLink = async () => {
-    if (!onboardingUrl) return;
-    try {
-      await navigator.clipboard.writeText(onboardingUrl);
-      flash.success('Link copiado para a área de transferência.', 4000);
-    } catch {
-      flash.error('Não foi possível copiar. Selecione o campo e copie manualmente.');
+      setBusyFlag(false);
     }
   };
 
@@ -612,14 +670,39 @@ export function NetworkEditScreen({
                         />
                       </label>
                       <label className="field-span-full">
-                        <span>E-mail responsável (convite onboarding)</span>
+                        <span>Contato principal — nome</span>
+                        <input
+                          className="input"
+                          type="text"
+                          autoComplete="name"
+                          placeholder="Responsável pelo portal (onboarding)"
+                          value={partnerContactName}
+                          onChange={(e) => setPartnerContactName(e.target.value)}
+                          disabled={readOnly || busy}
+                        />
+                      </label>
+                      <label className="field-span-full">
+                        <span>E-mail do contato (convite onboarding)</span>
                         <input
                           className="input"
                           type="email"
                           autoComplete="email"
-                          placeholder="Opcional — tem prioridade sobre o e-mail da planilha ACAF"
+                          placeholder="Tem prioridade sobre o e-mail da planilha ACAF"
                           value={partnerContactEmail}
                           onChange={(e) => setPartnerContactEmail(e.target.value)}
+                          disabled={readOnly || busy}
+                        />
+                      </label>
+                      <label className="field-span-full">
+                        <span>Celular do contato (SMS no onboarding)</span>
+                        <input
+                          className="input"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="tel"
+                          placeholder="(00) 00000-0000 — só o cadastrado aqui recebe código por SMS"
+                          value={partnerContactPhoneDisplay}
+                          onChange={(e) => setPartnerContactPhoneDisplay(formatMobilePhoneInput(e.target.value))}
                           disabled={readOnly || busy}
                         />
                       </label>
@@ -705,115 +788,104 @@ export function NetworkEditScreen({
             </section>
 
             <section className="form-section field-span-full">
-              <h3 className="form-section-title">
-                {hasPartnerAccess ? 'Convite equipe — portal do parceiro' : 'Onboarding — portal do parceiro'}
-              </h3>
+              <h3 className="form-section-title">Links do portal do parceiro</h3>
               <p className="muted" style={{ marginTop: 0 }}>
-                {hasPartnerAccess ? (
-                  <>
-                    A rede já possui acesso configurado. Gere o <strong>link aberto</strong> ou envie um convite para{' '}
-                    <strong>adicionar outra pessoa</strong> à equipe, com acesso a todas as unidades desta rede. O
-                    cadastro não passa pelo assistente inicial da rede.
-                  </>
-                ) : (
-                  <>
-                    Gere um link ou envie por e-mail o convite para o parceiro criar o{' '}
-                    <strong>primeiro usuário</strong> com acesso a todas as unidades desta rede.
-                  </>
-                )}{' '}
-                O envio por e-mail é limitado a <strong>1 por dia</strong> por academia/rede; cada envio gera um
-                novo link (válido 14 dias).
-                {hasPartnerAccess ? (
-                  <>
-                    {' '}
-                    O link pode ser copiado ou aberto nesta tela, sem depender do e-mail e sem entrar em modo
-                    edição.
-                  </>
-                ) : null}
+                Cada tipo de convite tem um <strong>link fixo</strong>: após gerado uma vez, ele permanece nesta tela
+                (válido 14 dias, até ser utilizado ou vencer). O <strong>onboarding</strong> é o cadastro inicial; o
+                de <strong>equipe</strong> adiciona pessoas quando o acesso já existe. Envio por e-mail: máximo{' '}
+                <strong>1 por dia</strong> por academia/rede, usando o mesmo link persistido.
                 {inviteSentToday ? (
                   <>
                     {' '}
-                    <strong>Já houve envio hoje</strong> — o reenvio por e-mail ficará disponível amanhã; você ainda
-                    pode gerar o link aberto manualmente.
+                    <strong>Já houve envio hoje</strong> — reenvio por e-mail amanhã; os links abaixo seguem
+                    disponíveis.
                   </>
                 ) : null}
               </p>
-              <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-                {hasPartnerAccess ? (
+
+              <div className="network-partner-invite-block">
+                <h4 className="network-partner-invite-block-title">1. Onboarding (cadastro inicial)</h4>
+                <p className="muted network-partner-invite-block-lead">
+                  Primeiro usuário da rede — assistente completo de configuração.
+                </p>
+                <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
                   <button
                     type="button"
                     className="btn-primary btn-sm"
                     disabled={inviteActionsLocked}
-                    title="Gerar link aberto de convite da equipe para copiar ou abrir nesta tela"
-                    onClick={() => void generateOnboardingLink()}
+                    onClick={() => void generatePartnerInviteLink('onboarding')}
                   >
-                    {onboardingBusy ? 'Gerando…' : 'Gerar link equipe'}
+                    {onboardingLinkBusy
+                      ? 'Gerando…'
+                      : onboardingLink?.inviteUrl
+                        ? 'Exibir link de onboarding'
+                        : 'Gerar link de onboarding'}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className={hasPartnerAccess ? 'btn-ghost btn-sm' : 'btn-primary btn-sm'}
-                  disabled={inviteActionsLocked || inviteSentToday}
-                  title={
-                    inviteSentToday
-                      ? 'Já enviado hoje — tente novamente amanhã'
-                      : hasPartnerAccess
-                        ? 'Enviar convite de equipe por e-mail'
-                        : 'Enviar convite de onboarding'
-                  }
-                  onClick={() => void sendOnboardingEmail()}
-                >
-                  {onboardingEmailBusy
-                    ? 'Enviando…'
-                    : inviteSentToday
-                      ? 'E-mail enviado hoje'
-                      : hasPartnerAccess
-                        ? 'Enviar convite equipe'
-                        : 'Enviar convite por e-mail'}
-                </button>
-                {hasPartnerAccess ? null : (
-                  <button
-                    type="button"
-                    className="btn-ghost btn-sm"
-                    disabled={inviteActionsLocked}
-                    title="Gerar link de cadastro (onboarding)"
-                    onClick={() => void generateOnboardingLink()}
-                  >
-                    {onboardingBusy ? 'Gerando…' : 'Gerar link de cadastro'}
-                  </button>
-                )}
-              </div>
-              {!unitsLoading && units.length === 0 ? (
-                <p className="muted" style={{ marginBottom: 0 }}>
-                  Cadastre ao menos uma unidade para habilitar{' '}
-                  {hasPartnerAccess ? 'o convite da equipe' : 'o onboarding'}.
-                </p>
-              ) : null}
-              {onboardingUrl ? (
-                <div className="field-span-full" style={{ marginTop: '0.75rem' }}>
-                  <span>
-                    {hasPartnerAccess ? 'Link aberto de convite da equipe' : 'Link para enviar ao parceiro'}
-                  </span>
-                  <input className="input" readOnly value={onboardingUrl} style={{ marginTop: '0.35rem' }} />
-                  <div className="form-actions" style={{ marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => void copyOnboardingLink()}>
-                      Copiar
-                    </button>
-                    <a
+                  {!hasPartnerAccess ? (
+                    <button
+                      type="button"
                       className="btn-ghost btn-sm"
-                      href={onboardingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      disabled={inviteActionsLocked || inviteSentToday}
+                      onClick={() => void sendOnboardingEmail()}
                     >
-                      Abrir
-                    </a>
-                  </div>
-                  {onboardingExpiresAt ? (
-                    <p className="muted" style={{ margin: '0.35rem 0 0' }}>
-                      Válido até {new Date(onboardingExpiresAt).toLocaleString('pt-BR')}.
-                    </p>
+                      {onboardingEmailBusy
+                        ? 'Enviando…'
+                        : inviteSentToday
+                          ? 'E-mail enviado hoje'
+                          : 'Enviar convite por e-mail'}
+                    </button>
                   ) : null}
                 </div>
+                {onboardingLink?.inviteUrl ? (
+                  <PartnerInviteLinkRow
+                    linkMeta={onboardingLink}
+                    onCopy={() => void copyInviteUrl(onboardingLink.inviteUrl)}
+                  />
+                ) : null}
+              </div>
+
+              <div className="network-partner-invite-block">
+                <h4 className="network-partner-invite-block-title">2. Equipe (novo membro)</h4>
+                <p className="muted network-partner-invite-block-lead">
+                  Inclui outra pessoa com acesso às unidades — sem repetir o assistente inicial.
+                </p>
+                <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className={hasPartnerAccess ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
+                    disabled={inviteActionsLocked}
+                    onClick={() => void generatePartnerInviteLink('team')}
+                  >
+                    {teamLinkBusy
+                      ? 'Gerando…'
+                      : teamLink?.inviteUrl
+                        ? 'Exibir link de equipe'
+                        : 'Gerar link de equipe'}
+                  </button>
+                  {hasPartnerAccess ? (
+                    <button
+                      type="button"
+                      className="btn-ghost btn-sm"
+                      disabled={inviteActionsLocked || inviteSentToday}
+                      onClick={() => void sendOnboardingEmail()}
+                    >
+                      {onboardingEmailBusy
+                        ? 'Enviando…'
+                        : inviteSentToday
+                          ? 'E-mail enviado hoje'
+                          : 'Enviar convite equipe por e-mail'}
+                    </button>
+                  ) : null}
+                </div>
+                {teamLink?.inviteUrl ? (
+                  <PartnerInviteLinkRow linkMeta={teamLink} onCopy={() => void copyInviteUrl(teamLink.inviteUrl)} />
+                ) : null}
+              </div>
+
+              {!unitsLoading && units.length === 0 ? (
+                <p className="muted" style={{ marginBottom: 0 }}>
+                  Cadastre ao menos uma unidade para habilitar os convites.
+                </p>
               ) : null}
             </section>
 

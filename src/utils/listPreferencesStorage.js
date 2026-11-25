@@ -56,6 +56,18 @@ function normalizeSuppressedIds(value) {
   return value.filter((item) => typeof item === 'string');
 }
 
+const NETWORKS_PARTNER_ACCESS = new Set(['all', 'with_access', 'without_access', 'invite_pending']);
+
+function normalizeNetworksPage(value) {
+  if (!value || typeof value !== 'object') return undefined;
+  const partnerAccess = NETWORKS_PARTNER_ACCESS.has(value.partnerAccess)
+    ? value.partnerAccess
+    : 'all';
+  const mapCity = typeof value.mapCity === 'string' ? value.mapCity : '';
+  const mapLayerMode = value.mapLayerMode === 'networks' ? 'networks' : 'units';
+  return { partnerAccess, mapCity, mapLayerMode };
+}
+
 export function loadListPreferences(storageKey) {
   if (!storageKey) return null;
 
@@ -83,6 +95,11 @@ export function loadListPreferences(storageKey) {
         costCenterId:
           typeof parsed.apiFilters.costCenterId === 'string' ? parsed.apiFilters.costCenterId : '',
       };
+    }
+
+    const networksPage = normalizeNetworksPage(parsed.networksPage);
+    if (networksPage) {
+      preferences.networksPage = networksPage;
     }
 
     return preferences;
@@ -123,6 +140,12 @@ export function saveListPreferences(storageKey, preferences) {
         costCenterId:
           typeof merged.apiFilters.costCenterId === 'string' ? merged.apiFilters.costCenterId : '',
       };
+    }
+
+    const networksPage =
+      normalizeNetworksPage(merged.networksPage) ?? normalizeNetworksPage(existing.networksPage);
+    if (networksPage) {
+      payload.networksPage = networksPage;
     }
 
     localStorage.setItem(key, JSON.stringify(payload));
