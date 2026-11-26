@@ -1,30 +1,118 @@
+.network-partner-invites-section .form-section-title {
+  margin-bottom: 0.35rem;
+}
+
+.network-partner-invites-lead {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.network-partner-invite-feedback {
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.network-partner-invite-feedback--success {
+  background: #ecfdf3;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.network-partner-invite-feedback--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.network-partner-invites-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+@media (min-width: 960px) {
+  .network-partner-invites-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
 .network-partner-invite-block {
-  margin-top: 1.25rem;
-  padding: 1rem 1.125rem;
+  margin-top: 0;
+  padding: 0.65rem 0.75rem;
   border: 1px solid var(--border, #e2e5ee);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface, #fff);
+}
+
+.network-partner-invite-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.65rem;
+}
+
+.network-partner-invite-block-head-text {
+  flex: 1 1 10rem;
+  min-width: 0;
 }
 
 .network-partner-invite-block-title {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .network-partner-invite-block-lead {
-  margin: 0.35rem 0 0.75rem;
-  font-size: 0.8125rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.network-partner-invite-block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .network-partner-invite-link {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border, #e8eaef);
 }
 
-.network-partner-invite-link-head {
+.network-partner-invite-url-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1rem;
-  margin-bottom: 0.35rem;
+  gap: 0.35rem;
+}
+
+.network-partner-invite-url-row + .network-partner-invite-url-row {
+  margin-top: 0.35rem;
+}
+
+.network-partner-invite-url-input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  padding: 0.3125rem 0.5rem;
+}
+
+.network-partner-invite-expires {
+  font-size: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.badge.badge-sm {
+  font-size: 0.6875rem;
+  padding: 0.15rem 0.45rem;
 }

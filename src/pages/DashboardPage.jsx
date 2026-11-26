@@ -104,8 +104,17 @@ export function DashboardPage() {
 
       <div className="stat-grid">
         <article className="panel stat-panel">
-          <span className="stat-label">Parceiros</span>
-          <strong className="stat-value">{overview?.networks?.length ?? '—'}</strong>
+          <span className="stat-label">Parceiros com onboarding concluído</span>
+          <strong className="stat-value">
+            {overview?.partnerPortalAccess
+              ? `${formatPtNumber(overview.partnerPortalAccess.withAccessCount)} / ${formatPtNumber(overview.partnerPortalAccess.totalNetworks)}`
+              : overview?.networks?.length != null
+                ? formatPtNumber(overview.networks.length)
+                : '—'}
+          </strong>
+          <p className="muted stat-panel-hint">
+            Redes com acesso ao portal (com acesso) · visíveis no app do aluno
+          </p>
           <Link to="/m/operacao/redes" className="stat-link">
             Ver redes →
           </Link>

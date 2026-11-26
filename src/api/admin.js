@@ -68,13 +68,13 @@ export function createPartnerOnboardingInvite(networkId, kind = 'onboarding') {
   });
 }
 
-/** Envia convite por e-mail (1× por dia por academia/rede): onboarding ou equipe, conforme o acesso da rede. */
-export function sendPartnerOnboardingInviteEmail(networkId) {
+/** Envia convite por e-mail (1× por dia por academia/rede, ou com `forceResend` após confirmação no admin). */
+export function sendPartnerOnboardingInviteEmail(networkId, { forceResend = false } = {}) {
   return fetchApi(
     `/api/admin/networks/${encodeURIComponent(networkId)}/partner-onboarding-invite-email`,
     {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify(forceResend ? { forceResend: true } : {}),
     },
   );
 }

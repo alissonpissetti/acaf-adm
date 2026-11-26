@@ -25,7 +25,7 @@ import { networkMatchesNameOrCnpj } from '../utils/networkCnpjSearch.js';
  * | partnerAccessStatus | Portal parceiro | Portal | Situação do acesso ao portal do parceiro (onboarding). |
  * | partnerUserCount | Usuários vinculados | Usuários | Equipe com login nas unidades desta rede. |
  * | onboardingInviteEmail | E-mail convite | E-mail | Destino do convite de onboarding. |
- * | onboardingInviteSend | Enviar convite | Enviar | Dispara o e-mail de onboarding. |
+ * | onboardingInviteSend | Enviar convite | Enviar | Dispara o e-mail de boas-vindas (onboarding). |
  * | commercialOwnerName | Resp. comercial | Resp. com. | Responsável comercial interno (ACAF) pela conta. |
  */
 const NETWORKS_TABLE_COLUMN_HINTS = {
@@ -200,11 +200,17 @@ export function NetworksList({
       flash.error('Cadastre o e-mail responsável da rede ou importe o e-mail da planilha na unidade.');
       return;
     }
+    let forceResend = false;
     if (row.onboardingInviteEmailSentToday) {
-      flash.error(
-        'Já foi enviado um convite hoje para esta academia/rede. Você poderá reenviar amanhã.',
-      );
-      return;
+      const isTeam = Boolean(row.hasPartnerUser);
+      const ok = await appConfirm({
+        title: isTeam ? 'Reenviar convite de equipe hoje?' : 'Reenviar e-mail de boas-vindas?',
+        message:
+          'Já houve um envio hoje para esta academia/rede. Reenviar pode gerar outro e-mail na caixa do destinatário. Deseja continuar?',
+        confirmLabel: 'Reenviar',
+      });
+      if (!ok) return;
+      forceResend = true;
     }
     if ((row.unitCount ?? 0) < 1) {
       flash.error('Cadastre ao menos uma unidade antes de enviar o convite.');
@@ -213,11 +219,14 @@ export function NetworksList({
     setInviteEmailBusyId(row.id);
     const isTeam = Boolean(row.hasPartnerUser);
     try {
-      const res = await sendPartnerOnboardingInviteEmail(row.id);
-      const kindLabel = res.inviteKind === 'team' || isTeam ? 'equipe' : 'onboarding';
+      const res = await sendPartnerOnboardingInviteEmail(row.id, { forceResend });
+      const kindLabel =
+        res.inviteKind === 'team' || isTeam ? 'Convite de equipe' : 'E-mail de boas-vindas';
+      const verb = forceResend ? 'Reenviado' : 'Enviado';
+      const at = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       flash.success(
-        `Convite de ${kindLabel} enviado para ${res.recipientEmail ?? row.onboardingInviteEmail}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
-        9000,
+        `${verb} às ${at}: ${kindLabel} para ${res.recipientEmail ?? row.onboardingInviteEmail}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
+        12000,
       );
       onInviteEmailSent?.();
     } catch (err) {
@@ -451,7 +460,7 @@ export function NetworksList({
           mobileLabel: 'Convite',
           headerAbbr: 'Enviar',
           headerHint:
-            'Onboarding (rede sem acesso) ou convite equipe (rede já configurada). Máx. 1 e-mail/dia por academia/rede.',
+            'Onboarding ou equipe. Até 1 envio automático/dia; reenvio no mesmo dia pede confirmação.',
           className: 'data-table-col-network-invite-send',
           render: (row) => {
             const busy = inviteEmailBusyId === row.id;
@@ -459,14 +468,20 @@ export function NetworksList({
             const sentToday = Boolean(row.onboardingInviteEmailSentToday);
             const noUnits = (row.unitCount ?? 0) < 1;
             const hasAccess = Boolean(row.hasPartnerUser);
-            const disabled = busy || noEmail || sentToday || noUnits;
+            const disabled = busy || noEmail || noUnits;
             let title = hasAccess
               ? 'Enviar convite de equipe por e-mail (novo usuário no portal)'
-              : 'Enviar convite de onboarding por e-mail';
+              : 'Enviar e-mail de boas-vindas (onboarding)';
             if (noEmail) title = 'Sem e-mail — cadastre na rede ou na planilha';
-            else if (sentToday) title = 'Já enviado hoje — tente novamente amanhã';
+            else if (sentToday) title = 'Já enviado hoje — clique para reenviar (com confirmação)';
             else if (noUnits) title = 'Cadastre uma unidade';
-            const label = busy ? 'Enviando…' : sentToday ? 'Enviado hoje' : hasAccess ? 'Convite equipe' : 'Enviar';
+            const label = busy
+              ? 'Enviando…'
+              : sentToday
+                ? 'Reenviar'
+                : hasAccess
+                  ? 'Convite equipe'
+                  : 'Enviar';
             return (
               <span className="networks-invite-send-cell">
                 <button

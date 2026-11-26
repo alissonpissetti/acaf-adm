@@ -87,6 +87,14 @@ export function NetworksPage() {
     [networks, partnerAccessFilter],
   );
 
+  const partnerOnboardingKpi = useMemo(() => {
+    const total = networks.length;
+    const withAccess = networks.filter(
+      (n) => Boolean(n.hasPartnerUser) || Number(n.partnerUserCount) > 0,
+    ).length;
+    return { withAccess, total };
+  }, [networks]);
+
   const load = async () => {
     setLoading(true);
     setError('');
@@ -355,6 +363,17 @@ export function NetworksPage() {
   return (
     <div className="page-stack">
       <CrudAlerts error={error} />
+      {!loading && partnerOnboardingKpi.total > 0 ? (
+        <article className="panel stat-panel networks-partner-onboarding-kpi">
+          <span className="stat-label">Onboarding portal · com acesso</span>
+          <strong className="stat-value">
+            {partnerOnboardingKpi.withAccess} / {partnerOnboardingKpi.total}
+          </strong>
+          <p className="muted stat-panel-hint">
+            Redes que concluíram o cadastro no portal e aparecem no app do aluno
+          </p>
+        </article>
+      ) : null}
       {dangerToolsVisible ? (
         <section className="panel acaf-purge-panel">
           <div className="panel-body acaf-purge-panel-body">

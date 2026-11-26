@@ -293,18 +293,26 @@ function PartnerInviteLinkRow({ linkMeta, onCopy }) {
     : linkMeta.expired
       ? 'badge-warning'
       : 'badge-success';
+  const expiresLabel = linkMeta.expiresAt
+    ? new Date(linkMeta.expiresAt).toLocaleString('pt-BR')
+    : null;
   return (
     <div className="network-partner-invite-link">
-      <div className="network-partner-invite-link-head">
-        <span className={`badge ${statusClass}`}>{statusLabel}</span>
-        {linkMeta.expiresAt ? (
-          <span className="muted" style={{ fontSize: '0.8125rem' }}>
-            Válido até {new Date(linkMeta.expiresAt).toLocaleString('pt-BR')}
+      <div className="network-partner-invite-url-row">
+        <span className={`badge badge-sm ${statusClass}`}>{statusLabel}</span>
+        {expiresLabel ? (
+          <span className="network-partner-invite-expires muted" title="Validade do link">
+            até {expiresLabel}
           </span>
         ) : null}
       </div>
-      <input className="input" readOnly value={linkMeta.inviteUrl} aria-label="Link do convite" />
-      <div className="form-actions" style={{ marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div className="network-partner-invite-url-row">
+        <input
+          className="input network-partner-invite-url-input"
+          readOnly
+          value={linkMeta.inviteUrl}
+          aria-label="Link do convite"
+        />
         <button type="button" className="btn-ghost btn-sm" onClick={() => void onCopy()}>
           Copiar
         </button>
@@ -342,6 +350,7 @@ export function NetworkEditScreen({
   const [onboardingLinkBusy, setOnboardingLinkBusy] = useState(false);
   const [teamLinkBusy, setTeamLinkBusy] = useState(false);
   const [onboardingEmailBusy, setOnboardingEmailBusy] = useState(false);
+  const [partnerEmailFeedback, setPartnerEmailFeedback] = useState(null);
   const [partnerContactName, setPartnerContactName] = useState(network.partnerContactName ?? '');
   const [partnerContactEmail, setPartnerContactEmail] = useState(network.partnerContactEmail ?? '');
   const [partnerContactPhoneDisplay, setPartnerContactPhoneDisplay] = useState(
@@ -517,21 +526,37 @@ export function NetworkEditScreen({
   };
 
   const sendOnboardingEmail = async () => {
+    const forceResend = inviteSentToday;
+    if (forceResend) {
+      const isTeamMail = hasPartnerAccess;
+      const ok = await appConfirm({
+        title: isTeamMail ? 'Reenviar convite de equipe hoje?' : 'Reenviar e-mail de boas-vindas?',
+        message:
+          'Já houve um envio hoje para esta academia/rede. Reenviar pode gerar outro e-mail na caixa do destinatário. Deseja continuar?',
+        confirmLabel: 'Reenviar',
+      });
+      if (!ok) return;
+    }
     setOnboardingEmailBusy(true);
     setError('');
+    setPartnerEmailFeedback(null);
     try {
-      const res = await sendPartnerOnboardingInviteEmail(network.id);
+      const res = await sendPartnerOnboardingInviteEmail(network.id, { forceResend });
       const mailKind = res.inviteKind === 'team' ? 'team' : 'onboarding';
       applyInviteResult(mailKind, res);
-      const kind =
-        res.inviteKind === 'team' || hasPartnerAccess ? 'equipe' : 'onboarding';
-      flash.success(
-        `Convite de ${kind} enviado para ${res.recipientEmail}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
-        9000,
-      );
+      const sentLabel =
+        res.inviteKind === 'team' || hasPartnerAccess ? 'Convite de equipe' : 'E-mail de boas-vindas';
+      const verb = forceResend ? 'Reenviado' : 'Enviado';
+      const at = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const feedback = `${verb} às ${at}: ${sentLabel} para ${res.recipientEmail}. Link válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`;
+      setPartnerEmailFeedback({ kind: 'success', text: feedback });
+      setMessage(`${verb} — ${sentLabel} para ${res.recipientEmail}.`);
+      flash.success(feedback, 12000);
       onUpdated?.();
     } catch (err) {
-      setError(err.message);
+      const text = err instanceof Error ? err.message : 'Não foi possível enviar o e-mail.';
+      setPartnerEmailFeedback({ kind: 'error', text });
+      setError(text);
     } finally {
       setOnboardingEmailBusy(false);
     }
@@ -787,99 +812,115 @@ export function NetworkEditScreen({
               </div>
             </section>
 
-            <section className="form-section field-span-full">
+            <section className="form-section field-span-full network-partner-invites-section">
               <h3 className="form-section-title">Links do portal do parceiro</h3>
-              <p className="muted" style={{ marginTop: 0 }}>
-                Cada tipo de convite tem um <strong>link fixo</strong>: após gerado uma vez, ele permanece nesta tela
-                (válido 14 dias, até ser utilizado ou vencer). O <strong>onboarding</strong> é o cadastro inicial; o
-                de <strong>equipe</strong> adiciona pessoas quando o acesso já existe. Envio por e-mail: máximo{' '}
-                <strong>1 por dia</strong> por academia/rede, usando o mesmo link persistido.
+              <p className="muted network-partner-invites-lead">
+                Links fixos (14 dias). E-mail de boas-vindas ou convite de equipe: até 1 envio automático por dia;{' '}
                 {inviteSentToday ? (
-                  <>
-                    {' '}
-                    <strong>Já houve envio hoje</strong> — reenvio por e-mail amanhã; os links abaixo seguem
-                    disponíveis.
-                  </>
-                ) : null}
+                  <strong>já enviado hoje</strong>
+                ) : (
+                  'ainda não enviado hoje'
+                )}
+                {' — '}
+                reenvio pede confirmação.
               </p>
-
-              <div className="network-partner-invite-block">
-                <h4 className="network-partner-invite-block-title">1. Onboarding (cadastro inicial)</h4>
-                <p className="muted network-partner-invite-block-lead">
-                  Primeiro usuário da rede — assistente completo de configuração.
+              {partnerEmailFeedback ? (
+                <p
+                  className={`network-partner-invite-feedback network-partner-invite-feedback--${partnerEmailFeedback.kind}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {partnerEmailFeedback.text}
                 </p>
-                <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    className="btn-primary btn-sm"
-                    disabled={inviteActionsLocked}
-                    onClick={() => void generatePartnerInviteLink('onboarding')}
-                  >
-                    {onboardingLinkBusy
-                      ? 'Gerando…'
-                      : onboardingLink?.inviteUrl
-                        ? 'Exibir link de onboarding'
-                        : 'Gerar link de onboarding'}
-                  </button>
-                  {!hasPartnerAccess ? (
-                    <button
-                      type="button"
-                      className="btn-ghost btn-sm"
-                      disabled={inviteActionsLocked || inviteSentToday}
-                      onClick={() => void sendOnboardingEmail()}
-                    >
-                      {onboardingEmailBusy
-                        ? 'Enviando…'
-                        : inviteSentToday
-                          ? 'E-mail enviado hoje'
-                          : 'Enviar convite por e-mail'}
-                    </button>
+              ) : null}
+
+              <div className="network-partner-invites-grid">
+                <div className="network-partner-invite-block">
+                  <div className="network-partner-invite-block-head">
+                    <div className="network-partner-invite-block-head-text">
+                      <h4 className="network-partner-invite-block-title">1. Onboarding</h4>
+                      <p className="muted network-partner-invite-block-lead">
+                        Cadastro inicial — primeiro usuário da rede.
+                      </p>
+                    </div>
+                    <div className="network-partner-invite-block-actions">
+                      <button
+                        type="button"
+                        className="btn-primary btn-sm"
+                        disabled={inviteActionsLocked}
+                        onClick={() => void generatePartnerInviteLink('onboarding')}
+                      >
+                        {onboardingLinkBusy
+                          ? 'Gerando…'
+                          : onboardingLink?.inviteUrl
+                            ? 'Exibir link'
+                            : 'Gerar link'}
+                      </button>
+                      {!hasPartnerAccess ? (
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          disabled={inviteActionsLocked}
+                          onClick={() => void sendOnboardingEmail()}
+                        >
+                          {onboardingEmailBusy
+                            ? 'Enviando…'
+                            : inviteSentToday
+                              ? 'Reenviar boas-vindas'
+                              : 'Enviar boas-vindas'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {onboardingLink?.inviteUrl ? (
+                    <PartnerInviteLinkRow
+                      linkMeta={onboardingLink}
+                      onCopy={() => void copyInviteUrl(onboardingLink.inviteUrl)}
+                    />
                   ) : null}
                 </div>
-                {onboardingLink?.inviteUrl ? (
-                  <PartnerInviteLinkRow
-                    linkMeta={onboardingLink}
-                    onCopy={() => void copyInviteUrl(onboardingLink.inviteUrl)}
-                  />
-                ) : null}
-              </div>
 
-              <div className="network-partner-invite-block">
-                <h4 className="network-partner-invite-block-title">2. Equipe (novo membro)</h4>
-                <p className="muted network-partner-invite-block-lead">
-                  Inclui outra pessoa com acesso às unidades — sem repetir o assistente inicial.
-                </p>
-                <div className="form-actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    className={hasPartnerAccess ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
-                    disabled={inviteActionsLocked}
-                    onClick={() => void generatePartnerInviteLink('team')}
-                  >
-                    {teamLinkBusy
-                      ? 'Gerando…'
-                      : teamLink?.inviteUrl
-                        ? 'Exibir link de equipe'
-                        : 'Gerar link de equipe'}
-                  </button>
-                  {hasPartnerAccess ? (
-                    <button
-                      type="button"
-                      className="btn-ghost btn-sm"
-                      disabled={inviteActionsLocked || inviteSentToday}
-                      onClick={() => void sendOnboardingEmail()}
-                    >
-                      {onboardingEmailBusy
-                        ? 'Enviando…'
-                        : inviteSentToday
-                          ? 'E-mail enviado hoje'
-                          : 'Enviar convite equipe por e-mail'}
-                    </button>
+                <div className="network-partner-invite-block">
+                  <div className="network-partner-invite-block-head">
+                    <div className="network-partner-invite-block-head-text">
+                      <h4 className="network-partner-invite-block-title">2. Equipe</h4>
+                      <p className="muted network-partner-invite-block-lead">
+                        Novo membro — sem repetir o assistente inicial.
+                      </p>
+                    </div>
+                    <div className="network-partner-invite-block-actions">
+                      <button
+                        type="button"
+                        className={hasPartnerAccess ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
+                        disabled={inviteActionsLocked}
+                        onClick={() => void generatePartnerInviteLink('team')}
+                      >
+                        {teamLinkBusy
+                          ? 'Gerando…'
+                          : teamLink?.inviteUrl
+                            ? 'Exibir link'
+                            : 'Gerar link'}
+                      </button>
+                      {hasPartnerAccess ? (
+                        <button
+                          type="button"
+                          className="btn-ghost btn-sm"
+                          disabled={inviteActionsLocked}
+                          onClick={() => void sendOnboardingEmail()}
+                        >
+                          {onboardingEmailBusy
+                            ? 'Enviando…'
+                            : inviteSentToday
+                              ? 'Reenviar convite'
+                              : 'Enviar convite'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {teamLink?.inviteUrl ? (
+                    <PartnerInviteLinkRow linkMeta={teamLink} onCopy={() => void copyInviteUrl(teamLink.inviteUrl)} />
                   ) : null}
                 </div>
-                {teamLink?.inviteUrl ? (
-                  <PartnerInviteLinkRow linkMeta={teamLink} onCopy={() => void copyInviteUrl(teamLink.inviteUrl)} />
-                ) : null}
               </div>
 
               {!unitsLoading && units.length === 0 ? (
