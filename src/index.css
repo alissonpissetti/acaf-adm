@@ -409,6 +409,82 @@ code {
   max-width: 22rem;
 }
 
+.dashboard-kpi-grid {
+  align-items: stretch;
+}
+
+.dashboard-kpi-card {
+  min-height: 10.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dashboard-kpi-card__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 3.25rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.dashboard-kpi-card__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  min-height: 2.65em;
+}
+
+.dashboard-kpi-card__footer {
+  margin-top: auto;
+  min-height: 1.65rem;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.dashboard-kpi-card__meta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.stat-value--hero {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.stat-value-fraction {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.2rem;
+  line-height: 1;
+}
+
+.stat-value-fraction__num {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.stat-value-fraction__sep,
+.stat-value-fraction__den {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.dashboard-kpi-api-badge {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+}
+
 .stat-link {
   margin-top: 0.25rem;
   font-size: 0.8125rem;
@@ -2416,9 +2492,39 @@ textarea {
   flex-wrap: wrap;
 }
 
+.association-portal-users--compact .association-portal-users__header {
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+}
+
+.association-portal-users--compact .association-portal-users__header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.association-portal-users__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.association-portal-users__subtitle code {
+  font-size: 0.7rem;
+}
+
+.association-portal-users--compact .association-portal-users__body {
+  padding: 0.65rem 1rem 1rem;
+}
+
 .association-portal-users-body.partner-users-field {
   border-top: none;
   padding-top: 0;
+}
+
+.association-portal-users--compact .association-portal-users-body.partner-users-field {
+  gap: 0.65rem;
 }
 
 .association-portal-users-linked {
@@ -2427,17 +2533,92 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
-.association-portal-users-linked-title {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0 0 0.75rem;
+.association-portal-users--compact .association-portal-users-linked {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .association-portal-users-count {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.75rem;
+  min-width: 1.75rem;
+  justify-content: center;
+}
+
+.partner-users-list--compact {
+  gap: 0.35rem;
+  margin-top: 0;
+}
+
+.association-portal-users--compact .partner-users-list--compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 0.4rem;
+}
+
+.partner-users-list-item {
+  min-width: 0;
+}
+
+.association-portal-users--compact .partner-users-list li.partner-users-list-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.5rem;
+}
+
+.partner-user-meta--compact {
+  gap: 0.1rem;
+}
+
+.partner-user-meta__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.association-portal-users--compact .partner-users-list strong {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.partner-user-meta__detail {
+  display: block;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.association-portal-users--compact .partner-user-row {
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.partner-users-list-item__action {
+  display: flex;
+  justify-content: flex-end;
+  padding-left: 1.85rem;
+}
+
+.association-portal-users--compact .partner-users-search label span {
+  font-size: 0.75rem;
+}
+
+.association-portal-users--compact .partner-users-search input {
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.55rem;
+}
+
+.partner-users-help--compact {
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .partner-users-create-form {

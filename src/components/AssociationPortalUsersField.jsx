@@ -133,38 +133,53 @@ export function AssociationPortalUsersField({
     }
   };
 
-  const renderUserRow = (user, { action }) => (
-    <li key={user.id}>
-      <div className="partner-user-row">
-        <Avatar name={user.name} src={user.avatarUrl} color={user.avatarColor} size="sm" />
-        <div className="partner-user-meta">
-          <strong>{user.name}</strong>
-          <span className="muted">{user.email}</span>
-          <span className="muted partner-user-subline">
-            {[user.cpf, rolesLabel(user)].filter(Boolean).join(' · ')}
-            {user.active === false ? (
-              <span className="badge badge-muted partner-users-inactive-badge">Inativo</span>
-            ) : null}
-          </span>
+  const renderUserRow = (user, { action }) => {
+    const detail = [user.email, user.cpf, rolesLabel(user)].filter(Boolean).join(' · ');
+    return (
+      <li key={user.id} className="partner-users-list-item">
+        <div className="partner-user-row">
+          <Avatar name={user.name} src={user.avatarUrl} color={user.avatarColor} size="xs" />
+          <div className="partner-user-meta partner-user-meta--compact">
+            <div className="partner-user-meta__head">
+              <strong>{user.name}</strong>
+              {user.active === false ? (
+                <span className="badge badge-muted partner-users-inactive-badge">Inativo</span>
+              ) : null}
+            </div>
+            <span className="muted partner-user-meta__detail" title={detail}>
+              {detail}
+            </span>
+          </div>
         </div>
-      </div>
-      {action}
-    </li>
-  );
+        {action ? <div className="partner-users-list-item__action">{action}</div> : null}
+      </li>
+    );
+  };
 
   return (
-    <section className="panel field-span-full association-portal-users">
-      <div className="panel-header">
-        <h2>Usuários do portal</h2>
-        <span className="badge badge-muted association-portal-users-count">{users.length} vinculado(s)</span>
+    <section className="panel field-span-full association-portal-users association-portal-users--compact">
+      <div className="panel-header association-portal-users__header">
+        <div>
+          <h2>Pessoas associadas</h2>
+          <p className="muted association-portal-users__subtitle">
+            Portal de parceiros · {associationName ?? 'esta associação'}
+            {partnersPermissionKey ? (
+              <>
+                {' '}
+                · permissão <code>{partnersPermissionKey}</code>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <span className="badge badge-muted association-portal-users-count">{users.length}</span>
       </div>
-      <div className="panel-body">
-        <p className="muted partner-users-help">
-          Acesso ao painel de parceiros de <strong>{associationName ?? 'esta associação'}</strong>. Conceda também{' '}
-          {partnersPermissionKey ? <code>{partnersPermissionKey}</code> : 'a permissão do portal'} no grupo de acesso.
-        </p>
-
+      <div className="panel-body association-portal-users__body">
         <div className="partner-users-field association-portal-users-body">
+          {!readOnly ? (
+            <p className="muted partner-users-help partner-users-help--compact">
+              Busque um usuário da plataforma e associe ao portal. Conceda a permissão no grupo de acesso.
+            </p>
+          ) : null}
           {!readOnly ? (
             <div className="partner-users-search">
               <label>
@@ -208,9 +223,8 @@ export function AssociationPortalUsersField({
           ) : null}
 
           <div className="association-portal-users-linked">
-            <h3 className="association-portal-users-linked-title">Vinculados</h3>
             {users.length ? (
-              <ul className="partner-users-list">
+              <ul className="partner-users-list partner-users-list--compact">
                 {users.map((user) =>
                   renderUserRow(user, {
                     action: !readOnly ? (

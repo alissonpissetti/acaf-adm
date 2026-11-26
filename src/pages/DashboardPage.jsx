@@ -37,6 +37,17 @@ function formatShortIso(iso) {
   }
 }
 
+function DashboardKpiCard({ label, hint, main, footer }) {
+  return (
+    <article className="panel stat-panel dashboard-kpi-card">
+      <span className="stat-label">{label}</span>
+      <div className="dashboard-kpi-card__main">{main}</div>
+      {hint ? <p className="muted dashboard-kpi-card__hint">{hint}</p> : null}
+      <div className="dashboard-kpi-card__footer">{footer ?? null}</div>
+    </article>
+  );
+}
+
 /** Aceita ISO ou YYYY-MM-DD. */
 function formatPtDateOnly(value) {
   if (!value) return '';
@@ -102,44 +113,82 @@ export function DashboardPage() {
         subtitle="Visão consolidada da operação."
       />
 
-      <div className="stat-grid">
-        <article className="panel stat-panel">
-          <span className="stat-label">Parceiros com onboarding concluído</span>
-          <strong className="stat-value">
-            {overview?.partnerPortalAccess
-              ? `${formatPtNumber(overview.partnerPortalAccess.withAccessCount)} / ${formatPtNumber(overview.partnerPortalAccess.totalNetworks)}`
-              : overview?.networks?.length != null
-                ? formatPtNumber(overview.networks.length)
-                : '—'}
-          </strong>
-          <p className="muted stat-panel-hint">
-            Redes com acesso ao portal (com acesso) · visíveis no app do aluno
-          </p>
-          <Link to="/m/operacao/redes" className="stat-link">
-            Ver redes →
-          </Link>
-        </article>
+      <div className="stat-grid dashboard-kpi-grid">
+        <DashboardKpiCard
+          label="Onboarding concluído"
+          hint={
+            overview?.partnerPortalAccess && overview.partnerPortalAccess.totalNetworks > 0
+              ? `${formatPtPercent(
+                  (overview.partnerPortalAccess.withAccessCount / overview.partnerPortalAccess.totalNetworks) *
+                    100,
+                )} do cadastro com acesso ao portal · visíveis no app`
+              : 'Marcas com acesso ao portal parceiro (com acesso)'
+          }
+          main={
+            overview?.partnerPortalAccess ? (
+              <div
+                className="stat-value-fraction"
+                aria-label={`${overview.partnerPortalAccess.withAccessCount} de ${overview.partnerPortalAccess.totalNetworks} redes com acesso`}
+              >
+                <span className="stat-value-fraction__num">
+                  {formatPtNumber(overview.partnerPortalAccess.withAccessCount)}
+                </span>
+                <span className="stat-value-fraction__sep">/</span>
+                <span className="stat-value-fraction__den">
+                  {formatPtNumber(overview.partnerPortalAccess.totalNetworks)}
+                </span>
+              </div>
+            ) : (
+              <strong className="stat-value stat-value--hero">
+                {overview?.networks?.length != null ? formatPtNumber(overview.networks.length) : '—'}
+              </strong>
+            )
+          }
+          footer={
+            <Link to="/m/operacao/redes" className="stat-link">
+              Ver redes →
+            </Link>
+          }
+        />
 
-        <article className="panel stat-panel">
-          <span className="stat-label">Unidades totais</span>
-          <strong className="stat-value">{overview?.unitCount ?? '—'}</strong>
-        </article>
+        <DashboardKpiCard
+          label="Unidades totais"
+          hint="Todas as filiais no cadastro operacional"
+          main={
+            <strong className="stat-value stat-value--hero">{formatPtNumber(overview?.unitCount)}</strong>
+          }
+          footer={
+            <Link to="/m/operacao/redes" className="stat-link">
+              Ver por rede →
+            </Link>
+          }
+        />
 
-        <article className="panel stat-panel">
-          <span className="stat-label">Planos</span>
-          <strong className="stat-value">{overview?.planCount ?? '—'}</strong>
-          <Link to="/m/operacao/planos" className="stat-link">
-            Gerenciar planos →
-          </Link>
-        </article>
+        <DashboardKpiCard
+          label="Planos"
+          hint="Planos disponíveis no catálogo Movly"
+          main={
+            <strong className="stat-value stat-value--hero">{formatPtNumber(overview?.planCount)}</strong>
+          }
+          footer={
+            <Link to="/m/operacao/planos" className="stat-link">
+              Gerenciar planos →
+            </Link>
+          }
+        />
 
-        <article className="panel stat-panel">
-          <span className="stat-label">Status da API</span>
-          <strong className="stat-value stat-value-sm">{health?.service ?? 'connect-api'}</strong>
-          <span className={`badge ${health ? 'badge-success' : error ? 'badge-error' : 'badge-muted'}`}>
-            {health ? health.status : error ? 'offline' : 'verificando...'}
-          </span>
-        </article>
+        <DashboardKpiCard
+          label="Status da API"
+          hint={API_URL ? `Base: ${API_URL.replace(/^https?:\/\//, '')}` : undefined}
+          main={
+            <span
+              className={`badge dashboard-kpi-api-badge ${health ? 'badge-success' : error ? 'badge-error' : 'badge-muted'}`}
+            >
+              {health ? health.status : error ? 'offline' : 'verificando…'}
+            </span>
+          }
+          footer={<span className="dashboard-kpi-card__meta">{health?.service ?? 'connect-api'}</span>}
+        />
       </div>
 
       {overview?.acafPayingLivesCount != null ? (
