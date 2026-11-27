@@ -15,6 +15,7 @@ import { activeStatusFilter, selectFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 
 const KIND_OPTIONS = [
   { value: 'expense', label: 'Despesa' },
@@ -339,14 +340,20 @@ export function AccountPlansPage() {
       );
     }
 
+    const recordLabel = `${selected.code} — ${selected.name}`;
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Planos de Conta',
+      goToList: router.goToList,
+      entityLabel: 'plano de conta',
+      recordName: recordLabel,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: `${recordLabel} · ${kindLabel(selected.kind)}`,
+    });
     return (
       <AccountPlanForm
-        title={router.isViewing ? `${selected.code} — ${selected.name}` : 'Editar plano de conta'}
-        subtitle={kindLabel(selected.kind)}
-        breadcrumbs={[
-          { label: 'Planos de Conta', onClick: router.goToList },
-          { label: selected.code },
-        ]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           id: selected.id,
           code: selected.code,

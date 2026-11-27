@@ -12,6 +12,7 @@ import { activeStatusFilter, selectFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 
 const EMPTY = { code: '', name: '', departmentId: '', active: true };
 
@@ -231,14 +232,22 @@ export function CostCentersPage() {
       );
     }
 
+    const recordLabel = `${selected.code} — ${selected.name}`;
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Centros de Custo',
+      goToList: router.goToList,
+      entityLabel: 'centro de custo',
+      recordName: recordLabel,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: selected.departmentName
+        ? `${recordLabel} · ${selected.departmentName}`
+        : recordLabel,
+    });
     return (
       <CostCenterForm
-        title={router.isViewing ? `${selected.code} — ${selected.name}` : 'Editar centro de custo'}
-        subtitle={selected.departmentName ?? 'Centro de custo financeiro'}
-        breadcrumbs={[
-          { label: 'Centros de Custo', onClick: router.goToList },
-          { label: selected.code },
-        ]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           code: selected.code,
           name: selected.name,

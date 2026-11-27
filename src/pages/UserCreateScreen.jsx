@@ -4,6 +4,7 @@ import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions } from '../components/crud/CrudFormActions.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { PasswordInput } from '../components/PasswordInput.jsx';
+import { buildCrudCreatePageHeader } from '../crud/crudRecordPageHeader.js';
 import {
   formatCpfInput,
   formatMobilePhoneInput,
@@ -21,6 +22,13 @@ export function UserCreateScreen({ onBack, onCreated }) {
   });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const pageHeader = buildCrudCreatePageHeader({
+    listLabel: 'Usuários',
+    goToList: onBack,
+    entityLabel: 'usuário',
+    subtitle: 'Informe identificação, contato e senha inicial de acesso.',
+  });
 
   const onSubmit = async (ev) => {
     ev.preventDefault();
@@ -41,84 +49,94 @@ export function UserCreateScreen({ onBack, onCreated }) {
   };
 
   return (
-    <div className="page-stack">
+    <div className="page-stack crud-record-page user-create-page">
       <PageHeader
-        breadcrumbs={[{ label: 'Usuários', onClick: onBack }, { label: 'Novo usuário' }]}
-        title="Adicionar usuário"
-        subtitle="Cadastre uma pessoa na plataforma."
+        breadcrumbs={pageHeader.breadcrumbs}
+        title={pageHeader.title}
+        subtitle={pageHeader.subtitle}
       />
 
       <CrudAlerts error={error} />
 
       <section className="panel">
-        <div className="panel-header">
+        <div className="panel-header panel-header--meta-only">
           <h2>Dados do usuário</h2>
         </div>
         <div className="panel-body">
           <form className="form-grid" onSubmit={onSubmit}>
-            <label>
-              <span>Nome</span>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Nome completo"
-                autoFocus
-                required
-              />
-            </label>
+            <section className="form-section field-span-full">
+              <h3 className="form-section-title">Identificação</h3>
+              <div className="form-grid-inner">
+                <label>
+                  <span>Nome</span>
+                  <input
+                    className="input"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Nome completo"
+                    autoFocus
+                    required
+                  />
+                </label>
 
-            <label>
-              <span>CPF</span>
-              <input
-                value={form.cpf}
-                onChange={(e) => setForm({ ...form, cpf: formatCpfInput(e.target.value) })}
-                placeholder="000.000.000-00"
-                inputMode="numeric"
-                autoComplete="off"
-              />
-            </label>
+                <label>
+                  <span>CPF</span>
+                  <input
+                    className="input"
+                    value={form.cpf}
+                    onChange={(e) => setForm({ ...form, cpf: formatCpfInput(e.target.value) })}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    autoComplete="off"
+                  />
+                </label>
 
-            <label>
-              <span>Celular</span>
-              <input
-                value={form.mobilePhone}
-                onChange={(e) =>
-                  setForm({ ...form, mobilePhone: formatMobilePhoneInput(e.target.value) })
-                }
-                placeholder="(00) 00000-0000"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-              />
-            </label>
+                <label>
+                  <span>Celular</span>
+                  <input
+                    className="input"
+                    value={form.mobilePhone}
+                    onChange={(e) =>
+                      setForm({ ...form, mobilePhone: formatMobilePhoneInput(e.target.value) })
+                    }
+                    placeholder="(00) 00000-0000"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </label>
+              </div>
+            </section>
 
-            <label>
-              <span>E-mail</span>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="usuario@exemplo.com.br"
-                required
-              />
-            </label>
+            <section className="form-section field-span-full">
+              <h3 className="form-section-title">Acesso</h3>
+              <div className="form-grid-inner">
+                <label className="field-span-2">
+                  <span>E-mail</span>
+                  <input
+                    className="input"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="usuario@exemplo.com.br"
+                    required
+                  />
+                </label>
 
-            <label>
-              <span>Senha inicial</span>
-              <PasswordInput
-                value={form.password}
-                onChange={(password) => setForm({ ...form, password })}
-                minLength={6}
-                required
-              />
-            </label>
+                <label className="field-span-2">
+                  <span>Senha inicial</span>
+                  <PasswordInput
+                    value={form.password}
+                    onChange={(password) => setForm({ ...form, password })}
+                    minLength={6}
+                    required
+                  />
+                </label>
+              </div>
+            </section>
 
             <div className="field-span-full form-actions">
-              <CrudFormActions
-                busy={busy}
-                onCancel={onBack}
-                submitLabel="Salvar usuário"
-              />
+              <CrudFormActions busy={busy} onCancel={onBack} submitLabel="Salvar usuário" />
             </div>
           </form>
         </div>

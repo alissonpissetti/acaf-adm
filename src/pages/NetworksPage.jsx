@@ -4,6 +4,7 @@ import { deleteNetwork, getNetworks, getUnits, purgeAcafImportedNetworks } from 
 import { listCityOptions, networkIdsInCity } from '../utils/networksMapGeo.js';
 import { confirmCrudDelete } from '../crud/crudUtils.js';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { PageHeader } from '../components/PageHeader.jsx';
 import { appConfirm, appAlert } from '../components/confirm/appConfirm.js';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { NetworkCreateScreen } from './NetworkCreateScreen.jsx';
@@ -32,6 +33,7 @@ import {
   loadListPreferences,
   saveListPreferences,
 } from '../utils/listPreferencesStorage.js';
+import '../styles/networks-map.css';
 
 const NETWORKS_LIST_PREFS_KEY = LIST_PREFERENCE_KEYS.networks;
 
@@ -361,7 +363,16 @@ export function NetworksPage() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack networks-operacao-page crud-list-page">
+      <PageHeader
+        title="Parceiros"
+        subtitle="Gerencie redes de academias parceiras da plataforma."
+        actions={
+          <button type="button" className="btn-primary" onClick={goToCreateNetwork}>
+            Adicionar rede
+          </button>
+        }
+      />
       <CrudAlerts error={error} />
       {!loading && partnerOnboardingKpi.total > 0 ? (
         <article className="panel stat-panel networks-partner-onboarding-kpi">
@@ -403,13 +414,13 @@ export function NetworksPage() {
           <div className="networks-page-filters-card" role="region" aria-label="Filtros da página">
             <p className="crud-list-toolbar-title">Filtros</p>
             <label className="crud-toolbar-field">
-              <span className="crud-toolbar-label">Buscar (nome ou CNPJ)</span>
+              <span className="crud-toolbar-label">Buscar (rede, contato, e-mail ou CNPJ)</span>
               <input
                 className="input crud-toolbar-input"
                 type="search"
                 value={networkSearchQuery}
                 onChange={(e) => setNetworkSearchQuery(e.target.value)}
-                placeholder="CNPJ completo ou trecho"
+                placeholder="Nome, contato, e-mail, razão social ou CNPJ"
                 autoComplete="off"
               />
             </label>
@@ -437,7 +448,10 @@ export function NetworksPage() {
             aria-pressed={listLayout === 'both'}
             onClick={() => setListLayout('both')}
           >
-            Lista + mapa
+            <span className="networks-view-toggle-text networks-view-toggle-text--full">Lista + mapa</span>
+            <span className="networks-view-toggle-text networks-view-toggle-text--short" aria-hidden="true">
+              Lista+mapa
+            </span>
           </button>
           <button
             type="button"
@@ -445,7 +459,10 @@ export function NetworksPage() {
             aria-pressed={listLayout === 'list'}
             onClick={() => setListLayout('list')}
           >
-            Só lista
+            <span className="networks-view-toggle-text networks-view-toggle-text--full">Só lista</span>
+            <span className="networks-view-toggle-text networks-view-toggle-text--short" aria-hidden="true">
+              Lista
+            </span>
           </button>
           <button
             type="button"
@@ -453,7 +470,10 @@ export function NetworksPage() {
             aria-pressed={listLayout === 'map'}
             onClick={() => setListLayout('map')}
           >
-            Só mapa
+            <span className="networks-view-toggle-text networks-view-toggle-text--full">Só mapa</span>
+            <span className="networks-view-toggle-text networks-view-toggle-text--short" aria-hidden="true">
+              Mapa
+            </span>
           </button>
         </div>
       </div>
@@ -471,7 +491,9 @@ export function NetworksPage() {
         />
       ) : null}
       {listLayout !== 'map' ? (
-        <NetworksList
+        <section className="panel networks-partners-panel crud-list-panel">
+          <NetworksList
+          embedded
           networks={networksForList}
           loading={loading}
           error={error}
@@ -493,6 +515,7 @@ export function NetworksPage() {
           searchQuery={listLayout !== 'map' ? networkSearchQuery : undefined}
           onSearchQueryChange={listLayout !== 'map' ? setNetworkSearchQuery : undefined}
         />
+        </section>
       ) : null}
       <AcafAssociatesImportPanel onImported={load} />
     </div>

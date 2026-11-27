@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CrudRowMenu } from '../components/crud/CrudRowMenu.jsx';
 import { getConnectDomain, updateConnectDomain } from '../api/admin.js';
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
@@ -11,6 +12,10 @@ import { confirmCrudDelete } from '../crud/crudUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import {
+  buildCrudCreatePageHeader,
+  buildCrudRecordPageHeader,
+} from '../crud/crudRecordPageHeader.js';
 import { formatBRL } from '../utils/currency.js';
 
 function slugifyPlanId(name, existingIds) {
@@ -137,6 +142,7 @@ export function ConnectPlansPage() {
   const [plans, setPlans] = useState([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const list = useCrudList(
     useMemo(
@@ -201,11 +207,17 @@ export function ConnectPlansPage() {
   };
 
   if (router.isCreating) {
+    const createHeader = buildCrudCreatePageHeader({
+      listLabel: 'Planos',
+      goToList: router.goToList,
+      entityLabel: 'plano',
+      subtitle: 'Defina nome e preço mensal da assinatura.',
+    });
     return (
       <ConnectPlanForm
-        title="Adicionar plano"
-        subtitle="Cadastre um plano de assinatura."
-        breadcrumbs={[{ label: 'Planos', onClick: router.goToList }, { label: 'Novo' }]}
+        title={createHeader.title}
+        subtitle={createHeader.subtitle}
+        breadcrumbs={createHeader.breadcrumbs}
         initial={{
           name: '',
           pricePerMonth: 99.9,
@@ -243,14 +255,20 @@ export function ConnectPlansPage() {
       );
     }
 
+    const priceLine = `${formatBRL(Number(selected.pricePerMonth) || 0)}/mês`;
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Planos',
+      goToList: router.goToList,
+      entityLabel: 'plano',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: `${selected.name} · ${priceLine}`,
+    });
     return (
       <ConnectPlanForm
-        title={router.isViewing ? selected.name : 'Editar plano'}
-        subtitle={formatBRL(Number(selected.pricePerMonth) || 0) + '/mês'}
-        breadcrumbs={[
-          { label: 'Planos', onClick: router.goToList },
-          { label: selected.name },
-        ]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           id: selected.id,
           name: selected.name,
@@ -288,48 +306,96 @@ export function ConnectPlansPage() {
 
   return (
     <PermissionGate permission="plataforma.connect">
-      <div className="page-stack">
+      <div className="page-stack crud-list-page operacao-planos-page">
         <CrudListShell
-        title="Planos"
-        subtitle="Assinaturas da plataforma."
-        addLabel="Adicionar plano"
-        onAdd={router.goToCreate}
-        loading={loading || busy}
-        error={error}
-        message={message}
-        query={list.query}
-        onQueryChange={list.onQueryChange}
-        searchPlaceholder="Buscar plano por nome ou ID"
-        sortKey={list.sortKey}
-        sortDirection={list.sortDirection}
-        onSortChange={list.setSort}
-        sortOptions={[
-          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-          { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
-          { key: 'pricePerMonth', direction: 'desc', label: 'Preço (maior)' },
-          { key: 'pricePerMonth', direction: 'asc', label: 'Preço (menor)' },
-        ]}
-        page={list.page}
-        pageSize={list.pageSize}
-        totalItems={list.totalItems}
-        totalPages={list.totalPages}
-        onPageChange={list.setPage}
-        onPageSizeChange={list.onPageSizeChange}
-        panelTitle="Planos de assinatura"
-        emptyMessage="Nenhum plano cadastrado."
-        columns={[
-          {
-            key: 'id',
-            label: 'ID',
-            render: (row) => <code className="subscription-plan-id">{row.id}</code>,
-          },
-          { key: 'name', label: 'Plano', render: (row) => <strong>{row.name}</strong> },
-          { key: 'priceLabel', label: 'Preço/mês' },
-        ]}
-        rows={list.rows}
-        onView={(row) => router.goToView(row.id)}
-        onEdit={(row) => router.goToEdit(row.id)}
-        onDelete={handleDelete}
+          title="Planos"
+          subtitle="Assinaturas Movly oferecidas aos parceiros e colaboradores."
+          addLabel="Adicionar plano"
+          onAdd={router.goToCreate}
+          panelClassName="crud-list-panel"
+          loading={loading || busy}
+          error={error}
+          message={message}
+          query={list.query}
+          onQueryChange={list.onQueryChange}
+          searchPlaceholder="Buscar por nome do plano ou ID"
+          toolbarLayout="compact"
+          toolbarWrapClassName="crud-list-toolbar"
+          sortKey={list.sortKey}
+          sortDirection={list.sortDirection}
+          onSortChange={list.setSort}
+          sortOptions={[
+            { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+            { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
+            { key: 'pricePerMonth', direction: 'desc', label: 'Preço (maior)' },
+            { key: 'pricePerMonth', direction: 'asc', label: 'Preço (menor)' },
+          ]}
+          page={list.page}
+          pageSize={list.pageSize}
+          totalItems={list.totalItems}
+          totalPages={list.totalPages}
+          onPageChange={list.setPage}
+          onPageSizeChange={list.onPageSizeChange}
+          panelTitle="Planos de assinatura"
+          emptyMessage="Nenhum plano cadastrado. Clique em Adicionar plano para começar."
+          tableClassName="crud-list-cards-table crud-list-cards-table--simple"
+          columns={[
+            {
+              key: 'name',
+              label: 'Plano',
+              headerHint: 'Nome comercial exibido no app e nas cobranças.',
+              className: 'data-table-col-list-identity data-table-col-plan-name',
+              render: (row) => (
+                <div className="crud-list-identity">
+                  <strong className="crud-list-identity__title">{row.name}</strong>
+                  <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line">
+                    <code className="subscription-plan-id">{row.id}</code>
+                  </span>
+                  <span className="crud-list-identity__meta--mobile crud-list-identity__price">
+                    {row.priceLabel}/mês
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: 'priceLabel',
+              label: 'Preço/mês',
+              headerAbbr: 'Preço',
+              headerHint: 'Valor mensal em reais (BRL).',
+              className: 'data-table-col-plan-price data-table-cell-numeric crud-col-desktop-only',
+            },
+            {
+              key: 'id',
+              label: 'ID',
+              headerHint: 'Identificador técnico — usado em integrações e cadastros.',
+              className: 'data-table-col-plan-id crud-col-desktop-only',
+              render: (row) => <code className="subscription-plan-id">{row.id}</code>,
+            },
+            {
+              key: 'rowMenu',
+              label: '',
+              className: 'data-table-col-row-menu crud-col-mobile-only',
+              render: (row) => (
+                <CrudRowMenu
+                  isOpen={openRowMenuId === row.id}
+                  onToggle={() =>
+                    setOpenRowMenuId((prev) => (prev === row.id ? null : row.id))
+                  }
+                  onClose={() => setOpenRowMenuId(null)}
+                  onView={() => router.goToView(row.id)}
+                  onEdit={() => router.goToEdit(row.id)}
+                  onDelete={async () => {
+                    if (await confirmCrudDelete(row.name)) await handleDelete(row);
+                  }}
+                />
+              ),
+            },
+          ]}
+          rows={list.rows}
+          onRowClick={(row) => router.goToView(row.id)}
+          onView={(row) => router.goToView(row.id)}
+          onEdit={(row) => router.goToEdit(row.id)}
+          onDelete={handleDelete}
         />
       </div>
     </PermissionGate>

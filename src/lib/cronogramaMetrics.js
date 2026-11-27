@@ -78,7 +78,7 @@ export function ganttPos(ymd) {
 }
 
 export const STATUS_LABELS = {
-  done: 'Concluída',
+  done: 'Finalizada',
   in_progress: 'Em andamento',
   blocked: 'Bloqueada',
   postponed: 'Adiada',

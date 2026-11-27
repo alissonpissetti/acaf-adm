@@ -27,6 +27,7 @@ import {
 import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { useAsyncResource, useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { pageToForm } from '../utils/marketingFormBuilder.js';
 import '../styles/marketing.css';
@@ -180,9 +181,14 @@ export function MarketingLandingPagesPage() {
     return (
       <PermissionGate permission="marketing.formularios">
         <MarketingLandingPageEditor
-          title={router.isViewing ? detail.name : 'Editar formulário'}
-          subtitle={detail.headline}
-          breadcrumbs={[{ label: 'Formulários', onClick: router.goToList }, { label: detail.name }]}
+          {...buildCrudRecordPageHeader({
+            listLabel: 'Formulários',
+            goToList: router.goToList,
+            entityLabel: 'formulário',
+            recordName: detail.name,
+            mode: router.isViewing ? 'view' : 'edit',
+            subtitle: detail.headline?.trim() || detail.name,
+          })}
           initial={editFormInitial}
           readOnly={router.isViewing}
           campaignOptions={campaignOptions ?? []}

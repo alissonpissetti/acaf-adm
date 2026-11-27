@@ -4,7 +4,7 @@ export const TASK_STATUS_LABELS = {
   blocked: 'Bloqueada',
   postponed: 'Adiada',
   cancelled: 'Cancelada',
-  done: 'Concluída',
+  done: 'Finalizada',
 };
 
 export const TASK_PRIORITY_LABELS = {

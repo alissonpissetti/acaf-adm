@@ -217,16 +217,19 @@ function NetworkUnitsPanel({
               }
         }
         emptyMessage="Nenhuma unidade nesta rede. Clique em Adicionar unidade para começar."
+        tableClassName="network-units-table"
         columns={[
           {
             key: 'unitName',
             label: 'Unidade',
-            render: (row) => <strong>{row.unitName}</strong>,
+            className: 'data-table-cell-wrap data-table-col-unit-name',
+            render: (row) => <strong className="network-unit-name">{row.unitName}</strong>,
           },
           {
             key: 'acafAssociateCnpj',
             label: 'CNPJ',
-            className: 'data-table-cell-numeric',
+            headerHint: 'CNPJ cadastral da unidade (planilha ou manual).',
+            className: 'data-table-cell-numeric data-table-col-unit-cnpj',
             render: (row) => {
               const d = row.acafAssociate?.cnpj;
               return d ? formatCnpjFromDigits(d) : '—';
@@ -235,6 +238,9 @@ function NetworkUnitsPanel({
           {
             key: 'acafCatalog',
             label: 'Catálogo app',
+            headerAbbr: 'App',
+            headerHint: 'Presença da unidade no catálogo do aplicativo.',
+            className: 'data-table-col-unit-catalog',
             render: (row) => {
               const lbl = acafCatalogLabel(row);
               if (!lbl) return '—';
@@ -250,16 +256,27 @@ function NetworkUnitsPanel({
           {
             key: 'location',
             label: 'Localização',
-            render: (row) => formatUnitLocation(row),
+            headerAbbr: 'Local',
+            headerHint: 'Cidade e bairro da unidade.',
+            className: 'data-table-cell-wrap data-table-col-unit-location',
+            render: (row) => (
+              <span className="network-unit-location">{formatUnitLocation(row)}</span>
+            ),
           },
           {
             key: 'hours',
             label: 'Horário',
+            headerAbbr: 'Hor.',
+            headerHint: 'Horário de funcionamento hoje.',
+            className: 'data-table-col-unit-hours',
             render: (row) => formatTodayHours(row),
           },
           {
             key: 'primaryMemberCount',
             label: 'Academia principal',
+            headerAbbr: 'Principal',
+            headerHint: 'Alunos do app com esta unidade como academia principal.',
+            className: 'data-table-cell-numeric data-table-col-unit-primary',
             render: (row) => (
               <span className="badge badge-muted" title="Usuários do app com esta unidade como principal">
                 {row.primaryMemberCount ?? 0}
@@ -269,6 +286,8 @@ function NetworkUnitsPanel({
           {
             key: 'dailyPassActive',
             label: 'Diária',
+            headerHint: 'Diária ativa ou inativa nesta unidade.',
+            className: 'data-table-col-unit-daily',
             render: (row) => (
               <span className={`badge ${row.dailyPassActive ? 'badge-success' : 'badge-muted'}`}>
                 {row.dailyPassActive ? 'Ativa' : 'Inativa'}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const MODES = [
   { id: 'daily', label: 'Diário' },
@@ -6,16 +6,24 @@ const MODES = [
   { id: 'monthly', label: 'Mensal' },
 ];
 
+const DEFAULT_PERIOD_MONTHS_BACK = 6;
+const DEFAULT_PERIOD_MONTHS_FORWARD = 6;
+
 /** Janela da tendência: para trás e para frente a partir do último ponto. */
 const TREND_CONFIG = {
   daily: { back: 15, forward: 15, unit: 'day', legend: '−15 / +15 dias' },
   weekly: { back: 5, forward: 5, unit: 'week', legend: '−5 / +5 semanas' },
-  monthly: { back: 5, forward: 5, unit: 'month', legend: '−5 / +5 meses' },
+  monthly: {
+    back: DEFAULT_PERIOD_MONTHS_BACK,
+    forward: DEFAULT_PERIOD_MONTHS_FORWARD,
+    unit: 'month',
+    legend: `−${DEFAULT_PERIOD_MONTHS_BACK} / +${DEFAULT_PERIOD_MONTHS_FORWARD} meses`,
+  },
 };
 
 const CHART_W = 720;
-const CHART_H = 260;
-const PAD = { top: 16, right: 20, bottom: 28, left: 52 };
+const CHART_H = 280;
+const PAD = { top: 22, right: 20, bottom: 28, left: 52 };
 const MAX_X_LABELS = { daily: 5, weekly: 6, monthly: 6 };
 
 function parseYmd(ymd) {
@@ -124,6 +132,41 @@ function addMonthsYmd(ymd, months) {
   return ymdFromDate(d);
 }
 
+function startOfMonthYmd(ymd) {
+  const d = parseYmd(ymd);
+  if (!d) return ymd.slice(0, 7) + '-01';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function endOfMonthYmd(ymd) {
+  const d = parseYmd(ymd);
+  if (!d) return ymd;
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(0);
+  return ymdFromDate(d);
+}
+
+/** Período padrão: do início do mês −N até o fim do mês +M (fuso local do navegador). */
+function defaultPeriodRange(todayYmd) {
+  const anchor = todayYmd || ymdFromDate(new Date());
+  return {
+    from: startOfMonthYmd(addMonthsYmd(anchor, -DEFAULT_PERIOD_MONTHS_BACK)),
+    to: endOfMonthYmd(addMonthsYmd(anchor, DEFAULT_PERIOD_MONTHS_FORWARD)),
+  };
+}
+
+function resolvePeriodBounds(todayYmd, fromInput, toInput) {
+  const defaults = defaultPeriodRange(todayYmd);
+  let from = fromInput.trim() || defaults.from;
+  let to = toInput.trim() || defaults.to;
+  if (from > to) {
+    const swap = from;
+    from = to;
+    to = swap;
+  }
+  return { from, to, usingDefaults: !fromInput.trim() && !toInput.trim() };
+}
+
 function shiftYmd(ymd, amount, unit) {
   if (unit === 'day') return addDaysYmd(ymd, amount);
   if (unit === 'week') return addWeeksYmd(ymd, amount);
@@ -223,13 +266,117 @@ function buildTrendSegment({ mode, anchorDate, fitSeries, xAtDate, yAt }) {
   };
 }
 
+function ChartModePicker({ mode, setMode }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const current = MODES.find((m) => m.id === mode) ?? MODES[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event) => {
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="acaf-lives-chart__mode-picker" ref={rootRef}>
+      <button
+        type="button"
+        className="acaf-lives-chart__mode-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Visualização: ${current.label}. Abrir opções`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="acaf-lives-chart__mode-trigger-label">{current.label}</span>
+        <span className="acaf-lives-chart__mode-trigger-chevron" aria-hidden>
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <ul className="acaf-lives-chart__mode-menu" role="listbox" aria-label="Modo de visualização">
+          {MODES.map((m) => (
+            <li key={m.id} role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={mode === m.id}
+                className={`acaf-lives-chart__mode-option${mode === m.id ? ' is-active' : ''}`}
+                onClick={() => {
+                  setMode(m.id);
+                  setOpen(false);
+                }}
+              >
+                {m.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function ChartToolbar({
+  mode,
+  setMode,
+  periodFrom,
+  periodTo,
+  onPeriodFromChange,
+  onPeriodToChange,
+}) {
+  return (
+    <div className="acaf-lives-chart__toolbar">
+      <div className="acaf-lives-chart__head">
+        <h3 className="acaf-lives-chart__title">Evolução das vidas</h3>
+        <p className="muted acaf-lives-chart__subtitle">
+          Histórico a partir dos registros diários; o valor de hoje combina snapshot e leitura em tempo quase real.
+        </p>
+      </div>
+      <div className="acaf-lives-chart__controls-row">
+        <div className="acaf-lives-chart__period" role="group" aria-label="Período do gráfico">
+          <input
+            type="date"
+            className="acaf-lives-chart__period-input"
+            value={periodFrom}
+            onChange={(e) => onPeriodFromChange(e.target.value)}
+            aria-label="Data inicial"
+          />
+          <span className="acaf-lives-chart__period-sep muted" aria-hidden>
+            —
+          </span>
+          <input
+            type="date"
+            className="acaf-lives-chart__period-input"
+            value={periodTo}
+            onChange={(e) => onPeriodToChange(e.target.value)}
+            aria-label="Data final"
+          />
+        </div>
+        <ChartModePicker mode={mode} setMode={setMode} />
+      </div>
+    </div>
+  );
+}
+
 export function PayingLivesEvolutionChart({
   snapshots,
   liveCount,
   todayYmd,
   tiers,
 }) {
-  const [mode, setMode] = useState('daily');
+  const [mode, setMode] = useState('monthly');
 
   const today =
     todayYmd ||
@@ -238,14 +385,32 @@ export function PayingLivesEvolutionChart({
       return ymdFromDate(d);
     })();
 
+  const defaultPeriod = useMemo(() => defaultPeriodRange(today), [today]);
+
+  const [periodFromInput, setPeriodFromInput] = useState(defaultPeriod.from);
+  const [periodToInput, setPeriodToInput] = useState(defaultPeriod.to);
+
+  const periodBounds = useMemo(
+    () => resolvePeriodBounds(today, periodFromInput, periodToInput),
+    [today, periodFromInput, periodToInput],
+  );
+
   const dailyWithLive = useMemo(
     () => mergeLiveToday(snapshots ?? [], liveCount, today),
     [snapshots, liveCount, today],
   );
 
+  const dailyInPeriod = useMemo(
+    () =>
+      dailyWithLive.filter(
+        (row) => row.date >= periodBounds.from && row.date <= periodBounds.to,
+      ),
+    [dailyWithLive, periodBounds.from, periodBounds.to],
+  );
+
   const displaySeries = useMemo(
-    () => aggregateSeries(dailyWithLive, mode),
-    [dailyWithLive, mode],
+    () => aggregateSeries(dailyInPeriod, mode),
+    [dailyInPeriod, mode],
   );
 
   const forecasts = useMemo(
@@ -267,12 +432,16 @@ export function PayingLivesEvolutionChart({
     const trendStart = shiftYmd(anchorDate, -cfg.back, cfg.unit);
     const trendEnd = shiftYmd(anchorDate, cfg.forward, cfg.unit);
 
-    const xDomainMin =
-      displaySeries[0].date < trendStart ? displaySeries[0].date : trendStart;
-    const xDomainMax =
-      displaySeries[displaySeries.length - 1].date > trendEnd
-        ? displaySeries[displaySeries.length - 1].date
-        : trendEnd;
+    const periodMin = periodBounds.from;
+    const periodMax = periodBounds.to;
+
+    const xDomainMin = [periodMin, displaySeries[0].date, trendStart]
+      .filter(Boolean)
+      .sort()[0];
+    const xDomainMax = [periodMax, displaySeries[displaySeries.length - 1].date, trendEnd]
+      .filter(Boolean)
+      .sort()
+      .slice(-1)[0];
     const xSpan = Math.max(1, daysBetweenYmd(xDomainMin, xDomainMax));
 
     const values = displaySeries.map((r) => r.payingLivesCount);
@@ -294,7 +463,7 @@ export function PayingLivesEvolutionChart({
       .join(' ');
     const areaPoints = `${PAD.left},${PAD.top + innerH} ${linePoints} ${xAtDate(displaySeries[displaySeries.length - 1].date)},${PAD.top + innerH}`;
 
-    const fitSeries = mode === 'daily' ? dailyWithLive : displaySeries;
+    const fitSeries = mode === 'daily' ? dailyInPeriod : displaySeries;
     const trendSegment = buildTrendSegment({
       mode,
       anchorDate,
@@ -322,6 +491,24 @@ export function PayingLivesEvolutionChart({
     const padLeftPct = (PAD.left / CHART_W) * 100;
     const padRightPct = (PAD.right / CHART_W) * 100;
 
+    const denseLabels = displaySeries.length > 24;
+    const dataPoints = displaySeries.map((row) => {
+      const value = Number(row.payingLivesCount) || 0;
+      const x = xAtDate(row.date);
+      const y = yAt(value);
+      const preferAbove = y - 10 >= PAD.top + 8;
+      return {
+        date: row.date,
+        value,
+        x,
+        y,
+        label: formatPtNumber(value),
+        labelY: preferAbove ? y - 8 : y + 14,
+        labelAnchor: 'middle',
+        dense: denseLabels,
+      };
+    });
+
     return {
       yMax,
       linePoints,
@@ -330,13 +517,14 @@ export function PayingLivesEvolutionChart({
       milestoneLines,
       yTickValues,
       xLabels,
+      dataPoints,
       yAt,
       xAtDate,
       mode,
       padLeftPct,
       padRightPct,
     };
-  }, [displaySeries, dailyWithLive, mode, liveCount, tiers]);
+  }, [displaySeries, dailyWithLive, dailyInPeriod, mode, liveCount, tiers, periodBounds.from, periodBounds.to]);
 
   if (!dailyWithLive.length) {
     return (
@@ -349,30 +537,35 @@ export function PayingLivesEvolutionChart({
     );
   }
 
+  if (!displaySeries.length) {
+    return (
+      <div className="acaf-lives-chart">
+        <ChartToolbar
+          mode={mode}
+          setMode={setMode}
+          periodFrom={periodFromInput}
+          periodTo={periodToInput}
+          onPeriodFromChange={setPeriodFromInput}
+          onPeriodToChange={setPeriodToInput}
+        />
+        <p className="muted acaf-lives-chart--empty">
+          Nenhum registro de vidas no período selecionado ({formatPtShortDate(periodBounds.from)} —{' '}
+          {formatPtShortDate(periodBounds.to)}).
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="acaf-lives-chart">
-      <div className="acaf-lives-chart__toolbar">
-        <div>
-          <h3 className="acaf-lives-chart__title">Evolução das vidas</h3>
-          <p className="muted acaf-lives-chart__subtitle">
-            Histórico a partir dos registros diários; o valor de hoje combina snapshot e leitura em tempo quase real.
-          </p>
-        </div>
-        <div className="acaf-lives-chart__modes" role="tablist" aria-label="Granularidade do gráfico">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="tab"
-              aria-selected={mode === m.id}
-              className={`acaf-lives-chart__mode${mode === m.id ? ' is-active' : ''}`}
-              onClick={() => setMode(m.id)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ChartToolbar
+        mode={mode}
+        setMode={setMode}
+        periodFrom={periodFromInput}
+        periodTo={periodToInput}
+        onPeriodFromChange={setPeriodFromInput}
+        onPeriodToChange={setPeriodToInput}
+      />
 
       <div className="acaf-lives-chart__plot-wrap">
         <svg
@@ -418,6 +611,20 @@ export function PayingLivesEvolutionChart({
 
           <polygon points={chart.areaPoints} className="acaf-lives-chart__area" />
           <polyline points={chart.linePoints} className="acaf-lives-chart__line" />
+
+          {chart.dataPoints.map((p) => (
+            <g key={p.date} className="acaf-lives-chart__point-group">
+              <circle cx={p.x} cy={p.y} r={p.dense ? 3 : 4} className="acaf-lives-chart__point" />
+              <text
+                x={p.x}
+                y={p.labelY}
+                textAnchor={p.labelAnchor}
+                className={`acaf-lives-chart__point-label${p.dense ? ' acaf-lives-chart__point-label--dense' : ''}`}
+              >
+                {p.label}
+              </text>
+            </g>
+          ))}
 
           {chart.trendSegment ? (
             <line

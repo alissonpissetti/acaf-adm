@@ -58,6 +58,7 @@ export function CronogramaOwnerPicker({
   onChangeExtra,
   disabled,
   currentUserId,
+  stacked = false,
 }) {
   const rootRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -237,12 +238,9 @@ export function CronogramaOwnerPicker({
 
   return (
     <div className="cronograma-assignee-selector" ref={rootRef}>
-      <p className="cronograma-assignee-hint muted">
-        Parceiros e fornecedores com cadastro na plataforma podem ser encontrados na busca (mín. 3 letras).
-        Se não houver resultado, use a opção de outro sem login.
-      </p>
-
-      <div className="cronograma-assignee-display">
+      <div
+        className={`cronograma-assignee-display${stacked ? ' cronograma-assignee-display--stacked' : ''}`}
+      >
         {!hasAssignees ? (
           <span
             className="cronograma-assignee-placeholder"

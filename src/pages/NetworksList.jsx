@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Mail, RotateCcw } from 'lucide-react';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
@@ -7,6 +8,7 @@ import { mergeNetworks, sendPartnerOnboardingInviteEmail } from '../api/admin.js
 import { appChoose, appConfirm } from '../components/confirm/appConfirm.js';
 import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
 import { selectFilter } from '../crud/filterUtils.js';
+import { confirmCrudDelete } from '../crud/crudUtils.js';
 import {
   PARTNER_ACCESS_FILTER_OPTIONS,
   partnerAccessStatusBadgeClass,
@@ -14,31 +16,57 @@ import {
   partnerAccessStatusSortRank,
 } from '../utils/networkPartnerAccessFilter.js';
 import { networkMatchesNameOrCnpj } from '../utils/networkCnpjSearch.js';
+import { NetworkPartnerRowMenu } from '../components/networks/NetworkPartnerRowMenu.jsx';
 
 /**
  * Cabeçalhos da tabela de parceiros (`headerHint` → atributo title / abbr na coluna).
  * | key | label (mobile data-label) | headerAbbr | headerHint |
  * | logo | Logo | — | Logotipo da rede parceira. |
  * | name | Rede | — | Nome cadastral da rede de academias. |
- * | unitCount | Unidades | — | Número de unidades (filiais) vinculadas à rede. |
- * | primaryMemberCount | Academia principal | Acad. principal | Alunos do app com esta rede como unidade principal. |
+ * | networkScale | Resumo | Resumo | Unidades, alunos (academia principal) e equipe do portal. |
  * | partnerAccessStatus | Portal parceiro | Portal | Situação do acesso ao portal do parceiro (onboarding). |
- * | partnerUserCount | Usuários vinculados | Usuários | Equipe com login nas unidades desta rede. |
  * | onboardingInviteEmail | E-mail convite | E-mail | Destino do convite de onboarding. |
- * | onboardingInviteSend | Enviar convite | Enviar | Dispara o e-mail de boas-vindas (onboarding). |
+ * | (ações) | Enviar convite | — | Na coluna de ações, dispara onboarding ou convite de equipe. |
  * | commercialOwnerName | Resp. comercial | Resp. com. | Responsável comercial interno (ACAF) pela conta. |
  */
 const NETWORKS_TABLE_COLUMN_HINTS = {
   logo: 'Logotipo da rede parceira exibido na listagem.',
   name: 'Nome cadastral da rede de academias parceira.',
-  unitCount: 'Quantidade de unidades (filiais) cadastradas nesta rede.',
-  primaryMemberCount:
-    'Alunos do aplicativo que usam uma unidade desta rede como academia principal.',
+  networkScale:
+    'Unidades cadastradas, alunos do app com academia principal nesta rede e usuários da equipe no portal.',
   partnerAccessStatus:
     'Situação do acesso ao portal do parceiro: com acesso, convite pendente ou sem acesso.',
-  partnerUserCount: 'Usuários da equipe com permissão para gerenciar as unidades da rede.',
   commercialOwnerName: 'Responsável comercial interno (ACAF) associado a esta rede.',
 };
+
+const NETWORK_SCALE_HINTS = {
+  units: 'Unidades (filiais) cadastradas nesta rede.',
+  primary: 'Alunos do app com academia principal em uma unidade desta rede.',
+  team: 'Usuários da equipe com acesso ao portal do parceiro.',
+};
+
+function NetworkScaleSummary({ row }) {
+  const units = row.unitCount ?? 0;
+  const primary = row.primaryMemberCount ?? 0;
+  const team = row.partnerUserCount ?? 0;
+  const teamBadgeClass = team ? 'badge-warning' : 'badge-muted';
+  return (
+    <div className="networks-scale-summary" role="group" aria-label="Resumo operacional da rede">
+      <div className="networks-scale-chip" title={NETWORK_SCALE_HINTS.units}>
+        <span className="networks-scale-chip__label">Unid.</span>
+        <span className="badge badge-muted">{units}</span>
+      </div>
+      <div className="networks-scale-chip" title={NETWORK_SCALE_HINTS.primary}>
+        <span className="networks-scale-chip__label">Principal</span>
+        <span className="badge badge-muted">{primary}</span>
+      </div>
+      <div className="networks-scale-chip" title={NETWORK_SCALE_HINTS.team}>
+        <span className="networks-scale-chip__label">Equipe</span>
+        <span className={`badge ${teamBadgeClass}`}>{team}</span>
+      </div>
+    </div>
+  );
+}
 
 export function NetworksList({
   networks,
@@ -58,11 +86,14 @@ export function NetworksList({
   onPartnerAccessFilterChange,
   searchQuery: controlledSearchQuery,
   onSearchQueryChange: controlledOnSearchQueryChange,
+  /** Lista embutida em `NetworksPage` (sem segundo cabeçalho de página). */
+  embedded = false,
 }) {
   const flash = useFlashMessage();
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [mergeBusy, setMergeBusy] = useState(false);
   const [inviteEmailBusyId, setInviteEmailBusyId] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const getSortValue = useCallback((row, key) => {
     if (key === 'partnerAccessStatus') return partnerAccessStatusSortRank(row);
@@ -192,6 +223,63 @@ export function NetworksList({
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
+  const inviteActionMeta = useCallback((row) => {
+    const busy = inviteEmailBusyId === row.id;
+    const noEmail = !row.onboardingInviteEmail;
+    const sentToday = Boolean(row.onboardingInviteEmailSentToday);
+    const noUnits = (row.unitCount ?? 0) < 1;
+    const hasAccess = Boolean(row.hasPartnerUser);
+    const disabled = busy || noEmail || noUnits;
+    const label = busy
+      ? 'Enviando convite…'
+      : sentToday
+        ? 'Reenviar convite'
+        : hasAccess
+          ? 'Convite de equipe'
+          : 'Enviar convite';
+    return { disabled, label, busy };
+  }, [inviteEmailBusyId]);
+
+  const renderInviteAction = (row) => {
+    const { disabled, label, busy } = inviteActionMeta(row);
+    const noEmail = !row.onboardingInviteEmail;
+    const sentToday = Boolean(row.onboardingInviteEmailSentToday);
+    const noUnits = (row.unitCount ?? 0) < 1;
+    const hasAccess = Boolean(row.hasPartnerUser);
+    let title = hasAccess
+      ? 'Enviar convite de equipe por e-mail (novo usuário no portal)'
+      : 'Enviar e-mail de boas-vindas (onboarding)';
+    if (noEmail) title = 'Sem e-mail — cadastre na rede ou na planilha';
+    else if (sentToday) title = 'Já enviado hoje — clique para reenviar (com confirmação)';
+    else if (noUnits) title = 'Cadastre uma unidade';
+    const shortLabel = busy
+      ? '…'
+      : sentToday
+        ? 'Reenviar'
+        : hasAccess
+          ? 'Equipe'
+          : 'Convite';
+    return (
+      <button
+        type="button"
+        className="crud-icon-btn networks-invite-icon-btn"
+        disabled={disabled}
+        title={title}
+        aria-label={title}
+        onClick={(ev) => void handleSendInviteEmail(row, ev)}
+      >
+        <span className="crud-action-label">{shortLabel}</span>
+        {busy ? (
+          '…'
+        ) : sentToday ? (
+          <RotateCcw size={15} strokeWidth={2} aria-hidden="true" />
+        ) : (
+          <Mail size={15} strokeWidth={2} aria-hidden="true" />
+        )}
+      </button>
+    );
+  };
+
   const handleSendInviteEmail = async (row, ev) => {
     ev?.stopPropagation?.();
     ev?.preventDefault?.();
@@ -311,17 +399,27 @@ export function NetworksList({
     ) : null;
 
   return (
-    <CrudListShell
-      title="Parceiros"
-      subtitle="Gerencie redes de academias parceiras da plataforma."
+    <>
+      {embedded ? (
+        <div className="panel-header panel-header--meta-only networks-partners-panel-header">
+          <h2>Parceiros cadastrados</h2>
+          <span className="panel-meta">{list.totalItems} registro(s)</span>
+        </div>
+      ) : null}
+      <CrudListShell
+      embedded={embedded}
+      title={embedded ? undefined : 'Parceiros'}
+      subtitle={embedded ? undefined : 'Gerencie redes de academias parceiras da plataforma.'}
       addLabel="Adicionar rede"
-      onAdd={onAdd}
+      onAdd={embedded ? undefined : onAdd}
+      showPanelHeading={!embedded}
       loading={loading}
       error={error}
       query={effectiveQuery}
       onQueryChange={effectiveOnQueryChange}
-      searchPlaceholder="Buscar por nome da rede ou CNPJ"
+      searchPlaceholder="Buscar por rede, contato, e-mail, academia (razão social) ou CNPJ"
       toolbarLayout="compact"
+      toolbarWrapClassName="crud-list-toolbar networks-partners-toolbar"
       filterDefinitions={filterDefinitions}
       fieldFilters={toolbarFieldFilters}
       onApplyFieldFilter={handleApplyToolbarFilter}
@@ -377,7 +475,26 @@ export function NetworksList({
           label: 'Rede',
           headerHint: NETWORKS_TABLE_COLUMN_HINTS.name,
           className: 'data-table-cell-wrap data-table-col-network-name',
-          render: (row) => <strong className="networks-partners-name">{row.name}</strong>,
+          render: (row) => {
+            const email = row.onboardingInviteEmail;
+            return (
+              <div className="networks-partners-identity">
+                <strong className="networks-partners-name">{row.name}</strong>
+                <span
+                  className={`networks-partners-portal-badge badge networks-partners-portal-badge--mobile ${partnerAccessStatusBadgeClass(row)}`}
+                >
+                  {partnerAccessStatusLabel(row)}
+                </span>
+                {email ? (
+                  <span className="networks-partners-mobile-email" title={email}>
+                    {email}
+                  </span>
+                ) : (
+                  <span className="networks-partners-mobile-email muted">Sem e-mail de convite</span>
+                )}
+              </div>
+            );
+          },
         },
         {
           key: 'partnerAccessStatus',
@@ -385,7 +502,7 @@ export function NetworksList({
           mobileLabel: 'Portal',
           headerAbbr: 'Portal',
           headerHint: NETWORKS_TABLE_COLUMN_HINTS.partnerAccessStatus,
-          className: 'data-table-col-network-portal',
+          className: 'data-table-col-network-portal networks-partners-desktop-only',
           render: (row) => (
             <span
               className={`networks-partners-portal-badge ${partnerAccessStatusBadgeClass(row)}`}
@@ -396,41 +513,13 @@ export function NetworksList({
           ),
         },
         {
-          key: 'unitCount',
-          label: 'Unidades',
-          mobileLabel: 'Unid.',
-          headerHint: NETWORKS_TABLE_COLUMN_HINTS.unitCount,
-          className: 'data-table-cell-numeric data-table-col-network-units',
-          render: (row) => <span className="badge badge-muted">{row.unitCount ?? 0}</span>,
-        },
-        {
-          key: 'primaryMemberCount',
-          label: 'Academia principal',
-          mobileLabel: 'Acad.',
-          headerAbbr: 'Acad. principal',
-          headerHint: NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount,
-          className: 'data-table-cell-numeric data-table-col-network-primary',
-          render: (row) => (
-            <span className="badge badge-muted" title={NETWORKS_TABLE_COLUMN_HINTS.primaryMemberCount}>
-              {row.primaryMemberCount ?? 0}
-            </span>
-          ),
-        },
-        {
-          key: 'partnerUserCount',
-          label: 'Usuários vinculados',
-          mobileLabel: 'Equipe',
-          headerAbbr: 'Usuários',
-          headerHint: NETWORKS_TABLE_COLUMN_HINTS.partnerUserCount,
-          className: 'data-table-cell-numeric data-table-col-network-users',
-          render: (row) => (
-            <span
-              className={`badge ${row.partnerUserCount ? 'badge-warning' : 'badge-muted'}`}
-              title={NETWORKS_TABLE_COLUMN_HINTS.partnerUserCount}
-            >
-              {row.partnerUserCount ?? 0}
-            </span>
-          ),
+          key: 'networkScale',
+          label: 'Resumo',
+          mobileLabel: 'Resumo',
+          headerAbbr: 'Resumo',
+          headerHint: NETWORKS_TABLE_COLUMN_HINTS.networkScale,
+          className: 'data-table-col-network-scale networks-partners-desktop-only',
+          render: (row) => <NetworkScaleSummary row={row} />,
         },
         {
           key: 'onboardingInviteEmail',
@@ -438,7 +527,7 @@ export function NetworksList({
           mobileLabel: 'E-mail',
           headerAbbr: 'E-mail',
           headerHint: 'Destino do convite de onboarding (responsável da rede ou planilha ACAF por unidade).',
-          className: 'data-table-col-network-invite-email',
+          className: 'data-table-col-network-invite-email networks-partners-desktop-only',
           render: (row) => {
             const email = row.onboardingInviteEmail;
             if (!email) {
@@ -455,49 +544,6 @@ export function NetworksList({
           },
         },
         {
-          key: 'onboardingInviteSend',
-          label: 'Enviar convite',
-          mobileLabel: 'Convite',
-          headerAbbr: 'Enviar',
-          headerHint:
-            'Onboarding ou equipe. Até 1 envio automático/dia; reenvio no mesmo dia pede confirmação.',
-          className: 'data-table-col-network-invite-send',
-          render: (row) => {
-            const busy = inviteEmailBusyId === row.id;
-            const noEmail = !row.onboardingInviteEmail;
-            const sentToday = Boolean(row.onboardingInviteEmailSentToday);
-            const noUnits = (row.unitCount ?? 0) < 1;
-            const hasAccess = Boolean(row.hasPartnerUser);
-            const disabled = busy || noEmail || noUnits;
-            let title = hasAccess
-              ? 'Enviar convite de equipe por e-mail (novo usuário no portal)'
-              : 'Enviar e-mail de boas-vindas (onboarding)';
-            if (noEmail) title = 'Sem e-mail — cadastre na rede ou na planilha';
-            else if (sentToday) title = 'Já enviado hoje — clique para reenviar (com confirmação)';
-            else if (noUnits) title = 'Cadastre uma unidade';
-            const label = busy
-              ? 'Enviando…'
-              : sentToday
-                ? 'Reenviar'
-                : hasAccess
-                  ? 'Convite equipe'
-                  : 'Enviar';
-            return (
-              <span className="networks-invite-send-cell">
-                <button
-                  type="button"
-                  className="btn-ghost btn-sm networks-invite-email-btn"
-                  disabled={disabled}
-                  title={title}
-                  onClick={(ev) => void handleSendInviteEmail(row, ev)}
-                >
-                  {label}
-                </button>
-              </span>
-            );
-          },
-        },
-        {
           key: 'commercialOwnerName',
           label: 'Resp. comercial',
           mobileLabel: 'Comercial',
@@ -506,12 +552,44 @@ export function NetworksList({
           className: 'data-table-col-network-commercial data-table-col-network-commercial-desktop',
           render: (row) => row.commercialOwnerName ?? '—',
         },
+        {
+          key: 'rowMenu',
+          label: '',
+          className: 'data-table-col-network-row-menu networks-partners-mobile-only',
+          render: (row) => {
+            const invite = inviteActionMeta(row);
+            return (
+              <NetworkPartnerRowMenu
+                row={row}
+                isOpen={openRowMenuId === row.id}
+                onToggle={() => setOpenRowMenuId((prev) => (prev === row.id ? null : row.id))}
+                onClose={() => setOpenRowMenuId(null)}
+                onView={onView ? () => onView(row.id) : undefined}
+                onEdit={onEdit ? () => onEdit(row.id) : undefined}
+                onDelete={
+                  onDelete
+                    ? async () => {
+                        if (await confirmCrudDelete(row.name)) onDelete(row);
+                      }
+                    : undefined
+                }
+                onInvite={() => {
+                  void handleSendInviteEmail(row, null);
+                }}
+                inviteLabel={invite.label}
+                inviteDisabled={invite.disabled}
+              />
+            );
+          },
+        },
       ]}
       rows={list.rows}
       onRowClick={onEdit ? (row) => onEdit(row.id) : onView ? (row) => onView(row.id) : undefined}
       onView={onView ? (row) => onView(row.id) : undefined}
       onEdit={onEdit ? (row) => onEdit(row.id) : undefined}
       onDelete={onDelete}
+      renderActionsExtra={renderInviteAction}
     />
+    </>
   );
 }

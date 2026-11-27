@@ -518,6 +518,28 @@ body.cronograma-fullscreen-open {
   gap: 8px;
 }
 
+.cronograma-assignee-display--stacked {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.cronograma-assignee-display--stacked .cronograma-assignee-avatar-wrap,
+.cronograma-assignee-display--stacked .cronograma-assignee-add,
+.cronograma-assignee-display--stacked .cronograma-assignee-placeholder {
+  margin-left: -8px;
+}
+
+.cronograma-assignee-display--stacked > :last-child {
+  margin-left: 0;
+}
+
+.cronograma-assignee-display--stacked .cronograma-assignee-avatar-wrap .avatar {
+  box-shadow: 0 0 0 2px var(--surface, #fff);
+}
+
+
 .cronograma-assignee-placeholder {
   width: 32px;
   height: 32px;
@@ -1081,7 +1103,7 @@ body.cronograma-fullscreen-open {
   padding: 16px;
 }
 
-.cronograma-dialog {
+.cronograma-dialog:not(.cronograma-dialog--task-detail) {
   width: min(560px, 100%);
   max-height: 92vh;
   overflow: auto;
@@ -1092,24 +1114,319 @@ body.cronograma-fullscreen-open {
 .cronograma-overlay--task-detail {
   padding: 12px;
   align-items: stretch;
+  overflow: hidden;
+  z-index: 8500;
+}
+
+body.cronograma-fullscreen-open .cronograma-overlay--task-detail {
+  z-index: 30000;
 }
 
 .cronograma-dialog--task-detail {
   width: min(1180px, 100%);
   max-height: calc(100vh - 24px);
+  height: min(calc(100vh - 24px), 100%);
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  margin: 0;
+  min-width: 0;
+}
+
+.cronograma-dialog.cronograma-dialog--task-detail.panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cronograma-dialog--task-detail > .cronograma-task-layout,
+.cronograma-dialog--task-detail > .cronograma-task-mobile-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cronograma-dialog--task-detail > .cronograma-task-foot,
+.cronograma-dialog--task-detail > .cronograma-dialog-actions {
+  flex: none;
 }
 
 .cronograma-task-head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border-muted, rgba(20, 16, 38, 0.1));
+  background: #fafbfc;
+  color: var(--foreground, #17142b);
+}
+
+.cronograma-dialog--mobile .cronograma-task-head {
+  padding: 12px 14px 10px;
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.cronograma-task-head-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 20px 24px 12px;
-  border-bottom: 1px solid var(--border-muted, rgba(20, 16, 38, 0.08));
+  width: 100%;
+  min-width: 0;
+}
+
+.cronograma-task-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cronograma-task-head h2 {
+  margin: 0;
+  font-family: var(--font-display, Unbounded, Figtree, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--foreground, #17142b);
+}
+
+.cronograma-task-head-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cronograma-task-head-title-wrap h2 {
+  min-width: 0;
+  flex: 1;
+}
+
+.cronograma-task-title-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 0 2px;
+  border: none;
+  border-bottom: 2px solid var(--movly-purple, #7579e5);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-display, Unbounded, Figtree, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--foreground, #17142b);
+  min-height: 0;
+  box-shadow: none;
+}
+
+.cronograma-task-title-input:focus {
+  outline: none;
+  border-bottom-color: var(--movly-purple, #7579e5);
+}
+
+.cronograma-task-head-title-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cronograma-task-head-title-tools .cronograma-priority-picker--compact .cronograma-priority-picker-trigger {
+  min-width: 2.5rem;
+  height: 2.25rem;
+  padding: 0 8px;
+}
+
+.cronograma-task-head-title-tools .cronograma-priority-picker-menu {
+  right: 0;
+  left: auto;
+}
+
+.cronograma-task-title-edit-btn {
+  flex-shrink: 0;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 6px;
+}
+
+.cronograma-task-period-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.cronograma-task-field-label--compact {
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cronograma-task-period-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--border-muted, rgba(20, 16, 38, 0.12));
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--foreground, #17142b);
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.cronograma-task-period-chip:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.cronograma-task-period-chip-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cronograma-task-period-chip-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.cronograma-task-period-chip-edit {
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
+.cronograma-task-period-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--movly-purple, #7579e5);
+  background: var(--surface, #fff);
+}
+
+.cronograma-task-period-edit-input {
+  width: auto;
+  min-width: 0;
+  max-width: 10.5rem;
+  min-height: 2rem;
+  padding: 2px 6px;
+  font-size: 0.8125rem;
+}
+
+.cronograma-task-period-sep {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.cronograma-dialog--mobile .cronograma-task-mobile-scroll .cronograma-task-mobile-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: 0;
+  background: var(--surface, #fff);
+}
+
+.cronograma-task-head-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cronograma-task-head-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cronograma-task-head-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cronograma-task-share-icon {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 6px;
+}
+
+.cronograma-task-head-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cronograma-task-requester-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.cronograma-task-requester-avatar .avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.cronograma-task-requester-avatar--readonly {
+  cursor: default;
+}
+
+.cronograma-task-people-cell--requester .cronograma-task-requester-avatar {
+  width: auto;
+  height: auto;
+  overflow: visible;
+}
+
+.cronograma-task-people-cell--requester .cronograma-task-requester-avatar .avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.cronograma-task-head-combo {
+  flex: 1 1 0;
+  min-width: 4.5rem;
+  margin: 0;
+}
+
+.cronograma-task-head-combo select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+}
+
+.cronograma-task-head-combo--progress {
+  flex: 1.15 1 0;
+  min-width: 5.5rem;
 }
 
 .cronograma-task-breadcrumb {
@@ -1118,7 +1435,7 @@ body.cronograma-fullscreen-open {
   color: var(--text-muted);
 }
 
-.cronograma-task-head h2 {
+.cronograma-task-head h2:not(.cronograma-task-editor-title) {
   margin: 0;
   font-size: 1.25rem;
   line-height: 1.3;
@@ -1135,24 +1452,39 @@ body.cronograma-fullscreen-open {
   font-size: 0.8125rem;
 }
 
+.cronograma-task-head-main {
+  min-width: 0;
+  flex: 1;
+}
+
 .cronograma-task-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   gap: 0;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
 .cronograma-task-main {
   padding: 16px 24px 8px;
+}
+
+.cronograma-task-main--scroll {
   overflow: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .cronograma-task-meta-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px 14px;
+}
+
+.cronograma-task-meta-top .cronograma-field select,
+.cronograma-task-meta-top .cronograma-field input {
+  width: 100%;
 }
 
 .cronograma-task-field-label {
@@ -1196,18 +1528,288 @@ body.cronograma-fullscreen-open {
   gap: 6px;
 }
 
-.cronograma-task-owners {
-  margin-top: 12px;
+.cronograma-task-inline-quick {
+  margin: 12px 0 14px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--border-muted, rgba(20, 16, 38, 0.08));
+  border-bottom: 1px solid var(--border-muted, rgba(20, 16, 38, 0.08));
 }
 
 .cronograma-task-description {
   margin-top: 20px;
 }
 
+.cronograma-task-people-band {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted, rgba(20, 16, 38, 0.12));
+  background: #f8f9fc;
+}
+
+.cronograma-task-people-band-line {
+  display: grid;
+  gap: 12px 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cronograma-task-body-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cronograma-dialog--desktop .cronograma-task-meta-top {
+  box-sizing: border-box;
+  width: 100%;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (min-width: 640px) {
+  .cronograma-dialog--desktop .cronograma-task-body-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 18px;
+    row-gap: 0;
+    align-items: start;
+  }
+
+  .cronograma-dialog--desktop .cronograma-task-people-cell--owners {
+    grid-column: 1;
+  }
+
+  .cronograma-dialog--desktop .cronograma-task-people-cell--period {
+    grid-column: 3;
+  }
+}
+
+.cronograma-task-people-cell .cronograma-task-field-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.cronograma-task-people-cell--requester,
+.cronograma-task-people-cell--owners,
+.cronograma-task-people-cell--period {
+  min-width: 0;
+}
+
+.cronograma-task-people-band .cronograma-task-period-compact--in-band {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.cronograma-task-people-band .cronograma-task-period-chip {
+  background: #fff;
+}
+
+@media (min-width: 640px) {
+  .cronograma-dialog--desktop .cronograma-task-people-band .cronograma-task-period-compact--in-band,
+  .cronograma-dialog--desktop .cronograma-task-people-band .cronograma-task-period-chip,
+  .cronograma-dialog--desktop .cronograma-task-people-band .cronograma-task-period-edit {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cronograma-dialog--desktop .cronograma-task-meta-top .cronograma-field,
+  .cronograma-dialog--desktop .cronograma-task-people-band .cronograma-field,
+  .cronograma-dialog--desktop .cronograma-task-people-cell {
+    min-width: 0;
+  }
+}
+
+.cronograma-task-people-cell--requester .cronograma-task-requester-avatar {
+  margin-top: 2px;
+}
+
+.cronograma-task-people-cell--owners .cronograma-assignee-selector {
+  margin-top: 2px;
+}
+
+.cronograma-task-people-band .cronograma-field select {
+  width: 100%;
+}
+
+.cronograma-priority-picker {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.cronograma-priority-picker-trigger {
+  gap: 6px;
+  min-width: 4.25rem;
+  height: var(--form-control-min-height, 2.625rem);
+  padding: 0 10px 0 12px;
+  justify-content: space-between;
+}
+
+.cronograma-priority-picker-chevron {
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+}
+
+.cronograma-priority-picker-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.cronograma-priority-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1200;
+  min-width: 100%;
+  width: max(10rem, 100%);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted, rgba(20, 16, 38, 0.12));
+  background: var(--surface, #fff);
+  box-shadow: 0 10px 28px rgba(20, 16, 38, 0.14);
+}
+
+.cronograma-priority-picker-option {
+  width: 100%;
+  height: auto;
+  min-height: 2.5rem;
+  padding: 8px 10px;
+  gap: 10px;
+  justify-content: flex-start;
+  border-radius: 8px;
+  border-width: 1px;
+}
+
+.cronograma-priority-picker-option:hover {
+  filter: brightness(0.97);
+}
+
+.cronograma-priority-picker-option-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cronograma-priority-flag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: rgba(20, 16, 38, 0.05);
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.cronograma-priority-flag:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cronograma-priority-flag-icon {
+  fill: transparent;
+  transition: fill 0.15s ease;
+}
+
+.cronograma-priority-flag--low {
+  color: var(--text-muted, #6b7280);
+  background: rgba(20, 16, 38, 0.06);
+}
+
+.cronograma-priority-flag--medium {
+  color: var(--movly-periwinkle, #7579e5);
+  background: rgba(117, 121, 229, 0.12);
+}
+
+.cronograma-priority-flag--high {
+  color: var(--movly-orange, #d9771f);
+  background: rgba(217, 119, 31, 0.14);
+}
+
+.cronograma-priority-flag--urgent {
+  color: var(--danger, #c0392b);
+  background: rgba(192, 57, 43, 0.12);
+}
+
+.cronograma-priority-flag.is-active {
+  border-color: currentColor;
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.cronograma-priority-picker-trigger.is-active .cronograma-priority-flag-icon,
+.cronograma-priority-picker-option.is-active .cronograma-priority-flag-icon {
+  fill: currentColor;
+}
+
+.cronograma-task-people-cell--priority .cronograma-priority-picker {
+  margin-top: 2px;
+}
+
+.cronograma-task-situacao {
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border-muted, rgba(20, 16, 38, 0.1));
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.55));
+}
+
+.cronograma-task-situacao-title {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cronograma-task-situacao-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+
+.cronograma-task-situacao-grid--row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .cronograma-task-situacao-grid--row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .cronograma-task-progress {
   display: grid;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted, rgba(20, 16, 38, 0.1));
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.6));
+}
+
+.cronograma-task-progress--embedded {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .cronograma-task-progress-row {
@@ -1218,13 +1820,20 @@ body.cronograma-fullscreen-open {
 }
 
 .cronograma-task-progress-range {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 120px;
+  width: auto;
+  max-width: 100%;
   margin: 0;
-  height: 6px;
-  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  height: 1.5rem;
+  min-height: 1.5rem;
   accent-color: var(--movly-periwinkle, #7579e5);
   cursor: pointer;
+  -webkit-appearance: auto;
+  appearance: auto;
 }
 
 .cronograma-task-progress-range:disabled {
@@ -1234,16 +1843,51 @@ body.cronograma-fullscreen-open {
 
 .cronograma-task-progress-value {
   flex-shrink: 0;
-  min-width: 3.25rem;
-  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 3.75rem;
+  justify-content: flex-end;
   font-size: 0.8125rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
+.cronograma-task-progress-input {
+  width: 3rem;
+  min-width: 0;
+  padding: 4px 6px;
+  text-align: right;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cronograma-task-progress-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
 .cronograma-task-main .cronograma-checkbox {
   margin-top: 16px;
+}
+
+.cronograma-task-milestone {
+  margin: 8px 0 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  gap: 6px;
+}
+
+.cronograma-task-milestone input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--movly-purple, #8254e4);
 }
 
 .cronograma-task-date-hint {
@@ -1340,6 +1984,20 @@ body.cronograma-fullscreen-open {
   flex: 1;
 }
 
+.cronograma-task-comment-card-head .cronograma-task-comment-remove {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  min-height: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.cronograma-task-comment-card-head .cronograma-task-comment-remove:hover:not(:disabled) {
+  color: var(--danger, #c0392b);
+}
+
 .cronograma-task-comment-card-head {
   display: flex;
   flex-wrap: wrap;
@@ -1374,6 +2032,13 @@ body.cronograma-fullscreen-open {
   background: rgba(117, 121, 229, 0.12);
   border-radius: 4px;
   padding: 0 0.2em;
+}
+
+.cronograma-comment-draft-preview {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .cronograma-comment-composer {
@@ -1647,9 +2312,8 @@ body.cronograma-fullscreen-open {
     max-height: 42vh;
   }
 
-  .cronograma-dialog--task-detail {
+  .cronograma-dialog--task-detail:not(.cronograma-dialog--mobile) {
     max-height: 96vh;
-    overflow: auto;
   }
 }
 
@@ -1689,12 +2353,32 @@ body.cronograma-fullscreen-open {
   height: 20px;
 }
 
+.cronograma-dialog--task-detail.cronograma-dialog--desktop {
+  overflow: hidden;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-muted, rgba(20, 16, 38, 0.12));
+  border-radius: 1rem;
+  box-shadow: 0 12px 40px rgba(20, 16, 38, 0.2);
+}
+
+.cronograma-dialog--task-detail .cronograma-task-foot {
+  flex: none;
+  min-height: min-content;
+}
+
 .cronograma-dialog-actions {
   display: flex;
   gap: 10px;
-  margin-top: 18px;
+  margin: 0;
+  padding: 12px 20px 16px;
   flex-wrap: wrap;
   align-items: center;
+  border-top: 1px solid var(--border-muted, rgba(20, 16, 38, 0.08));
+  background: var(--surface, #fff);
+}
+
+.cronograma-dialog--task-detail > .cronograma-dialog-actions {
+  margin-top: 0;
 }
 
 .cronograma-dialog-delete {
@@ -2056,4 +2740,269 @@ body.cronograma-fullscreen-open {
 
 .cronograma-mob-owners {
   padding-left: 1.35rem;
+}
+
+.cronograma-mob-empty-phase {
+  padding: 0.5rem 0.65rem 0.75rem;
+  font-size: 0.8125rem;
+  list-style: none;
+}
+
+.cronograma-mob-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.cronograma-mob-code {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.cronograma-mob-priority {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(117, 121, 229, 0.12);
+  color: var(--movly-periwinkle, #7579e5);
+}
+
+.cronograma-mob-priority--low {
+  background: rgba(20, 16, 38, 0.06);
+  color: var(--text-muted);
+}
+
+.cronograma-mob-priority--high {
+  background: rgba(217, 119, 31, 0.14);
+  color: var(--movly-orange, #d9771f);
+}
+
+.cronograma-mob-priority--urgent {
+  background: rgba(192, 57, 43, 0.12);
+  color: var(--danger, #c0392b);
+}
+
+.cronograma-mob-card {
+  min-height: 3.25rem;
+  padding: 0.75rem 0.85rem;
+}
+
+/* ——— Hero e toolbar (mobile) ——— */
+
+.cronograma-hero--mobile .cronograma-lead {
+  display: none;
+}
+
+.cronograma-hero--mobile .cronograma-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.cronograma-hero--mobile .cronograma-kpi {
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+}
+
+.cronograma-hero--mobile .cronograma-kpi strong {
+  font-size: 1.1rem;
+}
+
+.cronograma-hero--mobile .cronograma-kpi span {
+  font-size: 0.6875rem;
+  line-height: 1.25;
+}
+
+.cronograma-page--mobile .cronograma-note {
+  display: none;
+}
+
+.cronograma-page--mobile .cronograma-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0.65rem 0.75rem;
+  margin: 0 -0.25rem 0.5rem;
+  border-radius: 0.75rem;
+  background: var(--surface, #fff);
+  box-shadow: 0 1px 0 var(--border-muted, rgba(20, 16, 38, 0.08));
+}
+
+.cronograma-page--mobile .cronograma-search {
+  width: 100%;
+  min-height: 2.75rem;
+  font-size: 1rem;
+}
+
+.cronograma-page--mobile .cronograma-chip {
+  min-height: 2.25rem;
+}
+
+/* ——— Editor da tarefa (mobile) ——— */
+
+.cronograma-overlay--mobile {
+  padding: 0;
+  align-items: stretch;
+  z-index: 8500;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+.cronograma-dialog--task-detail.cronograma-dialog--mobile {
+  width: 100%;
+  max-width: none;
+  max-height: 100dvh;
+  height: 100dvh;
+  min-height: 100dvh;
+  border-radius: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.cronograma-task-mobile-scroll {
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+
+.cronograma-dialog--mobile {
+  background: var(--surface, #fff);
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+
+.cronograma-task-details-chrome .cronograma-task-head-controls {
+  margin-top: 10px;
+}
+
+.cronograma-dialog--mobile .cronograma-task-updated {
+  font-size: 0.75rem;
+}
+
+.cronograma-dialog--mobile .cronograma-task-head-controls {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.cronograma-dialog--mobile .cronograma-task-head-combo select {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.35rem;
+  min-height: 2.35rem;
+}
+
+.cronograma-task-mobile-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border-muted, rgba(20, 16, 38, 0.08));
+  background: var(--surface, #fff);
+}
+
+.cronograma-task-mobile-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 2.75rem;
+  padding: 0 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.cronograma-task-mobile-tab.is-active {
+  color: var(--accent-strong, var(--movly-purple));
+  border-bottom-color: var(--movly-purple, #7579e5);
+}
+
+.cronograma-task-mobile-tab-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(117, 121, 229, 0.15);
+  color: var(--movly-purple);
+}
+
+.cronograma-task-mobile-scroll .cronograma-task-main {
+  padding: 12px 14px 24px;
+  overflow: visible;
+  min-height: auto;
+}
+
+.cronograma-task-mobile-scroll .cronograma-task-meta-grid {
+  grid-template-columns: 1fr;
+}
+
+.cronograma-task-sidebar--mobile {
+  border-left: none;
+  min-height: 0;
+  max-height: none;
+  padding: 8px 14px 28px;
+  background: var(--surface-muted, #f8f7fb);
+}
+
+.cronograma-task-mobile-scroll .cronograma-task-sidebar--mobile {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cronograma-task-foot--mobile {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin: 0 !important;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-muted, rgba(20, 16, 38, 0.08));
+  background: var(--surface, #fff);
+}
+
+.cronograma-task-foot--mobile .btn {
+  min-height: 2.25rem;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  flex: 0 0 auto;
+}
+
+.cronograma-task-foot--mobile .btn-primary {
+  min-width: 4.5rem;
+}
+
+.cronograma-task-foot-icon {
+  padding: 6px 8px;
+  min-width: 2.25rem;
+}
+
+.cronograma-toast {
+  bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 1024px) {
+  .cronograma-dialog--task-detail:not(.cronograma-dialog--mobile) {
+    max-height: 100dvh;
+  }
 }

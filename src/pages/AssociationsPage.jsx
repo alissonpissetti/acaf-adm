@@ -11,6 +11,7 @@ import { inactiveBadgeClass, inactiveLabel } from '../crud/crudUtils.js';
 import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 import { AssociationPortalUsersField } from '../components/AssociationPortalUsersField.jsx';
 
 const EMPTY = {
@@ -235,13 +236,21 @@ export default function AssociationsPage() {
       );
     }
 
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Associações',
+      goToList: router.goToList,
+      entityLabel: 'associação',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: `${selected.name} · slug ${selected.slug}`,
+    });
     return (
       <AssociationForm
         associationId={selected.id}
         portalUsersEditable={canManage}
-        title={router.isViewing ? selected.name : `Editar · ${selected.name}`}
-        subtitle={`Slug: ${selected.slug}`}
-        breadcrumbs={[{ label: 'Associações', onClick: router.goToList }, { label: selected.name }]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           slug: selected.slug,
           slugLocked: true,

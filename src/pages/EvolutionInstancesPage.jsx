@@ -25,6 +25,7 @@ import { PermissionGate } from '../components/PermissionGate.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { confirmCrudDelete } from '../crud/crudUtils.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 import { ModalCloseButton } from '../components/ModalCloseButton.jsx';
 
 function normalizeEvolutionQrImage(value) {
@@ -807,11 +808,20 @@ export function EvolutionInstancesPage() {
       );
     }
 
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Instâncias',
+      goToList: router.goToList,
+      entityLabel: 'instância WhatsApp',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: `${selected.name} · ${selected.instanceKey}`,
+      breadcrumbPrefix: breadcrumbsRoot,
+    });
     return (
       <InstanceForm
-        title={router.isViewing ? selected.name : 'Editar instância'}
-        subtitle={selected.instanceKey}
-        breadcrumbs={[...breadcrumbsRoot, { label: selected.name, onClick: router.goToList }]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         departments={departments}
         users={users}
         instanceId={selected.id}

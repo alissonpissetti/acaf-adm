@@ -1,6 +1,8 @@
 # Painel Admin — Referência Visual e Premissas de UI
 
-Documento de referência para o frontend **connect-adm**. Objetivo: manter consistência visual, acelerar novas telas e preparar o console para crescer como **grande sistema de gestão** sem fragmentação de estilo.
+Documento de referência para o frontend **acaf-adm**. Objetivo: manter consistência visual, acelerar novas telas e preparar o console para crescer como **grande sistema de gestão** sem fragmentação de estilo.
+
+**Listagens desktop/mobile:** [DESIGN-LISTAGENS.md](./DESIGN-LISTAGENS.md).
 
 **Escopo:** painel administrativo interno (`localhost:5173`)  
 **Stack UI:** React + Vite, CSS vanilla, Lucide React  

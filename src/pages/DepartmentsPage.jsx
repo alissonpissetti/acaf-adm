@@ -16,6 +16,7 @@ import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 
 const EMPTY = { name: '', description: '', createCostCenter: true, active: true };
 
@@ -202,14 +203,19 @@ export function DepartmentsPage() {
       );
     }
 
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Departamentos',
+      goToList: router.goToList,
+      entityLabel: 'departamento',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: selected.description?.trim() || selected.name,
+    });
     return (
       <DepartmentForm
-        title={router.isViewing ? selected.name : 'Editar departamento'}
-        subtitle={selected.description || 'Departamento organizacional'}
-        breadcrumbs={[
-          { label: 'Departamentos', onClick: router.goToList },
-          { label: selected.name },
-        ]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           name: selected.name,
           description: selected.description ?? '',

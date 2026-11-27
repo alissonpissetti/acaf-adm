@@ -19,6 +19,7 @@ import { confirmCrudDelete, inactiveBadgeClass, inactiveLabel } from '../crud/cr
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 import { useNavigation } from '../navigation/NavigationContext.jsx';
 import { ModuleIcon } from '../utils/icons.jsx';
 
@@ -714,12 +715,14 @@ export function ModulesPage() {
       <div className="page-stack">
         <CrudAlerts error={error} message={message} />
         <ModuleFormScreen
-          title={router.isViewing ? selectedModule.name : 'Editar módulo'}
-          subtitle={selectedModule.description || 'Módulo de navegação'}
-          breadcrumbs={[
-            { label: 'Módulos', onClick: router.goToList },
-            { label: selectedModule.name },
-          ]}
+          {...buildCrudRecordPageHeader({
+            listLabel: 'Módulos',
+            goToList: router.goToList,
+            entityLabel: 'módulo',
+            recordName: selectedModule.name,
+            mode: router.isViewing ? 'view' : 'edit',
+            subtitle: selectedModule.description?.trim() || selectedModule.name,
+          })}
           initial={{
             slug: selectedModule.slug,
             name: selectedModule.name,

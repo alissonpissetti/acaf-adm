@@ -8,6 +8,7 @@ import {
   todayYmd,
   weightedProgressPercent,
 } from '../../lib/cronogramaMetrics.js';
+import { TASK_PRIORITY_LABELS } from '../../lib/cronogramaTaskLabels.js';
 import { ownersFromTask } from '../../lib/cronogramaOwners.js';
 import { CronogramaOwnerAvatars } from './CronogramaOwnerAvatars.jsx';
 
@@ -68,9 +69,7 @@ export function CronogramaMobileList({
 
   return (
     <div className="cronograma-mobile panel" aria-label="Cronograma em lista">
-      <p className="cronograma-mobile-hint muted">
-        Visualização otimizada para celular — toque numa tarefa para ver detalhes.
-      </p>
+      <p className="cronograma-mobile-hint muted">Toque em uma tarefa para abrir detalhes, progresso e comentários.</p>
       <div className="cronograma-mobile-list">
         {phases.map((phase, phaseIndex) => {
           const { all, list } = filteredByPhase.get(phase) ?? { all: [], list: [] };
@@ -96,6 +95,9 @@ export function CronogramaMobileList({
               </div>
               {open ? (
                 <ul className="cronograma-mob-tasks">
+                  {!list.length ? (
+                    <li className="cronograma-mob-empty-phase muted">Nenhuma tarefa neste filtro.</li>
+                  ) : null}
                   {list.map((task) => (
                     <li key={task.id}>
                       <MobileTaskCard
@@ -122,9 +124,15 @@ function MobileTaskCard({ task, today, ownerUserDirectory, onOpen }) {
   const statusLabel = STATUS_LABELS[sk] ?? task.status;
   const pct = taskProgress(task);
   const owners = ownersFromTask(task, ownerUserDirectory);
+  const priority = task.priority ?? 'medium';
+  const priorityLabel = TASK_PRIORITY_LABELS[priority] ?? priority;
 
   return (
     <button type="button" className={`cronograma-mob-card cronograma-mob-card--${task.status}`} onClick={onOpen}>
+      <div className="cronograma-mob-card-meta">
+        {task.code ? <span className="cronograma-mob-code">#{task.code}</span> : null}
+        <span className={`cronograma-mob-priority cronograma-mob-priority--${priority}`}>{priorityLabel}</span>
+      </div>
       <div className="cronograma-mob-card-top">
         {task.isMilestone ? (
           <Flag className="cronograma-mob-milestone-icon" size={16} aria-hidden />

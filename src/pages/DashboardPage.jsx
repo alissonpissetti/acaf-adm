@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getAdminOverview } from '../api/admin.js';
 import { getHealth } from '../api/client.js';
 import { PageHeader } from '../components/PageHeader.jsx';
+import { PayingLivesDiagnosticsChips } from '../components/PayingLivesDiagnosticsChips.jsx';
 import { PayingLivesEvolutionChart } from '../components/PayingLivesEvolutionChart.jsx';
 import { API_URL } from '../config.js';
 
@@ -37,9 +38,11 @@ function formatShortIso(iso) {
   }
 }
 
-function DashboardKpiCard({ label, hint, main, footer }) {
+function DashboardKpiCard({ label, hint, main, footer, compact = false }) {
   return (
-    <article className="panel stat-panel dashboard-kpi-card">
+    <article
+      className={`panel stat-panel dashboard-kpi-card${compact ? ' dashboard-kpi-card--compact' : ''}`}
+    >
       <span className="stat-label">{label}</span>
       <div className="dashboard-kpi-card__main">{main}</div>
       {hint ? <p className="muted dashboard-kpi-card__hint">{hint}</p> : null}
@@ -113,7 +116,7 @@ export function DashboardPage() {
         subtitle="Visão consolidada da operação."
       />
 
-      <div className="stat-grid dashboard-kpi-grid">
+      <div className="dashboard-kpi-layout">
         <DashboardKpiCard
           label="Onboarding concluído"
           hint={
@@ -165,21 +168,65 @@ export function DashboardPage() {
         />
 
         <DashboardKpiCard
-          label="Planos"
-          hint="Planos disponíveis no catálogo Movly"
+          label="Empresas"
+          hint={
+            overview?.corporateBase?.companies
+              ? `${formatPtNumber(overview.corporateBase.companies.active)} ativas · ${formatPtNumber(overview.corporateBase.companies.pending)} pendentes · ${formatPtNumber(overview.corporateBase.companies.suspended)} suspensas`
+              : 'Contratos corporativos (RH) no cadastro'
+          }
           main={
-            <strong className="stat-value stat-value--hero">{formatPtNumber(overview?.planCount)}</strong>
+            <strong className="stat-value stat-value--hero">
+              {overview?.corporateBase?.companies
+                ? formatPtNumber(overview.corporateBase.companies.total)
+                : '—'}
+            </strong>
           }
           footer={
-            <Link to="/m/operacao/planos" className="stat-link">
-              Gerenciar planos →
+            <Link to="/m/corporativo/empresas" className="stat-link">
+              Ver empresas →
             </Link>
           }
         />
 
         <DashboardKpiCard
+          label="Colaboradores"
+          hint={
+            overview?.corporateBase?.employees
+              ? `${formatPtNumber(overview.corporateBase.employees.active)} ativos · ${formatPtNumber(overview.corporateBase.employees.invited)} convidados · ${formatPtNumber(overview.corporateBase.employees.pending)} pendentes · ${formatPtNumber(overview.corporateBase.employees.inactive)} inativos`
+              : 'Colaboradores vinculados a empresas no portal corporativo'
+          }
+          main={
+            <strong className="stat-value stat-value--hero">
+              {overview?.corporateBase?.employees
+                ? formatPtNumber(overview.corporateBase.employees.total)
+                : '—'}
+            </strong>
+          }
+          footer={
+            <Link to="/m/corporativo/empresas" className="stat-link">
+              Ver por empresa →
+            </Link>
+          }
+        />
+
+        <DashboardKpiCard
+          compact
+          label="Planos"
+          hint="Catálogo Movly"
+          main={
+            <strong className="stat-value stat-value--hero">{formatPtNumber(overview?.planCount)}</strong>
+          }
+          footer={
+            <Link to="/m/operacao/planos" className="stat-link">
+              Planos →
+            </Link>
+          }
+        />
+
+        <DashboardKpiCard
+          compact
           label="Status da API"
-          hint={API_URL ? `Base: ${API_URL.replace(/^https?:\/\//, '')}` : undefined}
+          hint={API_URL ? API_URL.replace(/^https?:\/\//, '') : undefined}
           main={
             <span
               className={`badge dashboard-kpi-api-badge ${health ? 'badge-success' : error ? 'badge-error' : 'badge-muted'}`}
@@ -209,29 +256,11 @@ export function DashboardPage() {
             ) : null}
           </div>
           <div className="panel-body">
-            <div
-              className={`acaf-lives-kpi-grid${overview.acafRepasseTierMismatch ? ' acaf-lives-kpi-grid--three' : ''}`}
-            >
+            <div className="acaf-lives-kpi-grid">
               <article className="acaf-lives-kpi acaf-lives-kpi--primary">
                 <span className="stat-label">Vidas pagantes (mês)</span>
                 <strong className="acaf-lives-value">{formatPtNumber(overview.acafPayingLivesCount)}</strong>
-                {overview.acafPayingLivesDiagnostics ? (
-                  <div className="acaf-lives-kpi__chips">
-                    <span className="acaf-lives-chip">
-                      {formatPtNumber(overview.acafPayingLivesDiagnostics.checkInHoldersThisMonth)} titulares únicos (
-                      {overview.acafPayingLivesDiagnostics.monthPrefix})
-                    </span>
-                    <span className="acaf-lives-chip">
-                      {formatPtNumber(overview.acafPayingLivesDiagnostics.checkInEventsThisMonth)} check-ins no log
-                    </span>
-                    {overview.acafPayingLivesDiagnostics.pendingHoldersThisMonth > 0 ? (
-                      <span className="acaf-lives-chip">
-                        {formatPtNumber(overview.acafPayingLivesDiagnostics.pendingHoldersThisMonth)} pendentes na
-                        recepção
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
+                <PayingLivesDiagnosticsChips diagnostics={overview.acafPayingLivesDiagnostics} />
                 {overview.acafPayingLivesDiagnostics?.checkInLogTotal === 0 ? (
                   <p className="muted acaf-lives-hint" style={{ marginTop: '0.75rem' }}>
                     Nenhum check-in de plano no banco (<code>checkInLog</code> vazio e sem pendências). O KPI só sobe
@@ -377,20 +406,6 @@ export function DashboardPage() {
             ) : null}
 
             {overviewError ? <p className="error-text">{overviewError}</p> : null}
-          </div>
-        </section>
-      ) : null}
-
-      {overview ? (
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Taxas da plataforma</h2>
-          </div>
-          <div className="panel-body">
-            <p className="muted">
-              Planos: <strong>{overview.connectFeePercent}%</strong> · Diárias:{' '}
-              <strong>{overview.dailyFeePercent}%</strong>
-            </p>
           </div>
         </section>
       ) : null}

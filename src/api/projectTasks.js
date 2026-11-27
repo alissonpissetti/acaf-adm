@@ -39,6 +39,13 @@ export function addProjectTaskComment(id, body) {
   });
 }
 
+export function deleteProjectTaskComment(id, commentId) {
+  return fetchApi(
+    `/api/admin/project-tasks/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}`,
+    { method: 'DELETE' },
+  );
+}
+
 export function fetchProjectTaskAttachments(id) {
   return fetchApi(`/api/admin/project-tasks/${encodeURIComponent(id)}/attachments`);
 }

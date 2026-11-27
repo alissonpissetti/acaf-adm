@@ -11,6 +11,7 @@ import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { parseOptionalPercent } from '../utils/parsePercentInput.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 
 const SYSTEM_VARIABLES = [
   {
@@ -359,13 +360,15 @@ export function PlatformSettingsPage() {
     return (
       <PermissionGate permission="plataforma.configuracoes">
         <SettingForm
-          title={router.isViewing ? selected.name : 'Editar variável'}
-          subtitle={selected.key}
+          {...buildCrudRecordPageHeader({
+            listLabel: 'Configurações',
+            goToList: router.goToList,
+            entityLabel: 'variável',
+            recordName: selected.name,
+            mode: router.isViewing ? 'view' : 'edit',
+            subtitle: `${selected.name} · ${selected.key}`,
+          })}
           message={message}
-          breadcrumbs={[
-            { label: 'Configurações', onClick: router.goToList },
-            { label: selected.name },
-          ]}
           initial={{
             name: selected.name,
             key: selected.key,
@@ -433,7 +436,7 @@ export function PlatformSettingsPage() {
     <PermissionGate permission="plataforma.configuracoes">
       <CrudListShell
         title="Configurações"
-        subtitle="Variáveis globais salvas no banco do sistema (taxas, integração WhatsApp e demais parâmetros)."
+        subtitle="Variáveis globais do sistema (taxas, integração WhatsApp e demais parâmetros)."
         canAdd={false}
         loading={loading}
         error={error}

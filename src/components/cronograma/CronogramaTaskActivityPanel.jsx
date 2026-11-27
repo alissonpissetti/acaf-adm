@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar } from '../Avatar.jsx';
 import { buildTaskActivityMessage } from '../../lib/cronogramaTaskLabels.js';
-import { parseCommentBodySegments } from '../../lib/cronogramaCommentMentions.js';
+import { mentionDisplayLabel, parseCommentBodySegments } from '../../lib/cronogramaCommentMentions.js';
 import { CronogramaCommentComposer } from './CronogramaCommentComposer.jsx';
+import { getRemovableCommentId } from '../../lib/cronogramaComments.js';
 
 function formatCompactDateTime(iso) {
   if (!iso) return '';
@@ -33,13 +34,20 @@ function formatAbsolute(iso) {
 export function CronogramaTaskActivityPanel({
   taskId,
   canManage,
+  currentUserId,
   events,
   loadingEvents,
   comments,
   loadingComments,
   onSubmitComment,
+  onDeleteComment,
   submittingComment,
+  deletingCommentId,
   adminUsers = [],
+  mobileLayout = false,
+  panelId,
+  tabLabelledBy,
+  hidden: panelHidden,
 }) {
   const [hideActivity, setHideActivity] = useState(false);
 
@@ -74,11 +82,50 @@ export function CronogramaTaskActivityPanel({
     [timeline, hideActivity],
   );
 
-  const loading = loadingEvents || loadingComments;
+  const removableCommentId = useMemo(
+    () => (canManage ? getRemovableCommentId(comments, currentUserId) : null),
+    [canManage, comments, currentUserId],
+  );
+
+  const loading =
+    (loadingEvents && !(events?.length)) || (loadingComments && !(comments?.length));
+
+  const feedRef = useRef(null);
+  const prevCommentCount = useRef(comments?.length ?? 0);
+
+  useEffect(() => {
+    prevCommentCount.current = comments?.length ?? 0;
+  }, [taskId]);
+
+  useEffect(() => {
+    const count = comments?.length ?? 0;
+    if (count > prevCommentCount.current && feedRef.current) {
+      requestAnimationFrame(() => {
+        feedRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    }
+    prevCommentCount.current = count;
+  }, [comments?.length]);
 
   return (
-    <aside className="cronograma-task-sidebar" aria-label="Atividade e comentários">
-      <TimelineFeed loading={loading} empty={!visibleTimeline.length} items={visibleTimeline} userById={userById} />
+    <aside
+      id={panelId}
+      className={`cronograma-task-sidebar${mobileLayout ? ' cronograma-task-sidebar--mobile' : ''}`}
+      aria-label="Atividade e comentários"
+      role={mobileLayout ? 'tabpanel' : undefined}
+      aria-labelledby={mobileLayout ? tabLabelledBy : undefined}
+      hidden={panelHidden ? true : undefined}
+    >
+      <TimelineFeed
+        feedRef={feedRef}
+        loading={loading}
+        empty={!visibleTimeline.length}
+        items={visibleTimeline}
+        userById={userById}
+        removableCommentId={removableCommentId}
+        onDeleteComment={onDeleteComment}
+        deletingCommentId={deletingCommentId}
+      />
 
       <CronogramaCommentComposer
         taskId={taskId}
@@ -93,7 +140,16 @@ export function CronogramaTaskActivityPanel({
   );
 }
 
-function TimelineFeed({ loading, empty, items, userById }) {
+function TimelineFeed({
+  feedRef,
+  loading,
+  empty,
+  items,
+  userById,
+  removableCommentId,
+  onDeleteComment,
+  deletingCommentId,
+}) {
   if (loading) {
     return <p className="field-hint cronograma-task-sidebar-hint">Carregando atividade…</p>;
   }
@@ -101,10 +157,17 @@ function TimelineFeed({ loading, empty, items, userById }) {
     return <p className="field-hint cronograma-task-sidebar-hint">Nenhuma atividade ainda.</p>;
   }
   return (
-    <ol className="cronograma-task-feed">
+    <ol className="cronograma-task-feed" ref={feedRef}>
       {items.map((entry) =>
         entry.kind === 'comment' ? (
-          <CommentCard key={`c-${entry.id}`} entry={entry} userById={userById} />
+          <CommentCard
+            key={`c-${entry.id}`}
+            entry={entry}
+            userById={userById}
+            canRemove={entry.id === removableCommentId}
+            onRemove={onDeleteComment}
+            removing={deletingCommentId === entry.id}
+          />
         ) : (
           <ActivityLog key={`e-${entry.id}`} entry={entry} userById={userById} />
         ),
@@ -126,7 +189,7 @@ function ActivityLog({ entry, userById }) {
   );
 }
 
-function CommentCard({ entry, userById }) {
+function CommentCard({ entry, userById, canRemove, onRemove, removing }) {
   const user = entry.userId ? userById.get(entry.userId) : null;
   const displayName = entry.userName ?? user?.name ?? 'Usuário';
   const segments = useMemo(() => parseCommentBodySegments(entry.body), [entry.body]);
@@ -149,12 +212,26 @@ function CommentCard({ entry, userById }) {
           <time dateTime={entry.at} title={formatAbsolute(entry.at)}>
             {formatCompactDateTime(entry.at)}
           </time>
+          {canRemove ? (
+            <button
+              type="button"
+              className="cronograma-task-comment-remove btn btn-ghost btn-sm"
+              disabled={removing}
+              onClick={() => void onRemove?.(entry.id)}
+            >
+              {removing ? 'Removendo…' : 'Remover'}
+            </button>
+          ) : null}
         </header>
         <p className="cronograma-task-comment-card-text">
           {segments.map((seg, index) =>
             seg.type === 'mention' ? (
-              <span key={`${entry.id}-m-${index}`} className="cronograma-comment-mention" title={seg.label}>
-                @{seg.label.split(/\s+/)[0]}
+              <span
+                key={`${entry.id}-m-${index}`}
+                className="cronograma-comment-mention"
+                title={mentionDisplayLabel(seg.label)}
+              >
+                @{mentionDisplayLabel(seg.label)}
               </span>
             ) : (
               <span key={`${entry.id}-t-${index}`}>{seg.value}</span>

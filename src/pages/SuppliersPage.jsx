@@ -13,6 +13,7 @@ import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 import {
   emptyPixKey,
   formatSupplierDocument,
@@ -320,11 +321,19 @@ export function SuppliersPage() {
       );
     }
 
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Fornecedores',
+      goToList: router.goToList,
+      entityLabel: 'fornecedor',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: selected.legalName || selected.documentFormatted || selected.name,
+    });
     return (
       <SupplierForm
-        title={router.isViewing ? selected.name : 'Editar fornecedor'}
-        subtitle={selected.legalName || selected.documentFormatted || 'Fornecedor cadastrado'}
-        breadcrumbs={[{ label: 'Fornecedores', onClick: router.goToList }, { label: selected.name }]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           ...supplierToForm(selected),
           readOnly: router.isViewing,

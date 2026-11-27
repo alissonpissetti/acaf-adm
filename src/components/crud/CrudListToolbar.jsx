@@ -1,4 +1,11 @@
+import { useState } from 'react';
 import { CrudActiveFilterChips, CrudFieldFilterMenu } from './CrudFieldFilters.jsx';
+import {
+  CrudListToolbarMobileSheet,
+  CrudListToolbarMobileSheetTrigger,
+} from './CrudListToolbarMobileSheet.jsx';
+import { useCrudToolbarMobile } from './useCrudToolbarMobile.js';
+import { hasFilterValue } from '../../crud/filterUtils.js';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -171,6 +178,15 @@ export function CrudListToolbar({
   layout = 'default',
 }) {
   const compact = layout === 'compact';
+  const isMobileToolbar = useCrudToolbarMobile();
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const useMobileSheet = compact && isMobileToolbar;
+
+  const activeFilterCount = fieldFilters.filter((filter) => {
+    const definition = filterDefinitions.find((item) => item.id === filter.id);
+    return definition && hasFilterValue(filter, definition);
+  }).length;
+
   const wrapClasses = [
     'crud-list-toolbar-wrap',
     compact ? 'crud-list-toolbar-wrap--compact' : '',
@@ -185,14 +201,19 @@ export function CrudListToolbar({
 
   const showLegacyExtras = !compact && filters;
   const showFilterMenu = filterDefinitions.length > 0;
+  const showDesktopCompactControls = compact && !useMobileSheet;
 
   return (
-    <div className={wrapClasses}>
+    <div
+      className={`${wrapClasses}${useMobileSheet ? ' crud-list-toolbar-wrap--mobile-sheet' : ''}`.trim()}
+    >
       {!compact && toolbarTitle ? <p className="crud-list-toolbar-title">{toolbarTitle}</p> : null}
 
       <div className={toolbarClasses}>
         {compact ? (
-          <label className="crud-toolbar-search-compact">
+          <label
+            className={`crud-toolbar-search-compact${useMobileSheet ? ' crud-toolbar-search-compact--mobile-full' : ''}`}
+          >
             <span className="sr-only">Buscar</span>
             <input
               className="crud-toolbar-input crud-toolbar-input--compact-inline"
@@ -214,7 +235,7 @@ export function CrudListToolbar({
           </label>
         )}
 
-        {showPageSize ? (
+        {showDesktopCompactControls && showPageSize ? (
           <CrudToolbarPageSize
             pageSize={pageSize}
             onPageSizeChange={onPageSizeChange}
@@ -222,15 +243,17 @@ export function CrudListToolbar({
           />
         ) : null}
 
-        <CrudToolbarSort
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          sortOptions={sortOptions}
-          onSortChange={onSortChange}
-          compact={compact}
-        />
+        {showDesktopCompactControls ? (
+          <CrudToolbarSort
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            sortOptions={sortOptions}
+            onSortChange={onSortChange}
+            compact={compact}
+          />
+        ) : null}
 
-        {showFilterMenu ? (
+        {showDesktopCompactControls && showFilterMenu ? (
           <CrudFieldFilterMenu
             definitions={filterDefinitions}
             activeFilters={fieldFilters}
@@ -239,8 +262,35 @@ export function CrudListToolbar({
           />
         ) : null}
 
+        {useMobileSheet ? (
+          <CrudListToolbarMobileSheetTrigger
+            open={mobileSheetOpen}
+            activeFilterCount={activeFilterCount}
+            onToggle={() => setMobileSheetOpen((current) => !current)}
+          />
+        ) : null}
+
         {showLegacyExtras ? <div className="crud-toolbar-extra">{filters}</div> : null}
       </div>
+
+      {useMobileSheet ? (
+        <CrudListToolbarMobileSheet
+          open={mobileSheetOpen}
+          onClose={() => setMobileSheetOpen(false)}
+          pageSize={pageSize}
+          onPageSizeChange={onPageSizeChange}
+          showPageSize={showPageSize}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          sortOptions={sortOptions}
+          onSortChange={onSortChange}
+          filterDefinitions={filterDefinitions}
+          fieldFilters={fieldFilters}
+          onApplyFieldFilter={onApplyFieldFilter}
+          onRemoveFieldFilter={onRemoveFieldFilter}
+          onClearFieldFilters={onClearFieldFilters}
+        />
+      ) : null}
 
       {showFilterMenu ? (
         <CrudActiveFilterChips

@@ -1,0 +1,328 @@
+/* Listagens responsivas — ver docs/DESIGN-LISTAGENS.md */
+
+.crud-list-page .page-header .page-subtitle {
+  line-height: 1.45;
+}
+
+.crud-list-panel .panel-body:first-of-type {
+  padding-top: 0.5rem;
+}
+
+.crud-list-panel .panel-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.crud-col-mobile-only {
+  display: none;
+}
+
+.crud-list-identity {
+  display: block;
+  min-width: 0;
+}
+
+.crud-list-identity__title {
+  display: block;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.crud-list-identity__meta--mobile {
+  display: none;
+}
+
+.crud-list-identity__meta-line {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.crud-list-identity__price {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.data-table.crud-list-cards-table th.data-table-col-list-identity,
+.data-table.crud-list-cards-table td.data-table-col-list-identity {
+  min-width: 8rem;
+  width: auto;
+}
+
+.data-table.crud-list-cards-table th.data-table-col-plan-price,
+.data-table.crud-list-cards-table td.data-table-col-plan-price {
+  width: 7rem;
+  min-width: 7rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table.crud-list-cards-table th.data-table-col-plan-id,
+.data-table.crud-list-cards-table td.data-table-col-plan-id {
+  width: 11rem;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.users-list-identity-badge {
+  display: none;
+}
+
+.users-list-avatar {
+  margin-inline: auto;
+}
+
+.data-table.crud-list-cards-table--users th.data-table-col-user-avatar,
+.data-table.crud-list-cards-table--users td.data-table-col-user-avatar {
+  width: 3rem;
+  min-width: 3rem;
+  max-width: 3rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.data-table.crud-list-cards-table--users th.data-table-col-user-name,
+.data-table.crud-list-cards-table--users td.data-table-col-user-name {
+  min-width: 10rem;
+}
+
+.data-table.crud-list-cards-table--users th.data-table-col-user-status,
+.data-table.crud-list-cards-table--users td.data-table-col-user-status {
+  width: 5.5rem;
+  text-align: center;
+}
+
+.data-table.crud-list-cards-table .subscription-plan-id {
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 1200px) {
+  .crud-list-panel .panel-body {
+    padding-inline: 0.75rem;
+  }
+
+  .crud-list-panel .crud-list-toolbar-wrap .crud-list-toolbar--compact {
+    gap: 0.5rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .table-wrap-responsive:has(.crud-list-cards-table--simple) {
+    overflow: visible;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple thead {
+    display: none;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple tbody {
+    display: grid;
+    gap: 0.75rem;
+    width: 100%;
+    padding-block: 0.25rem 0.5rem;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple .crud-col-desktop-only {
+    display: none !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple .crud-col-mobile-only {
+    display: block !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple .crud-list-identity__meta--mobile {
+    display: block;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple td::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.5rem;
+    grid-template-rows: auto;
+    column-gap: 0.5rem;
+    row-gap: 0;
+    align-items: start;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.875rem;
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple tr.data-table-row-clickable:active {
+    background: #f8f9fc;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple td:not(.table-actions):not(.col-actions) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple td.data-table-col-list-identity {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple td.data-table-col-row-menu {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple td.col-actions,
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple td.table-actions {
+    display: none !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--simple th.col-actions {
+    display: none;
+  }
+
+  .table-wrap-responsive:has(.crud-list-cards-table--users) {
+    overflow: visible;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users thead {
+    display: none;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users tbody {
+    display: grid;
+    gap: 0.75rem;
+    width: 100%;
+    padding-block: 0.25rem 0.5rem;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users .crud-col-desktop-only {
+    display: none !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users .crud-col-mobile-only {
+    display: block !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users .crud-list-identity__meta--mobile {
+    display: block;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users .users-list-identity-badge {
+    display: block;
+    margin-top: 0.35rem;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users tr {
+    display: grid;
+    grid-template-columns: 2.35rem 2.75rem minmax(0, 1fr) 2.5rem;
+    grid-template-rows: auto;
+    column-gap: 0.5rem;
+    align-items: start;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.875rem;
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users tr.data-table-row-clickable:active {
+    background: #f8f9fc;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td:not(.table-actions):not(.col-actions):not(.data-table-col-select):not(.col-select) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.data-table-col-select,
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.col-select {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0.4rem 0 0;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.data-table-col-user-avatar {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0.1rem 0 0;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.data-table-col-user-name {
+    grid-column: 3;
+    grid-row: 1;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.data-table-col-row-menu {
+    grid-column: 4;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.col-actions,
+  .table-wrap-responsive .data-table.crud-list-cards-table--users td.table-actions {
+    display: none !important;
+  }
+
+  .table-wrap-responsive .data-table.crud-list-cards-table--users th.col-actions {
+    display: none;
+  }
+}

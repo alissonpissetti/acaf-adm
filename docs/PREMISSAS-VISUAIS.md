@@ -91,6 +91,21 @@ Todas as telas de cadastro devem usar o **kit CRUD** em `src/crud/` e `src/compo
 
 Hook: `useCrudRouter()` — `goToList`, `goToCreate`, `goToEdit`, `goToView`.
 
+### Cabeçalho do registro (criar / visualizar / editar)
+
+Use `buildCrudCreatePageHeader` e `buildCrudRecordPageHeader` (`src/crud/crudRecordPageHeader.js`) no `PageHeader` do formulário:
+
+| Modo | `h1` (`title`) | `subtitle` | Último breadcrumb |
+|------|----------------|------------|-------------------|
+| Criar | Adicionar {entidade} | texto operacional (o que preencher) | Novo |
+| Visualizar | Visualizar {entidade} | nome do registro (ou detalhe útil) | nome do registro |
+| Editar | Editar {entidade} | nome do registro (ou detalhe útil) | nome do registro |
+
+- O **nome do registro não vai no `h1`** em visualizar/editar — evita duplicar breadcrumb e mantém o padrão “Visualizar modalidade” + subtítulo com o nome.
+- **Não** mencionar “persistido no banco”, “salvo no banco” etc. no subtítulo — isso é implícito em todo o admin.
+
+**Formulário de registro:** `page-stack crud-record-page`, painel com `panel-header--meta-only`, campos em `.form-grid` com `.form-section` + `.form-grid-inner`, inputs com `className="input"`, status ativo com `.checkbox-inline` (edição), `CrudViewActions` / `CrudFormActions`. Referência: `UserEditScreen.jsx`, `UserCreateScreen.jsx`.
+
 ### Listagem (`CrudListShell`)
 
 Toda listagem deve incluir:
@@ -157,7 +172,7 @@ Nunca usar texto solto "Carregando…" sem o componente padrão.
 
 ### Telas já padronizadas
 
-Departamentos, Cargos, Centros de Custo, Usuários, Modalidades, Contas a Pagar/Receber, Redes (lista), Empresas (lista parcial), **Parceiros (editar rede)**.
+Departamentos, Cargos, Centros de Custo, Usuários, Modalidades, Contas a Pagar/Receber, Redes (lista), Empresas (lista parcial), **Parceiros (editar rede)**, **Planos** e **Modalidades** (listagem modo card — ver [DESIGN-LISTAGENS.md](./DESIGN-LISTAGENS.md)).
 
 ### Consultas somente leitura
 
@@ -170,8 +185,10 @@ Novas telas com dados tabulares **devem** seguir o kit — inclusive configuraç
 ## Responsivo
 
 - Desktop first (gestão é usada majoritariamente em desktop).
-- Mobile: tabelas com scroll horizontal; sidebar simplificada.
-- Não esconder ações críticas em mobile — empilhar, não remover.
+- **Listagens densas:** modelo desktop (tabela compacta) + modelo mobile (**cards** até 1200px) — ver [DESIGN-LISTAGENS.md](./DESIGN-LISTAGENS.md). Referência: Parceiros; classes compartilhadas `crud-list-*` em `src/styles/crud-list-responsive.css`.
+- Mobile legado: tabelas com scroll horizontal ou card genérico via `data-label` (< 720px) até migração.
+- Sidebar simplificada em telas estreitas.
+- Não esconder ações críticas em mobile — menu ⋮ (`CrudRowMenu`, padrão Parceiros/Planos), nunca a barra gigante legada de `crud-row-actions` em listagens no modelo card.
 
 ---
 

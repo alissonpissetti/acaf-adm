@@ -188,6 +188,21 @@
   background: #f4f5f8;
 }
 
+.networks-view-toggle-text--short {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .networks-view-toggle-text--full {
+    display: none;
+  }
+
+  .networks-view-toggle-text--short {
+    display: inline;
+    font-size: 0.8125rem;
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

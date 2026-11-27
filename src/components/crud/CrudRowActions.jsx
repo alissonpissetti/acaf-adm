@@ -8,6 +8,7 @@ export function CrudRowActions({
   onDuplicate,
   onDelete,
   disabled = false,
+  children = null,
 }) {
   return (
     <div className="crud-row-actions">
@@ -91,6 +92,7 @@ export function CrudRowActions({
           <span className="crud-action-label">Excluir</span>
         </button>
       ) : null}
+      {children}
     </div>
   );
 }

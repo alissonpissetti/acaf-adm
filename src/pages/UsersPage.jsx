@@ -68,6 +68,9 @@ export function UsersPage() {
         user={selectedUser}
         readOnly={router.isViewing}
         onBack={router.goToList}
+        onCancel={
+          router.isEditing ? () => router.goToView(selectedUser.id) : router.goToList
+        }
         onEdit={() => router.goToEdit(selectedUser.id)}
         onUpdated={async () => {
           await load();

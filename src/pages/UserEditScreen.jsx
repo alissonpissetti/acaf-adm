@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { updateMyProfile } from '../api/auth.js';
 import { fetchJobPositions, fetchUserGroups } from '../api/access-control.js';
 import { fetchAssociations } from '../api/admin.js';
@@ -14,6 +14,7 @@ import { UserConnectBillingSection } from '../components/UserConnectBillingSecti
 import { UserSavedPaymentMethodsSection } from '../components/UserSavedPaymentMethodsSection.jsx';
 import { UserTransactionsSection } from '../components/UserTransactionsSection.jsx';
 import { PasswordInput } from '../components/PasswordInput.jsx';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 import {
   formatCpfInput,
   formatMobilePhoneInput,
@@ -34,7 +35,15 @@ function personFieldsFromUser(user) {
   };
 }
 
-export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdated, onDeleted }) {
+export function UserEditScreen({
+  user,
+  readOnly = false,
+  onBack,
+  onCancel,
+  onEdit,
+  onUpdated,
+  onDeleted,
+}) {
   const { user: currentUser, refreshProfile, bumpAvatarImage } = useAuth();
   const [form, setForm] = useState(() => personFieldsFromUser(user));
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? null);
@@ -47,6 +56,20 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
   const [busy, setBusy] = useState(false);
   const isSelf = currentUser?.id === user.id;
   const goBack = typeof onBack === 'function' ? onBack : onBack?.toList;
+  const goCancel = onCancel ?? goBack;
+
+  const pageHeader = useMemo(() => {
+    const statusLabel = user.active ? 'Ativo' : 'Inativo';
+    const groupLabel = user.userGroupName ? ` · ${user.userGroupName}` : '';
+    return buildCrudRecordPageHeader({
+      listLabel: 'Usuários',
+      goToList: goBack,
+      entityLabel: 'usuário',
+      recordName: user.name,
+      mode: readOnly ? 'view' : 'edit',
+      subtitle: `${user.email} · ${statusLabel}${groupLabel}`,
+    });
+  }, [goBack, readOnly, user.active, user.email, user.name, user.userGroupName]);
 
   useEffect(() => {
     setForm(personFieldsFromUser(user));
@@ -127,196 +150,220 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
   };
 
   return (
-    <div className="page-stack">
+    <div className="page-stack crud-record-page user-edit-page">
       <PageHeader
-        breadcrumbs={[{ label: 'Usuários', onClick: goBack }, { label: user.name }]}
-        title={readOnly ? user.name : 'Editar usuário'}
-        subtitle={user.email}
+        breadcrumbs={pageHeader.breadcrumbs}
+        title={pageHeader.title}
+        subtitle={pageHeader.subtitle}
       />
 
       <CrudAlerts error={error} message={message} />
 
       <section className="panel">
-        <div className="panel-header">
+        <div className="panel-header panel-header--meta-only">
           <h2>Dados do usuário</h2>
         </div>
         <div className="panel-body">
-          {isSelf ? (
-            readOnly ? (
-              <div className="user-avatar-field user-avatar-field-readonly">
-                <Avatar name={user.name} src={avatarUrl} color={avatarColor} size="lg" />
-                <div className="user-avatar-copy">
-                  <strong>Foto de perfil</strong>
-                </div>
-              </div>
-            ) : (
-              <UserAvatarField
-                name={form.name || user.name}
-                avatarUrl={avatarUrl}
-                avatarColor={avatarColor}
-                onChange={async (nextUrl, nextColor) => {
-                  setAvatarUrl(nextUrl);
-                  if (nextColor) setAvatarColor(nextColor);
-                  await refreshProfile();
-                  bumpAvatarImage();
-                }}
-                onColorChange={async (nextColor) => {
-                  await updateMyProfile({ avatarColor: nextColor });
-                  setAvatarColor(nextColor);
-                  await refreshProfile();
-                }}
-              />
-            )
-          ) : null}
           <form className="form-grid" onSubmit={saveUser}>
-            <label>
-              <span>Nome</span>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                disabled={readOnly}
-              />
-            </label>
-
-            <label>
-              <span>CPF</span>
-              <input
-                value={form.cpf}
-                onChange={(e) => setForm({ ...form, cpf: formatCpfInput(e.target.value) })}
-                placeholder="000.000.000-00"
-                inputMode="numeric"
-                autoComplete="off"
-                disabled={readOnly}
-              />
-            </label>
-
-            <label>
-              <span>Celular</span>
-              <input
-                value={form.mobilePhone}
-                onChange={(e) =>
-                  setForm({ ...form, mobilePhone: formatMobilePhoneInput(e.target.value) })
-                }
-                placeholder="(00) 00000-0000"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                disabled={readOnly}
-              />
-            </label>
-
-            <label className="field-span-2">
-              <span>E-mail</span>
-              <input type="email" value={user.email} disabled />
-            </label>
-
-            <label>
-              <span>Status</span>
-              {readOnly ? (
-                <span className={form.active ? 'badge badge-success' : 'badge badge-muted'}>
-                  {form.active ? 'Ativo' : 'Inativo'}
-                </span>
-              ) : (
-                <>
-                  <div className="toggle-row">
-                    <button
-                      type="button"
-                      className={form.active ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
-                      onClick={() => setForm({ ...form, active: true })}
-                      disabled={busy || isSelf}
-                    >
-                      Ativo
-                    </button>
-                    <button
-                      type="button"
-                      className={!form.active ? 'btn-primary btn-sm' : 'btn-ghost btn-sm'}
-                      onClick={() => setForm({ ...form, active: false })}
-                      disabled={busy || isSelf}
-                    >
-                      Inativo
-                    </button>
+            <section className="form-section field-span-full">
+              <h3 className="form-section-title">Perfil</h3>
+              <div className="form-grid-inner">
+                {isSelf ? (
+                  <div className="field-span-full">
+                    {readOnly ? (
+                      <div className="user-avatar-field user-avatar-field-readonly">
+                        <Avatar name={user.name} src={avatarUrl} color={avatarColor} size="lg" />
+                        <div className="user-avatar-copy">
+                          <strong>Foto de perfil</strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <UserAvatarField
+                        name={form.name || user.name}
+                        avatarUrl={avatarUrl}
+                        avatarColor={avatarColor}
+                        onChange={async (nextUrl, nextColor) => {
+                          setAvatarUrl(nextUrl);
+                          if (nextColor) setAvatarColor(nextColor);
+                          await refreshProfile();
+                          bumpAvatarImage();
+                        }}
+                        onColorChange={async (nextColor) => {
+                          await updateMyProfile({ avatarColor: nextColor });
+                          setAvatarColor(nextColor);
+                          await refreshProfile();
+                        }}
+                      />
+                    )}
                   </div>
-                  {isSelf ? (
-                    <small className="muted">Você não pode inativar seu próprio usuário.</small>
-                  ) : null}
-                </>
-              )}
-            </label>
+                ) : readOnly && (avatarUrl || avatarColor) ? (
+                  <div className="field-span-full user-avatar-field user-avatar-field-readonly">
+                    <Avatar name={user.name} src={avatarUrl} color={avatarColor} size="lg" />
+                    <div className="user-avatar-copy">
+                      <strong>Foto de perfil</strong>
+                    </div>
+                  </div>
+                ) : null}
 
-            <label>
-              <span>Grupo de acesso</span>
-              <select
-                value={form.userGroupId}
-                onChange={(e) => setForm({ ...form, userGroupId: e.target.value })}
-                disabled={readOnly}
-              >
-                <option value="">Sem grupo</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <label>
+                  <span>Nome</span>
+                  <input
+                    className="input"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                    disabled={readOnly}
+                  />
+                </label>
 
-            <label>
-              <span>Cargo</span>
-              <select
-                value={form.jobPositionId}
-                onChange={(e) => setForm({ ...form, jobPositionId: e.target.value })}
-                disabled={readOnly}
-              >
-                <option value="">Sem cargo</option>
-                {positions.map((position) => (
-                  <option key={position.id} value={position.id}>
-                    {position.name}
-                    {position.departmentName ? ` — ${position.departmentName}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <label>
+                  <span>CPF</span>
+                  <input
+                    className="input"
+                    value={form.cpf}
+                    onChange={(e) => setForm({ ...form, cpf: formatCpfInput(e.target.value) })}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    disabled={readOnly}
+                  />
+                </label>
 
-            <label className="field-span-2">
-              <span>Associação (portal de parceiros)</span>
-              {readOnly ? (
-                <input
-                  type="text"
-                  value={
-                    associationOptions.find((a) => a.id === form.associationId)?.name ??
-                    user.associationName ??
-                    '—'
-                  }
-                  disabled
-                />
-              ) : (
-                <select
-                  value={form.associationId}
-                  onChange={(e) => setForm({ ...form, associationId: e.target.value })}
-                >
-                  <option value="">Nenhuma — sem acesso ao portal da associação</option>
-                  {associationOptions.map((association) => (
-                    <option key={association.id} value={association.id}>
-                      {association.name} ({association.slug})
-                    </option>
-                  ))}
-                </select>
-              )}
-              <small className="muted">
-                Define qual associação o usuário vê ao entrar no painel em parceiros associados (porta 5178).
-              </small>
-            </label>
+                <label>
+                  <span>Celular</span>
+                  <input
+                    className="input"
+                    value={form.mobilePhone}
+                    onChange={(e) =>
+                      setForm({ ...form, mobilePhone: formatMobilePhoneInput(e.target.value) })
+                    }
+                    placeholder="(00) 00000-0000"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    disabled={readOnly}
+                  />
+                </label>
+
+                <label className="field-span-2">
+                  <span>E-mail</span>
+                  <input className="input" type="email" value={user.email} disabled readOnly />
+                </label>
+              </div>
+            </section>
+
+            <section className="form-section field-span-full">
+              <h3 className="form-section-title">Acesso e vínculos</h3>
+              <div className="form-grid-inner">
+                {readOnly ? (
+                  <label>
+                    <span>Status</span>
+                    <span className={form.active ? 'badge badge-success' : 'badge badge-muted'}>
+                      {form.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </label>
+                ) : (
+                  <label className="field-span-full">
+                    <span className="checkbox-inline">
+                      <input
+                        type="checkbox"
+                        checked={form.active}
+                        disabled={busy || isSelf}
+                        onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                      />
+                      Usuário ativo
+                    </span>
+                    {isSelf ? (
+                      <small className="muted">Você não pode inativar seu próprio usuário.</small>
+                    ) : null}
+                  </label>
+                )}
+
+                <label>
+                  <span>Grupo de acesso</span>
+                  <select
+                    className="input"
+                    value={form.userGroupId}
+                    onChange={(e) => setForm({ ...form, userGroupId: e.target.value })}
+                    disabled={readOnly}
+                  >
+                    <option value="">Sem grupo</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Cargo</span>
+                  <select
+                    className="input"
+                    value={form.jobPositionId}
+                    onChange={(e) => setForm({ ...form, jobPositionId: e.target.value })}
+                    disabled={readOnly}
+                  >
+                    <option value="">Sem cargo</option>
+                    {positions.map((position) => (
+                      <option key={position.id} value={position.id}>
+                        {position.name}
+                        {position.departmentName ? ` — ${position.departmentName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field-span-2">
+                  <span>Associação (portal de parceiros)</span>
+                  {readOnly ? (
+                    <input
+                      className="input"
+                      type="text"
+                      value={
+                        associationOptions.find((a) => a.id === form.associationId)?.name ??
+                        user.associationName ??
+                        '—'
+                      }
+                      disabled
+                      readOnly
+                    />
+                  ) : (
+                    <select
+                      className="input"
+                      value={form.associationId}
+                      onChange={(e) => setForm({ ...form, associationId: e.target.value })}
+                    >
+                      <option value="">Nenhuma — sem acesso ao portal da associação</option>
+                      {associationOptions.map((association) => (
+                        <option key={association.id} value={association.id}>
+                          {association.name} ({association.slug})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <small className="muted">
+                    Portal de parceiros associados — define qual associação o usuário vê ao entrar.
+                  </small>
+                </label>
+              </div>
+            </section>
 
             {!readOnly ? (
-              <label>
-                <span>Nova senha</span>
-                <PasswordInput
-                  value={form.password}
-                  onChange={(password) => setForm({ ...form, password })}
-                  placeholder="Deixe em branco para manter a atual"
-                  minLength={6}
-                />
-              </label>
+              <section className="form-section field-span-full">
+                <h3 className="form-section-title">Senha</h3>
+                <div className="form-grid-inner">
+                  <label className="field-span-2">
+                    <span>Nova senha</span>
+                    <PasswordInput
+                      value={form.password}
+                      onChange={(password) => setForm({ ...form, password })}
+                      placeholder="Deixe em branco para manter a atual"
+                      minLength={6}
+                    />
+                  </label>
+                </div>
+              </section>
             ) : null}
 
             <div className="field-span-full form-actions">
@@ -325,7 +372,7 @@ export function UserEditScreen({ user, readOnly = false, onBack, onEdit, onUpdat
               ) : (
                 <CrudFormActions
                   busy={busy}
-                  onCancel={goBack}
+                  onCancel={goCancel}
                   submitLabel="Salvar alterações"
                   onDelete={!isSelf ? removeUser : undefined}
                   showDelete={!isSelf}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Copy, Maximize2, Minimize2 } from 'lucide-react';
 import { appConfirm } from '../components/confirm/appConfirm.js';
@@ -6,6 +6,7 @@ import {
   addProjectTaskComment,
   createProjectTask,
   deleteProjectTask,
+  deleteProjectTaskComment,
   fetchProjectTaskComments,
   fetchProjectTaskEvents,
   listProjectTasks,
@@ -20,6 +21,7 @@ import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { PermissionGate } from '../components/PermissionGate.jsx';
+import { serializeCommentBodyForSave } from '../lib/cronogramaCommentMentions.js';
 import {
   PROJECT_PHASES,
   buildSummary,
@@ -30,6 +32,7 @@ import {
   weightedProgressPercent,
 } from '../lib/cronogramaMetrics.js';
 import { buildOwnerUserDirectory } from '../lib/cronogramaOwners.js';
+import { defaultCronogramaRequesterId } from '../lib/cronogramaRequester.js';
 import { useCronogramaMobileLayout } from '../lib/useCronogramaMobileLayout.js';
 import '../styles/cronograma.css';
 
@@ -86,7 +89,6 @@ export function CronogramaPage() {
   const { hasPermission, user: authUser } = useAuth();
   const canManage = hasPermission('operacao.cronograma.manage');
   const [searchParams, setSearchParams] = useSearchParams();
-  const openedTaskFromUrl = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -103,6 +105,7 @@ export function CronogramaPage() {
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [fullscreen, setFullscreen] = useState(readFullscreenPreference);
   const [ownerUsers, setOwnerUsers] = useState([]);
   const mobileLayout = useCronogramaMobileLayout();
@@ -160,6 +163,10 @@ export function CronogramaPage() {
   }, []);
 
   const ownerUserDirectory = useMemo(() => buildOwnerUserDirectory(ownerUsers), [ownerUsers]);
+  const defaultRequesterUserId = useMemo(
+    () => defaultCronogramaRequesterId(ownerUsers) ?? authUser?.id ?? null,
+    [ownerUsers, authUser?.id],
+  );
 
   const toggleFullscreen = useCallback(() => {
     setFullscreen((current) => {
@@ -221,14 +228,17 @@ export function CronogramaPage() {
     return [...PROJECT_PHASES, ...extra];
   }, [tasks]);
 
-  const reloadTaskSidePanel = useCallback(async (taskId) => {
+  const reloadTaskSidePanel = useCallback(async (taskId, options = {}) => {
+    const { silent = false } = options;
     if (!taskId) {
       setEvents([]);
       setComments([]);
       return;
     }
-    setLoadingEvents(true);
-    setLoadingComments(true);
+    if (!silent) {
+      setLoadingEvents(true);
+      setLoadingComments(true);
+    }
     try {
       const [evRows, commentRows] = await Promise.all([
         fetchProjectTaskEvents(taskId),
@@ -237,44 +247,106 @@ export function CronogramaPage() {
       setEvents(Array.isArray(evRows) ? evRows : []);
       setComments(Array.isArray(commentRows) ? commentRows : []);
     } catch {
-      setEvents([]);
-      setComments([]);
+      if (!silent) {
+        setEvents([]);
+        setComments([]);
+      }
     } finally {
-      setLoadingEvents(false);
-      setLoadingComments(false);
+      if (!silent) {
+        setLoadingEvents(false);
+        setLoadingComments(false);
+      }
     }
   }, []);
 
-  const openEditor = async (task) => {
-    setEditingTask(task);
-    setEditorOpen(true);
-    setEvents([]);
-    setComments([]);
-    if (task?.id) {
-      await reloadTaskSidePanel(task.id);
-    }
-  };
+  const setTaskQueryParam = useCallback(
+    (taskId) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (taskId) next.set('task', taskId);
+          else next.delete('task');
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
+  const applyEditorTask = useCallback(
+    async (task) => {
+      setEditingTask(task);
+      setEditorOpen(true);
+      setEvents([]);
+      setComments([]);
+      if (task?.id && !String(task.id).startsWith('temp-')) {
+        await reloadTaskSidePanel(task.id);
+      }
+    },
+    [reloadTaskSidePanel],
+  );
+
+  const openEditor = useCallback(
+    async (task) => {
+      await applyEditorTask(task);
+      if (task?.id && !String(task.id).startsWith('temp-')) {
+        setTaskQueryParam(task.id);
+      } else if (!task) {
+        setTaskQueryParam('new');
+      }
+    },
+    [applyEditorTask, setTaskQueryParam],
+  );
+
+  const taskIdFromUrl = searchParams.get('task');
+
+  /** Abre/fecha o editor conforme `?task=` — link compartilhável e botão Voltar do navegador. */
   useEffect(() => {
-    const taskId = searchParams.get('task');
-    if (!taskId || loading || openedTaskFromUrl.current) return;
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    openedTaskFromUrl.current = true;
-    void openEditor(task);
-  }, [loading, tasks, searchParams]);
+    if (loading) return;
 
-  const closeEditor = () => {
+    if (!taskIdFromUrl) {
+      if (editorOpen) {
+        setEditorOpen(false);
+        setEditingTask(null);
+        setEvents([]);
+        setComments([]);
+      }
+      return;
+    }
+
+    if (taskIdFromUrl === 'new') {
+      if (!canManage) {
+        setTaskQueryParam(null);
+        return;
+      }
+      if (editorOpen && editingTask === null) return;
+      setEditingTask(null);
+      setEditorOpen(true);
+      setEvents([]);
+      setComments([]);
+      return;
+    }
+
+    const task = tasks.find((t) => t.id === taskIdFromUrl);
+    if (!task) return;
+
+    if (editorOpen && editingTask?.id === taskIdFromUrl) return;
+
+    void applyEditorTask(task);
+    // Só reage à troca de ?task= na URL — não reabre ao atualizar comentários/lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- editorOpen/editingTask intencionalmente omitidos
+  }, [applyEditorTask, canManage, loading, setTaskQueryParam, taskIdFromUrl, tasks]);
+
+  const closeEditor = useCallback(() => {
     setEditorOpen(false);
     setEditingTask(null);
     setEvents([]);
     setComments([]);
     if (searchParams.get('task')) {
-      const next = new URLSearchParams(searchParams);
-      next.delete('task');
-      setSearchParams(next, { replace: true });
+      setTaskQueryParam(null);
     }
-  };
+  }, [searchParams, setTaskQueryParam]);
 
   const onTogglePhase = (phase) => {
     setCollapsedPhases((prev) => {
@@ -309,35 +381,119 @@ export function CronogramaPage() {
     el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
-  const optimisticPatch = async (id, body, rollbackTasks) => {
+  const optimisticPatch = async (id, body, rollbackTasks, options = {}) => {
+    const { silentActivity = false, toastMessage = 'Salvo' } = options;
     const snapshot = tasks;
     setTasks((rows) =>
       rows.map((t) => (t.id === id ? { ...t, ...body, updatedAt: new Date().toISOString() } : t)),
+    );
+    setEditingTask((current) =>
+      current?.id === id ? { ...current, ...body, updatedAt: new Date().toISOString() } : current,
     );
     try {
       const saved = await patchProjectTask(id, body);
       setTasks((rows) => rows.map((t) => (t.id === id ? saved : t)));
       setEditingTask(saved);
-      setToast('Salvo');
-      await reloadTaskSidePanel(id);
+      if (toastMessage) setToast(toastMessage);
+      await reloadTaskSidePanel(id, { silent: silentActivity });
     } catch (e) {
       setTasks(snapshot.length ? snapshot : rollbackTasks);
+      setEditingTask((current) => {
+        if (current?.id !== id) return current;
+        const prev = snapshot.find((t) => t.id === id);
+        return prev ?? current;
+      });
       setToast(e instanceof Error ? e.message : 'Não foi possível salvar.');
     }
   };
 
+  const patchTaskFields = async (body) => {
+    if (!editingTask?.id || !canManage) return;
+    await optimisticPatch(editingTask.id, body, tasks, {
+      silentActivity: true,
+      toastMessage: '',
+    });
+  };
+
+  const taskMetaFromTouchResponse = (payload) => {
+    if (!payload?.taskUpdatedAt) return null;
+    return {
+      updatedAt: payload.taskUpdatedAt,
+      updatedBy: payload.taskUpdatedBy ?? null,
+      updatedByName: payload.taskUpdatedByName ?? null,
+    };
+  };
+
+  const applyTaskUpdatedMeta = (taskId, meta) => {
+    if (!taskId || !meta) return;
+    setEditingTask((current) => (current?.id === taskId ? { ...current, ...meta } : current));
+    setTasks((rows) => rows.map((t) => (t.id === taskId ? { ...t, ...meta } : t)));
+  };
+
   const onSubmitComment = async (text) => {
     if (!editingTask?.id || !canManage) return false;
+    const taskId = editingTask.id;
+    const taskMetaBefore = {
+      updatedAt: editingTask.updatedAt,
+      updatedBy: editingTask.updatedBy ?? null,
+      updatedByName: editingTask.updatedByName ?? null,
+    };
+    const body = serializeCommentBodyForSave(text, ownerUsers);
+    const optimisticId = `optimistic-comment-${Date.now()}`;
+    const optimistic = {
+      id: optimisticId,
+      body,
+      userId: authUser?.id,
+      userName: authUser?.name ?? 'Você',
+      createdAt: new Date().toISOString(),
+      _optimistic: true,
+    };
+    setComments((rows) => [...rows, optimistic]);
+    applyTaskUpdatedMeta(taskId, {
+      updatedAt: optimistic.createdAt,
+      updatedBy: authUser?.id ?? null,
+      updatedByName: authUser?.name ?? 'Você',
+    });
     setSubmittingComment(true);
     try {
-      const created = await addProjectTaskComment(editingTask.id, text);
-      setComments((rows) => [...rows, created]);
+      const created = await addProjectTaskComment(taskId, body);
+      setComments((rows) => rows.map((c) => (c.id === optimisticId ? created : c)));
+      applyTaskUpdatedMeta(taskId, taskMetaFromTouchResponse(created));
       return true;
     } catch (e) {
+      setComments((rows) => rows.filter((c) => c.id !== optimisticId));
+      applyTaskUpdatedMeta(taskId, taskMetaBefore);
       setToast(e instanceof Error ? e.message : 'Não foi possível enviar o comentário.');
       return false;
     } finally {
       setSubmittingComment(false);
+    }
+  };
+
+  const onDeleteComment = async (commentId) => {
+    if (!editingTask?.id || !canManage || !commentId) return false;
+    const ok = await appConfirm({
+      title: 'Remover comentário',
+      message: 'Remover o seu último comentário? Só é possível quando ninguém respondeu depois.',
+      confirmLabel: 'Remover',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+    });
+    if (!ok) return false;
+
+    const snapshot = comments;
+    setDeletingCommentId(commentId);
+    setComments((rows) => rows.filter((c) => c.id !== commentId));
+    try {
+      const result = await deleteProjectTaskComment(editingTask.id, commentId);
+      applyTaskUpdatedMeta(editingTask.id, taskMetaFromTouchResponse(result));
+      return true;
+    } catch (e) {
+      setComments(snapshot);
+      setToast(e instanceof Error ? e.message : 'Não foi possível remover o comentário.');
+      return false;
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -354,6 +510,7 @@ export function CronogramaPage() {
       const created = await createProjectTask(body);
       setTasks((rows) => rows.map((t) => (t.id === tempId ? created : t)));
       setEditingTask(created);
+      setTaskQueryParam(created.id);
       setToast('Tarefa criada');
       await reloadTaskSidePanel(created.id);
     } catch (e) {
@@ -426,7 +583,7 @@ export function CronogramaPage() {
         </header>
       ) : null}
       {!fullscreen ? (
-      <section className="cronograma-hero band">
+      <section className={`cronograma-hero band${mobileLayout ? ' cronograma-hero--mobile' : ''}`}>
         <div className="cronograma-hero-grid">
           <div>
             <h1 className="cronograma-title">Movly rumo ao piloto</h1>
@@ -588,16 +745,22 @@ export function CronogramaPage() {
         comments={comments}
         loadingComments={loadingComments}
         submittingComment={submittingComment}
+        deletingCommentId={deletingCommentId}
         onSubmitComment={onSubmitComment}
+        onDeleteComment={onDeleteComment}
         adminUsers={ownerUsers}
         currentUserId={authUser?.id}
+        defaultRequesterUserId={defaultRequesterUserId}
         onClose={closeEditor}
         onSave={onSave}
+        onPatchPartial={patchTaskFields}
         onDelete={onDeleteFromEditor}
         onAttachmentError={(message) => setToast(message)}
         onActivityRefresh={() =>
-          editingTask?.id ? reloadTaskSidePanel(editingTask.id) : Promise.resolve()
+          editingTask?.id ? reloadTaskSidePanel(editingTask.id, { silent: true }) : Promise.resolve()
         }
+        onShareLinkCopied={(message) => setToast(message ?? 'Link da tarefa copiado')}
+        mobileLayout={mobileLayout}
       />
 
       {toast ? (

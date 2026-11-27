@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Send } from 'lucide-react';
 import { Avatar } from '../Avatar.jsx';
 import { filterCronogramaAssigneeUsers } from '../../lib/cronogramaOwners.js';
-import { findActiveMention, formatMentionToken } from '../../lib/cronogramaCommentMentions.js';
+import {
+  commentBodyPreviewText,
+  findActiveMention,
+  formatMentionToken,
+} from '../../lib/cronogramaCommentMentions.js';
 
 export function CronogramaCommentComposer({
   taskId,
@@ -19,6 +23,12 @@ export function CronogramaCommentComposer({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
   const textareaRef = useRef(null);
+
+  const previewText = useMemo(() => {
+    const t = draft.trim();
+    if (!t) return '';
+    return commentBodyPreviewText(t);
+  }, [draft]);
 
   const candidates = useMemo(() => {
     if (!mentionOpen) return [];
@@ -74,30 +84,45 @@ export function CronogramaCommentComposer({
       if (!el) return;
       el.focus();
       el.setSelectionRange(nextCursor, nextCursor);
+      syncMentionState(next, nextCursor);
     });
   };
 
   const onKeyDown = (e) => {
-    if (!mentionOpen || !candidates.length) return;
-    if (e.key === 'ArrowDown') {
+    e.stopPropagation();
+
+    if (mentionOpen && candidates.length) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % candidates.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + candidates.length) % candidates.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applyMention(candidates[mentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionOpen(false);
+        return;
+      }
+    }
+
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      setMentionIndex((i) => (i + 1) % candidates.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setMentionIndex((i) => (i - 1 + candidates.length) % candidates.length);
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault();
-      applyMention(candidates[mentionIndex]);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setMentionOpen(false);
+      void sendComment();
     }
   };
 
-  const onSend = async (e) => {
-    e.preventDefault();
+  const sendComment = async () => {
     const text = draft.trim();
-    if (!text || !canManage || !taskId) return;
+    if (!text || !canManage || !taskId || submitting) return;
     const ok = await onSubmit(text);
     if (ok) {
       setDraft('');
@@ -106,7 +131,11 @@ export function CronogramaCommentComposer({
   };
 
   return (
-    <form className="cronograma-task-comment-form" onSubmit={onSend}>
+    <div
+      className="cronograma-task-comment-form"
+      onKeyDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       <motionHead hideActivity={hideActivity} onHideActivityChange={onHideActivityChange} />
       <label className="sr-only" htmlFor="cronograma-task-comment">
         Comentário
@@ -121,9 +150,17 @@ export function CronogramaCommentComposer({
           value={draft}
           onChange={onChange}
           onKeyDown={onKeyDown}
-          onClick={(e) => syncMentionState(draft, e.target.selectionStart ?? draft.length)}
+          onClick={(e) => {
+            e.stopPropagation();
+            syncMentionState(draft, e.target.selectionStart ?? draft.length);
+          }}
           disabled={!canManage || !taskId || submitting}
         />
+        {previewText && previewText !== draft.trim() ? (
+          <p className="cronograma-comment-draft-preview muted" aria-live="polite">
+            Será publicado como: {previewText}
+          </p>
+        ) : null}
         {mentionOpen && canManage ? (
           <div className="cronograma-mention-menu" role="listbox" aria-label="Mencionar usuário">
             {!candidates.length ? (
@@ -138,6 +175,7 @@ export function CronogramaCommentComposer({
                   className={`cronograma-mention-item${index === mentionIndex ? ' is-active' : ''}`}
                   onMouseDown={(ev) => {
                     ev.preventDefault();
+                    ev.stopPropagation();
                     applyMention(user);
                   }}
                 >
@@ -159,15 +197,20 @@ export function CronogramaCommentComposer({
       </div>
       <footer className="cronograma-task-comment-foot cronograma-task-comment-foot--end">
         <button
-          type="submit"
+          type="button"
           className="btn btn-primary btn-sm cronograma-task-comment-send"
           disabled={!canManage || !taskId || submitting || !draft.trim()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void sendComment();
+          }}
         >
           <Send size={16} aria-hidden="true" />
           {submitting ? 'Enviando…' : 'Enviar'}
         </button>
       </footer>
-    </form>
+    </div>
   );
 }
 

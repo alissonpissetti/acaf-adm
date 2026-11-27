@@ -16,6 +16,7 @@ import { activeStatusFilter, selectFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 
 const EMPTY = { name: '', description: '', departmentId: '', parentPositionId: '', active: true };
 
@@ -265,11 +266,21 @@ export function JobPositionsPage() {
       );
     }
 
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Cargos',
+      goToList: router.goToList,
+      entityLabel: 'cargo',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: selected.departmentName
+        ? `${selected.name} · ${selected.departmentName}`
+        : selected.name,
+    });
     return (
       <JobPositionForm
-        title={router.isViewing ? selected.name : 'Editar cargo'}
-        subtitle={selected.departmentName ?? 'Cargo organizacional'}
-        breadcrumbs={[{ label: 'Cargos', onClick: router.goToList }, { label: selected.name }]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           id: selected.id,
           name: selected.name,

@@ -57,11 +57,15 @@ export function CrudListShell({
   children,
   tableClassName = '',
   tableFooter = null,
+  /** Classes extras no `section.panel` (ex.: `crud-list-panel`). */
+  panelClassName = '',
   embedded = false,
   /** `{ selectedIds, onToggleRow, onTogglePage }` — checkbox na primeira coluna; não altera `onRowClick` nas outras células. */
   selection = null,
+  /** Conteúdo extra na coluna de ações (última coluna), após os botões padrão. */
+  renderActionsExtra = null,
 }) {
-  const showActions = Boolean(onView || onEdit || onDuplicate || onDelete || onOpen);
+  const showActions = Boolean(onView || onEdit || onDuplicate || onDelete || onOpen || renderActionsExtra);
   const selectRowKey = selection?.rowKey ?? rowKey;
   const pageIds = rows.map((r) => r[selectRowKey]).filter(Boolean);
   const selectedOnPage = pageIds.filter((id) => selection?.selectedIds?.has(id));
@@ -194,7 +198,10 @@ export function CrudListShell({
                       </td>
                     ))}
                     {showActions ? (
-                      <td className="table-actions col-actions">
+                      <td
+                        className="table-actions col-actions"
+                        onClick={renderActionsExtra ? (ev) => ev.stopPropagation() : undefined}
+                      >
                         <CrudRowActions
                           onOpen={onOpen ? () => onOpen(row) : undefined}
                           onView={onView ? () => onView(row) : undefined}
@@ -205,7 +212,9 @@ export function CrudListShell({
                               ? () => onDelete(row)
                               : undefined
                           }
-                        />
+                        >
+                          {renderActionsExtra ? renderActionsExtra(row) : null}
+                        </CrudRowActions>
                       </td>
                     ) : null}
                   </tr>
@@ -255,7 +264,7 @@ export function CrudListShell({
 
       <CrudAlerts error={error} message={message} />
 
-      <section className="panel">
+      <section className={['panel', panelClassName].filter(Boolean).join(' ')}>
         <div
           className={
             showPanelHeading

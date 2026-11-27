@@ -20,6 +20,7 @@ import { activeStatusFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
 import { LIST_PREFERENCE_KEYS } from '../utils/listPreferencesStorage.js';
 import { useCrudRouter } from '../crud/useCrudRouter.js';
+import { buildCrudRecordPageHeader } from '../crud/crudRecordPageHeader.js';
 
 const EMPTY = { name: '', description: '', active: true };
 
@@ -290,11 +291,19 @@ export function UserGroupsPage() {
       );
     }
 
+    const recordHeader = buildCrudRecordPageHeader({
+      listLabel: 'Grupos',
+      goToList: router.goToList,
+      entityLabel: 'grupo',
+      recordName: selected.name,
+      mode: router.isViewing ? 'view' : 'edit',
+      subtitle: selected.description?.trim() || selected.name,
+    });
     return (
       <UserGroupForm
-        title={router.isViewing ? selected.name : 'Editar grupo'}
-        subtitle={selected.description || 'Grupo de permissões de acesso'}
-        breadcrumbs={[{ label: 'Grupos', onClick: router.goToList }, { label: selected.name }]}
+        title={recordHeader.title}
+        subtitle={recordHeader.subtitle}
+        breadcrumbs={recordHeader.breadcrumbs}
         initial={{
           name: selected.name,
           description: selected.description ?? '',

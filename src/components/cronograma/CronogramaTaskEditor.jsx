@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Play, Pause, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Pause, Pencil, Play, Share2, Trash2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { ModalCloseButton } from '../ModalCloseButton.jsx';
 import { Avatar } from '../Avatar.jsx';
 import { PROJECT_PHASES, normalizeStatusProgress } from '../../lib/cronogramaMetrics.js';
@@ -9,12 +11,19 @@ import {
   ownerFormStateFromTask,
 } from '../../lib/cronogramaOwners.js';
 import {
-  TASK_PRIORITY_LABELS,
+  clearActiveTimer,
+  computeRunningTotal,
+  readActiveTimer,
+  writeActiveTimer,
+} from '../../lib/cronogramaTaskTimer.js';
+import {
   TASK_STATUS_LABELS,
   formatDurationSeconds,
   parseTagsInput,
 } from '../../lib/cronogramaTaskLabels.js';
 import { CronogramaOwnerPicker } from './CronogramaOwnerPicker.jsx';
+import { CronogramaTaskPeriodField } from './CronogramaTaskPeriodField.jsx';
+import { CronogramaTaskPriorityPicker } from './CronogramaTaskPriorityPicker.jsx';
 import { CronogramaTaskActivityPanel } from './CronogramaTaskActivityPanel.jsx';
 import { CronogramaTaskAttachments } from './CronogramaTaskAttachments.jsx';
 
@@ -30,11 +39,12 @@ function formatPtDateTime(iso) {
   });
 }
 
-function formatYmdPt(ymd) {
-  if (!ymd) return '—';
-  const [y, m, d] = ymd.split('-');
-  if (!y || !m || !d) return ymd;
-  return `${d}/${m}/${y}`;
+const PROGRESS_STEPS = Array.from({ length: 21 }, (_, i) => i * 5);
+
+function progressSelectValue(progress, status) {
+  if (status === 'done') return 100;
+  const n = Math.max(0, Math.min(100, Math.floor(Number(progress) || 0)));
+  return Math.round(n / 5) * 5;
 }
 
 const EMPTY_FORM = (phases, defaultRequesterId) => {
@@ -69,29 +79,97 @@ export function CronogramaTaskEditor({
   comments,
   loadingComments,
   submittingComment,
+  deletingCommentId,
   onSubmitComment,
+  onDeleteComment,
   onClose,
   onSave,
+  /** Grava campos pontuais (progresso/status) sem fechar o painel — gera eventos no log. */
+  onPatchPartial,
   onDelete,
   adminUsers,
   currentUserId,
+  defaultRequesterUserId,
   onAttachmentError,
   onActivityRefresh,
+  onShareLinkCopied,
+  mobileLayout = false,
 }) {
+  const location = useLocation();
   const [form, setForm] = useState(null);
+  const [mobilePanel, setMobilePanel] = useState('details');
   const [timerRunning, setTimerRunning] = useState(false);
   const timerBaseRef = useRef(0);
   const timerStartedAtRef = useRef(null);
+  const mobileScrollRef = useRef(null);
+  const desktopMainScrollRef = useRef(null);
+  const titleInputRef = useRef(null);
+  const titleWrapRef = useRef(null);
+  const titleSnapshotRef = useRef('');
+  const commitTitleEditRef = useRef(() => {});
+  const [titleEditing, setTitleEditing] = useState(false);
   const ownerDirectory = useMemo(() => buildOwnerUserDirectory(adminUsers), [adminUsers]);
+  const taskIdRef = useRef(task?.id);
+  const onPatchPartialRef = useRef(onPatchPartial);
+  taskIdRef.current = task?.id;
+  onPatchPartialRef.current = onPatchPartial;
+
+  const pauseTimerAndPersist = useCallback((persistToServer = true) => {
+    const started = timerStartedAtRef.current;
+    if (!started) {
+      return timerBaseRef.current;
+    }
+    const total = computeRunningTotal(timerBaseRef.current, started);
+    timerBaseRef.current = total;
+    timerStartedAtRef.current = null;
+    setTimerRunning(false);
+    setForm((f) => (f ? { ...f, timeTrackedSeconds: total } : f));
+    const taskId = taskIdRef.current;
+    if (taskId) {
+      clearActiveTimer(taskId);
+      if (persistToServer && onPatchPartialRef.current) {
+        void onPatchPartialRef.current({ timeTrackedSeconds: total });
+      }
+    }
+    return total;
+  }, []);
 
   useEffect(() => {
     if (!open) {
+      const started = timerStartedAtRef.current;
+      if (started && taskIdRef.current) {
+        const total = computeRunningTotal(timerBaseRef.current, started);
+        clearActiveTimer(taskIdRef.current);
+        if (onPatchPartialRef.current) {
+          void onPatchPartialRef.current({ timeTrackedSeconds: total });
+        }
+      }
       setTimerRunning(false);
       timerStartedAtRef.current = null;
+      setMobilePanel('details');
+      setTitleEditing(false);
       return;
+    }
+    setMobilePanel('details');
+    if (mobileScrollRef.current) {
+      mobileScrollRef.current.scrollTop = 0;
     }
     if (task) {
       const owners = ownerFormStateFromTask(task, ownerDirectory);
+      const stored = readActiveTimer(task.id);
+      const baseFromServer = task.timeTrackedSeconds ?? 0;
+      let timeTrackedSeconds = baseFromServer;
+      let resumeTimer = false;
+      if (stored) {
+        timerBaseRef.current = stored.baseSeconds;
+        timerStartedAtRef.current = stored.startedAt;
+        timeTrackedSeconds = computeRunningTotal(stored.baseSeconds, stored.startedAt);
+        resumeTimer = true;
+      } else {
+        timerBaseRef.current = baseFromServer;
+        timerStartedAtRef.current = null;
+        resumeTimer = false;
+      }
       setForm({
         name: task.name,
         phase: task.phase,
@@ -101,18 +179,68 @@ export function CronogramaTaskEditor({
         priority: task.priority ?? 'medium',
         tagsInput: (task.tags ?? []).join(', '),
         estimatedHours: task.estimatedHours ?? 0,
-        timeTrackedSeconds: task.timeTrackedSeconds ?? 0,
-        requesterUserId: task.requesterUserId ?? currentUserId ?? '',
+        timeTrackedSeconds,
+        requesterUserId: task.requesterUserId ?? defaultRequesterUserId ?? currentUserId ?? '',
         progress: task.progress ?? 0,
         ownerUserIds: owners.ownerUserIds,
         ownerExtra: owners.ownerExtra,
         notes: task.notes ?? '',
         isMilestone: Boolean(task.isMilestone),
       });
+      setTimerRunning(resumeTimer);
     } else {
-      setForm(EMPTY_FORM(phases, currentUserId));
+      timerBaseRef.current = 0;
+      timerStartedAtRef.current = null;
+      setTimerRunning(false);
+      setForm(EMPTY_FORM(phases, defaultRequesterUserId ?? currentUserId));
     }
-  }, [open, task, phases, ownerDirectory, currentUserId]);
+  }, [open, task?.id, phases, ownerDirectory, currentUserId, defaultRequesterUserId]);
+
+  useEffect(() => {
+    if (!open || !timerRunning) return undefined;
+    const onPageHide = () => {
+      const started = timerStartedAtRef.current;
+      const taskId = taskIdRef.current;
+      if (!started || !taskId) return;
+      writeActiveTimer({
+        taskId,
+        startedAt: started,
+        baseSeconds: timerBaseRef.current,
+      });
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, [open, timerRunning]);
+
+  const resetEditorScroll = () => {
+    const el = mobileLayout ? mobileScrollRef.current : desktopMainScrollRef.current;
+    if (el) el.scrollTop = 0;
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    resetEditorScroll();
+    const raf = requestAnimationFrame(() => {
+      resetEditorScroll();
+      requestAnimationFrame(resetEditorScroll);
+    });
+    const t1 = window.setTimeout(resetEditorScroll, 0);
+    const t2 = window.setTimeout(resetEditorScroll, 80);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [open, mobileLayout, task?.id]);
+
+  useEffect(() => {
+    if (!open || !mobileLayout) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open, mobileLayout]);
 
   useEffect(() => {
     if (!timerRunning) return undefined;
@@ -127,22 +255,64 @@ export function CronogramaTaskEditor({
     return () => window.clearInterval(id);
   }, [timerRunning]);
 
+  useLayoutEffect(() => {
+    if (!titleEditing) return undefined;
+    const id = requestAnimationFrame(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [titleEditing]);
+
+  useEffect(() => {
+    if (!titleEditing) return undefined;
+    const onPointerDown = (event) => {
+      if (titleWrapRef.current?.contains(event.target)) return;
+      commitTitleEditRef.current();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [titleEditing]);
+
   if (!open || !form) return null;
 
-  const requesterUser = adminUsers.find((u) => u.id === form.requesterUserId);
   const titleCode = task?.code ? `#${task.code}` : task ? '—' : 'Nova';
   const breadcrumb = `Movly / ${form.phase}`;
 
   const toggleTimer = () => {
     if (!canManage) return;
     if (timerRunning) {
-      setTimerRunning(false);
-      timerStartedAtRef.current = null;
+      pauseTimerAndPersist(true);
       return;
     }
-    timerBaseRef.current = form.timeTrackedSeconds;
-    timerStartedAtRef.current = Date.now();
+    timerBaseRef.current = Math.max(0, Math.floor(form.timeTrackedSeconds ?? 0));
+    const startedAt = Date.now();
+    timerStartedAtRef.current = startedAt;
     setTimerRunning(true);
+    if (task?.id) {
+      writeActiveTimer({
+        taskId: task.id,
+        startedAt,
+        baseSeconds: timerBaseRef.current,
+      });
+    }
+  };
+
+  const applyStatusProgress = (nextStatus, nextProgress, persist) => {
+    let status = nextStatus;
+    let progress = nextProgress;
+    if (status === 'done' && progress < 100) {
+      progress = 100;
+    }
+    if (status !== 'done' && status !== 'cancelled' && progress === 100) {
+      status = 'done';
+      progress = 100;
+    }
+    const normalized = normalizeStatusProgress(status, progress);
+    setForm((f) => (f ? { ...f, status: normalized.status, progress: normalized.progress } : f));
+    if (persist && task?.id && onPatchPartial) {
+      void onPatchPartial({ status: normalized.status, progress: normalized.progress });
+    }
   };
 
   const buildPayload = () => {
@@ -161,7 +331,9 @@ export function CronogramaTaskEditor({
       tags: parseTagsInput(form.tagsInput),
       estimatedHours: Number(form.estimatedHours) || 0,
       timeTrackedSeconds: form.timeTrackedSeconds,
-      requesterUserId: form.requesterUserId?.trim() || null,
+      ...(task?.id
+        ? {}
+        : { requesterUserId: form.requesterUserId?.trim() || null }),
       progress,
       owner,
       ownerUserIds,
@@ -173,133 +345,411 @@ export function CronogramaTaskEditor({
   const onSubmit = (e) => {
     e.preventDefault();
     if (!canManage) return;
-    const payload = buildPayload();
-    if (payload.endDate < payload.startDate) return;
-    if (timerRunning) {
-      setTimerRunning(false);
-      timerStartedAtRef.current = null;
+    if (!form.name?.trim()) {
+      startTitleEdit();
+      return;
     }
+    const timeTrackedSeconds = timerRunning
+      ? pauseTimerAndPersist(true)
+      : Math.max(0, Math.floor(form.timeTrackedSeconds ?? 0));
+    const payload = { ...buildPayload(), timeTrackedSeconds };
+    if (payload.endDate < payload.startDate) return;
     onSave(payload);
   };
 
-  return (
+  const copyTaskShareLink = async () => {
+    if (!task?.id) return;
+    const url = `${window.location.origin}${location.pathname}?task=${encodeURIComponent(task.id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      onShareLinkCopied?.();
+    } catch {
+      onShareLinkCopied?.('Não foi possível copiar o link.');
+    }
+  };
+
+  const taskTitle =
+    form.name?.trim() || task?.name?.trim() || (task ? 'Sem título' : 'Nova tarefa');
+
+  const onProgressSelect = (progress) => {
+    let status = form.status;
+    if (status === 'done' && progress < 100) status = 'in_progress';
+    applyStatusProgress(status, progress, Boolean(task?.id));
+  };
+
+  const onPriorityChange = (priority) => {
+    setForm((f) => (f ? { ...f, priority } : f));
+    if (task?.id && onPatchPartial) {
+      void onPatchPartial({ priority });
+    }
+  };
+
+  const onPatchDates = ({ startDate, endDate }) => {
+    if (task?.id && onPatchPartial) {
+      void onPatchPartial({ startDate, endDate });
+    }
+  };
+
+  const startTitleEdit = () => {
+    if (!canManage) return;
+    titleSnapshotRef.current = form.name ?? '';
+    setTitleEditing(true);
+  };
+
+  const cancelTitleEdit = () => {
+    setForm((f) => (f ? { ...f, name: titleSnapshotRef.current } : f));
+    setTitleEditing(false);
+  };
+
+  const commitTitleEdit = () => {
+    if (!titleEditing) return;
+    setTitleEditing(false);
+    const trimmed = form.name?.trim() ?? '';
+    if (!trimmed) {
+      setForm((f) => (f ? { ...f, name: titleSnapshotRef.current } : f));
+      return;
+    }
+    setForm((f) => (f ? { ...f, name: trimmed } : f));
+    const prev = (task?.name ?? titleSnapshotRef.current).trim();
+    if (task?.id && onPatchPartial && trimmed !== prev) {
+      void onPatchPartial({ name: trimmed });
+    }
+  };
+
+  commitTitleEditRef.current = commitTitleEdit;
+
+  const dialogClass = mobileLayout
+    ? 'cronograma-dialog cronograma-dialog--task-detail cronograma-dialog--mobile panel'
+    : 'cronograma-dialog cronograma-dialog--task-detail cronograma-dialog--desktop panel';
+
+  const overlay = (
     <div
-      className="cronograma-overlay cronograma-overlay--task-detail"
+      className={`cronograma-overlay cronograma-overlay--task-detail${
+        mobileLayout ? ' cronograma-overlay--mobile' : ''
+      }`}
       role="presentation"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => !mobileLayout && e.target === e.currentTarget && onClose()}
     >
       <form
-        className="cronograma-dialog cronograma-dialog--task-detail panel"
+        className={dialogClass}
         role="dialog"
         aria-modal="true"
         aria-labelledby="cronograma-editor-title"
         onSubmit={onSubmit}
+        onClick={(e) => e.stopPropagation()}
       >
         <header className="cronograma-task-head">
-          <div className="cronograma-task-head-main">
-            <p className="cronograma-task-breadcrumb">{breadcrumb}</p>
-            <h2 id="cronograma-editor-title">
-              {form.name?.trim() || (task ? 'Sem título' : 'Nova tarefa')}{' '}
-              <span className="cronograma-task-code">{titleCode}</span>
-            </h2>
-            {task?.updatedAt ? (
-              <p className="muted cronograma-task-updated">
-                Atualizado por {task.updatedByName || '—'} em {formatPtDateTime(task.updatedAt)}
-              </p>
-            ) : null}
+          <div className="cronograma-task-head-row">
+            <div className="cronograma-task-head-main">
+              {!mobileLayout ? <p className="cronograma-task-breadcrumb">{breadcrumb}</p> : null}
+              <div className="cronograma-task-head-title-wrap" ref={titleWrapRef}>
+                {titleEditing ? (
+                  <>
+                    <input
+                      ref={titleInputRef}
+                      type="text"
+                      className="cronograma-task-title-input"
+                      id="cronograma-editor-title"
+                      value={form.name}
+                      onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))}
+                      onBlur={() => commitTitleEdit()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitTitleEdit();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          cancelTitleEdit();
+                        }
+                      }}
+                      disabled={!canManage}
+                      aria-label="Nome da tarefa"
+                      autoComplete="off"
+                    />
+                    <span className="cronograma-task-code">{titleCode}</span>
+                  </>
+                ) : (
+                  <h2 id="cronograma-editor-title">
+                    {taskTitle} <span className="cronograma-task-code">{titleCode}</span>
+                  </h2>
+                )}
+                <div className="cronograma-task-head-title-tools">
+                  <CronogramaTaskPriorityPicker
+                    value={form.priority}
+                    onChange={onPriorityChange}
+                    disabled={!canManage}
+                    compact
+                  />
+                  {canManage && !titleEditing ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm cronograma-task-title-edit-btn"
+                      onClick={startTitleEdit}
+                      title="Editar nome"
+                      aria-label="Editar nome da tarefa"
+                    >
+                      <Pencil size={16} aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {task?.updatedAt ? (
+                <p className="muted cronograma-task-updated">
+                  Atualizado por {task.updatedByName || '—'} em {formatPtDateTime(task.updatedAt)}
+                </p>
+              ) : null}
+            </div>
+            <div className="cronograma-task-head-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm cronograma-task-share-icon"
+                disabled={!task?.id}
+                onClick={() => void copyTaskShareLink()}
+                title={task?.id ? 'Copiar link desta tarefa' : 'Salve a tarefa para compartilhar'}
+                aria-label="Compartilhar tarefa"
+              >
+                <Share2 size={18} aria-hidden="true" />
+              </button>
+              <ModalCloseButton onClick={onClose} className="cronograma-task-close" />
+            </div>
           </div>
-          <ModalCloseButton onClick={onClose} className="cronograma-task-close" />
         </header>
 
-        <div className="cronograma-task-layout">
-          <div className="cronograma-task-main">
-            <motionMetaGrid
-              form={form}
-              setForm={setForm}
-              canManage={canManage}
-              phases={phases}
-              adminUsers={adminUsers}
-              requesterUser={requesterUser}
-              toggleTimer={toggleTimer}
-              timerRunning={timerRunning}
-            />
+        {mobileLayout ? (
+          <>
+            <div className="cronograma-task-mobile-scroll" ref={mobileScrollRef}>
+              <div
+                className="cronograma-task-mobile-tabs"
+                role="tablist"
+                aria-label="Seções da tarefa"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="cronograma-task-tab-details"
+                  className={`cronograma-task-mobile-tab${mobilePanel === 'details' ? ' is-active' : ''}`}
+                  aria-selected={mobilePanel === 'details'}
+                  aria-controls="cronograma-task-panel-details"
+                  onClick={() => setMobilePanel('details')}
+                >
+                  Detalhes
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="cronograma-task-tab-activity"
+                  className={`cronograma-task-mobile-tab${mobilePanel === 'activity' ? ' is-active' : ''}`}
+                  aria-selected={mobilePanel === 'activity'}
+                  aria-controls="cronograma-task-panel-activity"
+                  onClick={() => setMobilePanel('activity')}
+                >
+                  Atividade
+                  {(comments?.length ?? 0) > 0 ? (
+                    <span className="cronograma-task-mobile-tab-badge">{comments.length}</span>
+                  ) : null}
+                </button>
+              </div>
 
-            <div className="cronograma-field cronograma-field--wide cronograma-field--owners cronograma-task-owners">
-              <span className="cronograma-task-field-label">Responsáveis</span>
-              <CronogramaOwnerPicker
-                users={adminUsers}
+              {mobilePanel === 'details' ? (
+                <div className="cronograma-task-main" id="cronograma-task-panel-details" role="tabpanel">
+                  {motionTaskDetails({
+                    form,
+                    setForm,
+                    canManage,
+                    phases,
+                    task,
+                    timerRunning,
+                    toggleTimer,
+                    applyStatusProgress,
+                    adminUsers,
+                    currentUserId,
+                    ownerUserIds: form.ownerUserIds,
+                    ownerExtra: form.ownerExtra,
+                    onAttachmentError,
+                    onActivityRefresh,
+                    onProgressSelect,
+                    onPatchDates,
+                  })}
+                </div>
+              ) : (
+                <CronogramaTaskActivityPanel
+                  taskId={task?.id}
+                  canManage={canManage}
+                  currentUserId={currentUserId}
+                  events={events}
+                  loadingEvents={loadingEvents}
+                  comments={comments}
+                  loadingComments={loadingComments}
+                  onSubmitComment={onSubmitComment}
+                  onDeleteComment={onDeleteComment}
+                  submittingComment={submittingComment}
+                  deletingCommentId={deletingCommentId}
+                  adminUsers={adminUsers}
+                  mobileLayout
+                  panelId="cronograma-task-panel-activity"
+                  tabLabelledBy="cronograma-task-tab-activity"
+                />
+              )}
+            </div>
+          </>
+        ) : (
+            <div className="cronograma-task-layout">
+              <div
+                className="cronograma-task-main cronograma-task-main--scroll"
+                ref={desktopMainScrollRef}
+              >
+                {motionTaskDetails({
+                  form,
+                  setForm,
+                  canManage,
+                  phases,
+                  task,
+                  timerRunning,
+                  toggleTimer,
+                  applyStatusProgress,
+                  adminUsers,
+                  currentUserId,
+                  ownerUserIds: form.ownerUserIds,
+                  ownerExtra: form.ownerExtra,
+                  onAttachmentError,
+                  onActivityRefresh,
+                  onProgressSelect,
+                  onPatchDates,
+                })}
+              </div>
+
+              <CronogramaTaskActivityPanel
+                taskId={task?.id}
+                canManage={canManage}
                 currentUserId={currentUserId}
-                selectedIds={form.ownerUserIds}
-                ownerExtra={form.ownerExtra}
-                onChangeIds={(ownerUserIds) => setForm((f) => ({ ...f, ownerUserIds }))}
-                onChangeExtra={(ownerExtra) => setForm((f) => ({ ...f, ownerExtra }))}
-                disabled={!canManage}
+                events={events}
+                loadingEvents={loadingEvents}
+                comments={comments}
+                loadingComments={loadingComments}
+                onSubmitComment={onSubmitComment}
+                onDeleteComment={onDeleteComment}
+                submittingComment={submittingComment}
+                deletingCommentId={deletingCommentId}
+                adminUsers={adminUsers}
               />
             </div>
+        )}
 
-            <label className="cronograma-field cronograma-field--wide cronograma-task-description">
-              <span className="cronograma-task-field-label">Descrição</span>
-              <textarea
-                rows={4}
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                disabled={!canManage}
-                placeholder="Contexto, critérios de aceite, links…"
-              />
-            </label>
-
-            <motionProgress
-              value={form.progress}
-              disabled={!canManage}
-              onChange={(progress) => setForm((f) => ({ ...f, progress }))}
-            />
-
-            <label className="cronograma-field cronograma-field--wide cronograma-checkbox">
-              <input
-                type="checkbox"
-                checked={form.isMilestone}
-                onChange={(e) => setForm((f) => ({ ...f, isMilestone: e.target.checked }))}
-                disabled={!canManage}
-              />
-              É um marco (data única)
-            </label>
-
-            <CronogramaTaskAttachments
-              taskId={task?.id}
-              canManage={canManage}
-              onError={onAttachmentError}
-              onActivityRefresh={onActivityRefresh}
-            />
-          </div>
-
-          <CronogramaTaskActivityPanel
-            taskId={task?.id}
-            canManage={canManage}
-            events={events}
-            loadingEvents={loadingEvents}
-            comments={comments}
-            loadingComments={loadingComments}
-            onSubmitComment={onSubmitComment}
-            submittingComment={submittingComment}
-            adminUsers={adminUsers}
-          />
-        </div>
-
-        <footer className="cronograma-dialog-actions cronograma-task-foot">
-          <button type="submit" className="btn btn-primary" disabled={!canManage}>
-            {canManage ? 'Salvar' : 'Somente leitura'}
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Cancelar
-          </button>
-          {task && canManage ? (
-            <button type="button" className="btn btn-ghost btn-danger cronograma-dialog-delete" onClick={onDelete}>
-              <Trash2 size={16} aria-hidden="true" /> Excluir tarefa
-            </button>
-          ) : null}
-        </footer>
+        {mobileLayout ? (
+            <footer className="cronograma-dialog-actions cronograma-task-foot cronograma-task-foot--mobile">
+              {task && canManage ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-danger cronograma-task-foot-icon"
+                  onClick={onDelete}
+                  title="Excluir tarefa"
+                  aria-label="Excluir tarefa"
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              ) : null}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={!canManage}>
+                {canManage ? 'Salvar' : 'Leitura'}
+              </button>
+            </footer>
+        ) : (
+            <footer className="cronograma-dialog-actions cronograma-task-foot">
+              <button type="submit" className="btn btn-primary" disabled={!canManage}>
+                {canManage ? 'Salvar' : 'Somente leitura'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={onClose}>
+                Cancelar
+              </button>
+              {task && canManage ? (
+                <button type="button" className="btn btn-ghost btn-danger cronograma-dialog-delete" onClick={onDelete}>
+                  <Trash2 size={16} aria-hidden="true" /> Excluir tarefa
+                </button>
+              ) : null}
+            </footer>
+        )}
       </form>
     </div>
+  );
+
+  return createPortal(overlay, document.body);
+}
+
+function motionTaskDetails({
+  form,
+  setForm,
+  canManage,
+  phases,
+  task,
+  timerRunning,
+  toggleTimer,
+  applyStatusProgress,
+  adminUsers,
+  currentUserId,
+  ownerUserIds,
+  ownerExtra,
+  onAttachmentError,
+  onActivityRefresh,
+  onProgressSelect,
+  onPatchDates,
+}) {
+  return (
+    <>
+      {motionMetaGrid({
+        form,
+        setForm,
+        canManage,
+        phases,
+        toggleTimer,
+        timerRunning,
+        adminUsers,
+        currentUserId,
+        ownerUserIds,
+        ownerExtra,
+        onProgressSelect,
+        onPatchDates,
+        taskId: task?.id,
+        onStatusChange: (status) =>
+          applyStatusProgress(status, form.progress, Boolean(task?.id)),
+      })}
+
+      <label className="cronograma-field cronograma-field--wide cronograma-task-description">
+        <span className="cronograma-task-field-label">Descrição</span>
+        <textarea
+          rows={4}
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          disabled={!canManage}
+          placeholder="Contexto, critérios de aceite, links…"
+        />
+      </label>
+
+      <label className="cronograma-checkbox cronograma-task-milestone">
+        <input
+          type="checkbox"
+          checked={form.isMilestone}
+          onChange={(e) =>
+            setForm((f) => {
+              const isMilestone = e.target.checked;
+              return isMilestone
+                ? { ...f, isMilestone: true, endDate: f.startDate }
+                : { ...f, isMilestone: false };
+            })
+          }
+          disabled={!canManage}
+        />
+        É um marco (data única)
+      </label>
+
+      <CronogramaTaskAttachments
+        taskId={task?.id}
+        canManage={canManage}
+        onError={onAttachmentError}
+        onActivityRefresh={onActivityRefresh}
+      />
+    </>
   );
 }
 
@@ -308,198 +758,208 @@ function motionMetaGrid({
   setForm,
   canManage,
   phases,
-  adminUsers,
-  requesterUser,
   toggleTimer,
   timerRunning,
+  adminUsers,
+  currentUserId,
+  ownerUserIds,
+  ownerExtra,
+  onProgressSelect,
+  onPatchDates,
+  taskId,
+  onStatusChange,
 }) {
   return (
     <div className="cronograma-task-meta-grid">
-      <label className="cronograma-field cronograma-field--wide">
-        <span className="cronograma-task-field-label">Nome</span>
-        <input
-          required
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          disabled={!canManage}
-        />
-      </label>
+      {motionTaskMetaTopRow({
+        form,
+        setForm,
+        canManage,
+        phases,
+        toggleTimer,
+        timerRunning,
+      })}
 
-      <div className="cronograma-field">
-        <span className="cronograma-task-field-label">Solicitante</span>
-        <motionRequester form={form} setForm={setForm} canManage={canManage} adminUsers={adminUsers} requesterUser={requesterUser} />
-      </div>
+      {motionTaskPeopleBand({
+        form,
+        setForm,
+        canManage,
+        adminUsers,
+        currentUserId,
+        ownerUserIds,
+        ownerExtra,
+        onProgressSelect,
+        onStatusChange,
+        taskId,
+        onPatchDates,
+      })}
+    </div>
+  );
+}
 
-      <label className="cronograma-field">
-        <span className="cronograma-task-field-label">Status</span>
-        <select
-          value={form.status}
-          onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-          disabled={!canManage}
-        >
-          {Object.entries(TASK_STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
+function motionTaskMetaTopRow({ form, setForm, canManage, phases, toggleTimer, timerRunning }) {
+  return (
+    <div className="cronograma-task-meta-top cronograma-field--wide">
+      <div className="cronograma-task-meta-top-line cronograma-task-body-row">
+        <div className="cronograma-field cronograma-field--timer">
+          <span className="cronograma-task-field-label">Tempo rastreado</span>
+          <div className="cronograma-task-timer">
+            <span className="cronograma-task-timer-display" aria-live="polite">
+              {formatDurationSeconds(form.timeTrackedSeconds)}
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm cronograma-task-timer-btn"
+              onClick={toggleTimer}
+              disabled={!canManage}
+              aria-pressed={timerRunning}
+            >
+              {timerRunning ? <Pause size={16} /> : <Play size={16} />}
+              {timerRunning ? 'Pausar' : 'Iniciar'}
+            </button>
+          </div>
+        </div>
 
-      <label className="cronograma-field">
-        <span className="cronograma-task-field-label">Prioridade</span>
-        <select
-          value={form.priority}
-          onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-          disabled={!canManage}
-        >
-          {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="cronograma-field">
-        <span className="cronograma-task-field-label">Início</span>
-        <input
-          type="date"
-          required
-          value={form.startDate}
-          onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-          disabled={!canManage}
-        />
-      </label>
-
-      <label className="cronograma-field">
-        <span className="cronograma-task-field-label">Vencimento</span>
-        <input
-          type="date"
-          required
-          value={form.isMilestone ? form.startDate : form.endDate}
-          onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-          disabled={!canManage || form.isMilestone}
-        />
-      </label>
-
-      <div className="cronograma-field cronograma-field--timer">
-        <span className="cronograma-task-field-label">Tempo rastreado</span>
-        <div className="cronograma-task-timer">
-          <span className="cronograma-task-timer-display" aria-live="polite">
-            {formatDurationSeconds(form.timeTrackedSeconds)}
-          </span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm cronograma-task-timer-btn"
-            onClick={toggleTimer}
+        <label className="cronograma-field">
+          <span className="cronograma-task-field-label">Horas estimadas</span>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={form.estimatedHours}
+            onChange={(e) => setForm((f) => ({ ...f, estimatedHours: e.target.value }))}
             disabled={!canManage}
-            aria-pressed={timerRunning}
-          >
-            {timerRunning ? <Pause size={16} /> : <Play size={16} />}
-            {timerRunning ? 'Pausar' : 'Iniciar'}
-          </button>
-        </div>
-      </div>
-
-      <label className="cronograma-field">
-        <span className="cronograma-task-field-label">Horas estimadas</span>
-        <input
-          type="number"
-          min={0}
-          step={0.5}
-          value={form.estimatedHours}
-          onChange={(e) => setForm((f) => ({ ...f, estimatedHours: e.target.value }))}
-          disabled={!canManage}
-        />
-      </label>
-
-      <label className="cronograma-field">
-        <span className="cronograma-task-field-label">Fase / projeto</span>
-        <select
-          value={form.phase}
-          onChange={(e) => setForm((f) => ({ ...f, phase: e.target.value }))}
-          disabled={!canManage}
-        >
-          {phases.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="cronograma-field cronograma-field--wide">
-        <span className="cronograma-task-field-label">Tags</span>
-        <input
-          value={form.tagsInput}
-          onChange={(e) => setForm((f) => ({ ...f, tagsInput: e.target.value }))}
-          disabled={!canManage}
-          placeholder="Buscar ou criar tags… (separe por vírgula)"
-        />
-      </label>
-
-      {!form.isMilestone ? (
-        <p className="muted cronograma-task-date-hint cronograma-field--wide">
-          Prazo visível: {formatYmdPt(form.endDate)}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function motionProgress({ value, disabled, onChange }) {
-  return (
-    <div className="cronograma-task-progress">
-      <span className="cronograma-task-field-label">Progresso</span>
-      <div className="cronograma-task-progress-row">
-        <input
-          type="range"
-          className="cronograma-task-progress-range"
-          min={0}
-          max={100}
-          step={5}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          disabled={disabled}
-          aria-valuenow={value}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        />
-        <span className="cronograma-task-progress-value" aria-hidden="true">
-          {value}%
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function motionRequester({ form, setForm, canManage, adminUsers, requesterUser }) {
-  return (
-    <div className="cronograma-task-requester">
-      {requesterUser ? (
-        <div className="cronograma-task-requester-chip">
-          <Avatar
-            name={requesterUser.name}
-            src={requesterUser.avatarUrl}
-            color={requesterUser.avatarColor}
-            size="sm"
           />
-          <span>{requesterUser.name}</span>
+        </label>
+
+        <label className="cronograma-field">
+          <span className="cronograma-task-field-label">Fase / projeto</span>
+          <select
+            value={form.phase}
+            onChange={(e) => setForm((f) => ({ ...f, phase: e.target.value }))}
+            disabled={!canManage}
+          >
+            {phases.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function motionTaskPeopleBand({
+  form,
+  setForm,
+  canManage,
+  adminUsers,
+  currentUserId,
+  ownerUserIds,
+  ownerExtra,
+  onProgressSelect,
+  onStatusChange,
+  taskId,
+  onPatchDates,
+}) {
+  const progressValue = progressSelectValue(form.progress, form.status);
+  const doneLocked = form.status === 'done';
+  const requesterUser = adminUsers.find((u) => u.id === form.requesterUserId);
+
+  return (
+    <div
+      className="cronograma-task-people-band cronograma-field--wide"
+      role="group"
+      aria-label="Pessoas, situação e status"
+    >
+      <div className="cronograma-task-people-band-line cronograma-task-body-row">
+        <div className="cronograma-task-people-cell cronograma-task-people-cell--requester">
+          <span className="cronograma-task-field-label">Solicitante</span>
+          {motionRequesterDisplay(requesterUser)}
         </div>
-      ) : null}
-      <select
-        value={form.requesterUserId}
-        onChange={(e) => setForm((f) => ({ ...f, requesterUserId: e.target.value }))}
-        disabled={!canManage}
-        className="cronograma-task-requester-select"
-      >
-        <option value="">—</option>
-        {adminUsers.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.name}
-          </option>
-        ))}
-      </select>
+
+        <label className="cronograma-task-people-cell cronograma-field">
+          <span className="cronograma-task-field-label">Situação</span>
+          <select
+            value={progressValue}
+            onChange={(e) => onProgressSelect(Number(e.target.value))}
+            disabled={!canManage || doneLocked}
+          >
+            {PROGRESS_STEPS.map((pct) => (
+              <option key={pct} value={pct}>
+                {pct === 100 ? '100% · Finalizada' : `${pct}%`}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="cronograma-task-people-cell cronograma-field">
+          <span className="cronograma-task-field-label">Status</span>
+          <select
+            value={form.status}
+            onChange={(e) => onStatusChange?.(e.target.value)}
+            disabled={!canManage}
+          >
+            {Object.entries(TASK_STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="cronograma-task-people-band-line cronograma-task-body-row">
+        <div className="cronograma-task-people-cell cronograma-task-people-cell--owners">
+          <span className="cronograma-task-field-label">Responsáveis</span>
+          <CronogramaOwnerPicker
+            users={adminUsers}
+            currentUserId={currentUserId}
+            selectedIds={ownerUserIds}
+            ownerExtra={ownerExtra}
+            onChangeIds={(ids) => setForm((f) => ({ ...f, ownerUserIds: ids }))}
+            onChangeExtra={(extra) => setForm((f) => ({ ...f, ownerExtra: extra }))}
+            disabled={!canManage}
+            stacked
+          />
+        </div>
+
+        <div className="cronograma-task-people-cell cronograma-task-people-cell--period">
+          <CronogramaTaskPeriodField
+            form={form}
+            setForm={setForm}
+            canManage={canManage}
+            taskId={taskId}
+            onPatchDates={onPatchDates}
+            inBand
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function motionRequesterDisplay(requesterUser, { size = 'sm' } = {}) {
+  const displayName = requesterUser?.name ?? '—';
+
+  return (
+    <div
+      className="cronograma-task-requester-avatar cronograma-task-requester-avatar--readonly"
+      title={`Solicitante: ${displayName}`}
+      aria-label={`Solicitante: ${displayName}`}
+    >
+      {requesterUser ? (
+        <Avatar
+          name={displayName}
+          src={requesterUser.avatarUrl}
+          color={requesterUser.avatarColor}
+          size={size}
+        />
+      ) : (
+        <span className="cronograma-assignee-placeholder" aria-hidden="true" title="Sem solicitante" />
+      )}
     </div>
   );
 }

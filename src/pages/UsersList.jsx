@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Briefcase, Calendar, Mail, Phone, User } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { Avatar } from '../components/Avatar.jsx';
-import { AppLoading } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
-import { CrudListToolbar, CrudPagination } from '../components/crud/CrudListToolbar.jsx';
-import { CrudRowActions } from '../components/crud/CrudRowActions.jsx';
+import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CrudRowMenu } from '../components/crud/CrudRowMenu.jsx';
 import { appConfirm } from '../components/confirm/appConfirm.js';
 import { activeStatusFilter, selectFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
@@ -47,122 +45,6 @@ function selectableUserIds(users, currentUserId) {
     .filter((id) => id && id !== currentUserId);
 }
 
-function UserMetaChip({ icon: Icon, label, value, href }) {
-  if (!value || value === '—') return null;
-
-  const content = href ? (
-    <a href={href} onClick={(ev) => ev.stopPropagation()}>
-      {value}
-    </a>
-  ) : (
-    <span>{value}</span>
-  );
-
-  return (
-    <span className="users-registry-chip" title={label}>
-      <Icon size={13} aria-hidden="true" />
-      {content}
-    </span>
-  );
-}
-
-function UserRegistryCard({
-  user,
-  selected,
-  selectable,
-  onToggleSelect,
-  onView,
-  onEdit,
-}) {
-  const phone = formatPhoneDisplay(user.mobilePhone);
-  const hasSecondaryRow = Boolean(user.email || user.cpf || phone || user.jobPositionName);
-  const open = () => (onView ? onView(user.id) : onEdit(user.id));
-
-  return (
-    <article
-      className={`users-registry-card${user.active ? '' : ' users-registry-card--inactive'}${selected ? ' users-registry-card--selected' : ''}${selectable ? ' users-registry-card--selectable' : ''}`}
-      onClick={open}
-      onKeyDown={(ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          open();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      <div className="users-registry-row users-registry-row--primary">
-        {selectable ? (
-          <label
-            className="users-registry-select"
-            onClick={(ev) => ev.stopPropagation()}
-            onKeyDown={(ev) => ev.stopPropagation()}
-          >
-            <input
-              type="checkbox"
-              checked={selected}
-              aria-label={`Selecionar ${user.name}`}
-              onChange={() => onToggleSelect(user.id)}
-            />
-          </label>
-        ) : null}
-
-        <Avatar
-          name={user.name}
-          src={user.avatarUrl}
-          color={user.avatarColor}
-          size="sm"
-          className="users-registry-avatar"
-        />
-
-        <div className="users-registry-identity">
-          <h3 className="users-registry-title">{user.name}</h3>
-        </div>
-
-        <span className={user.active ? 'badge badge-success' : 'badge badge-muted'}>
-          {user.active ? 'Ativo' : 'Inativo'}
-        </span>
-
-        <div className="users-registry-metrics">
-          <span className="users-registry-metric" title="Data de cadastro">
-            <Calendar size={14} aria-hidden="true" />
-            <span className="users-registry-metric-label">Cadastro</span>
-            <strong>{formatDate(user.createdAt)}</strong>
-          </span>
-        </div>
-
-        <div className="users-registry-actions">
-          <CrudRowActions
-            onView={onView ? () => onView(user.id) : undefined}
-            onEdit={() => onEdit(user.id)}
-          />
-        </div>
-      </div>
-
-      {hasSecondaryRow ? (
-        <div className="users-registry-row users-registry-row--secondary">
-          <UserMetaChip
-            icon={Mail}
-            label="E-mail"
-            value={user.email || null}
-            href={user.email ? `mailto:${user.email}` : undefined}
-          />
-          <UserMetaChip icon={User} label="CPF" value={user.cpf || null} />
-          <UserMetaChip
-            icon={Phone}
-            label="Celular"
-            value={phone || null}
-            href={phone ? `tel:+55${String(user.mobilePhone).replace(/\D/g, '')}` : undefined}
-          />
-          {user.jobPositionName ? (
-            <UserMetaChip icon={Briefcase} label="Cargo" value={user.jobPositionName} />
-          ) : null}
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
 function StatPanel({ label, value, active, onClick }) {
   return (
     <button
@@ -185,6 +67,63 @@ function activeFilterValue(fieldFilters) {
   return match.value === true || match.value === 'true' ? 'active' : 'inactive';
 }
 
+function userStatusBadge(user) {
+  return (
+    <span className={user.active ? 'badge badge-success' : 'badge badge-muted'}>
+      {user.active ? 'Ativo' : 'Inativo'}
+    </span>
+  );
+}
+
+function UserListIdentity({ user }) {
+  const phone = formatPhoneDisplay(user.mobilePhone);
+  return (
+    <div className="crud-list-identity users-list-identity">
+      <strong className="crud-list-identity__title">{user.name}</strong>
+      <span
+        className={`crud-list-identity__meta--mobile users-list-identity-badge${user.active ? '' : ' users-list-identity-badge--inactive'}`}
+      >
+        {userStatusBadge(user)}
+      </span>
+      {user.email ? (
+        <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line">
+          <a href={`mailto:${user.email}`} onClick={(ev) => ev.stopPropagation()}>
+            {user.email}
+          </a>
+        </span>
+      ) : null}
+      {user.cpf ? (
+        <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line">
+          CPF {user.cpf}
+        </span>
+      ) : null}
+      {phone ? (
+        <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line">
+          <a
+            href={`tel:+55${String(user.mobilePhone).replace(/\D/g, '')}`}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            {phone}
+          </a>
+        </span>
+      ) : null}
+      {user.jobPositionName ? (
+        <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line">
+          {user.jobPositionName}
+        </span>
+      ) : null}
+      {user.userGroupName ? (
+        <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line muted">
+          {user.userGroupName}
+        </span>
+      ) : null}
+      <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line muted">
+        Cadastro {formatDate(user.createdAt)}
+      </span>
+    </div>
+  );
+}
+
 export function UsersList({
   users,
   loading,
@@ -199,6 +138,7 @@ export function UsersList({
 }) {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const filterDefinitions = useMemo(() => {
     const groups = new Map();
@@ -220,7 +160,7 @@ export function UsersList({
   }, [users]);
 
   const list = useCrudList(users, {
-    searchKeys: ['name', 'email', 'cpf', 'mobilePhone', 'jobPositionName'],
+    searchKeys: ['name', 'email', 'cpf', 'mobilePhone', 'jobPositionName', 'userGroupName'],
     filterDefinitions,
     defaultSort: { key: 'name', direction: 'asc' },
     defaultPageSize: 15,
@@ -244,8 +184,6 @@ export function UsersList({
   const allFilteredSelected =
     filteredSelectableIds.length > 0 &&
     filteredSelectableIds.every((id) => selectedIds.has(id));
-  const allPageSelected =
-    pageSelectableIds.length > 0 && pageSelectableIds.every((id) => selectedIds.has(id));
 
   useEffect(() => {
     setSelectedIds((current) => {
@@ -266,25 +204,43 @@ export function UsersList({
     });
   };
 
-  const toggleSelect = (id) => {
-    if (!canManage || id === currentUserId) return;
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const toggleSelect = useCallback(
+    (id) => {
+      if (!canManage || id === currentUserId) return;
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [canManage, currentUserId],
+  );
 
-  const selectIds = (ids) => {
+  const selectIds = useCallback((ids) => {
     setSelectedIds((current) => {
       const next = new Set(current);
       ids.forEach((id) => next.add(id));
       return next;
     });
-  };
+  }, []);
 
-  const clearSelection = () => setSelectedIds(new Set());
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const togglePage = useCallback(() => {
+    const pageIds = pageSelectableIds;
+    if (!pageIds.length) return;
+    setSelectedIds((prev) => {
+      const allSelected = pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        for (const id of pageIds) next.delete(id);
+      } else {
+        for (const id of pageIds) next.add(id);
+      }
+      return next;
+    });
+  }, [pageSelectableIds]);
 
   const removeSelected = async () => {
     const ids = [...selectedIds];
@@ -308,13 +264,62 @@ export function UsersList({
     }
   };
 
+  const bulkBar =
+    canManage && !loading && filteredSelectableIds.length > 0 ? (
+      <div className="users-bulk-bar" role="region" aria-label="Seleção em massa">
+        <div className="users-bulk-bar-actions">
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={busy || pageSelectableIds.every((id) => selectedIds.has(id))}
+            onClick={() => selectIds(pageSelectableIds)}
+          >
+            Selecionar página
+          </button>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={busy || allFilteredSelected}
+            onClick={() => selectIds(filteredSelectableIds)}
+          >
+            Selecionar filtrados ({filteredSelectableIds.length})
+          </button>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={busy || selectedCount === 0}
+            onClick={clearSelection}
+          >
+            Limpar seleção
+          </button>
+        </div>
+        <button
+          type="button"
+          className="btn-ghost btn-sm btn-danger"
+          disabled={busy || selectedCount === 0}
+          onClick={() => void removeSelected()}
+        >
+          Remover selecionados{selectedCount > 0 ? ` (${selectedCount})` : ''}
+        </button>
+      </div>
+    ) : null;
+
+  const selection =
+    canManage && filteredSelectableIds.length > 0
+      ? {
+          selectedIds,
+          onToggleRow: toggleSelect,
+          onTogglePage: togglePage,
+        }
+      : null;
+
   return (
-    <div className="page-stack users-page">
+    <div className="page-stack crud-list-page users-page">
       <PageHeader
         title="Usuários"
         subtitle="Pessoas cadastradas na plataforma — clientes, equipe e administradores."
         actions={
-          onAdd ? (
+          canManage && onAdd ? (
             <button type="button" className="btn-primary" onClick={onAdd}>
               Adicionar usuário
             </button>
@@ -345,8 +350,8 @@ export function UsersList({
         />
       </div>
 
-      <section className="panel users-registry-panel">
-        <div className="panel-header list-toolbar-header">
+      <section className="panel crud-list-panel users-registry-panel">
+        <div className="panel-header panel-header--meta-only">
           <h2>Usuários cadastrados</h2>
           <span className="panel-meta">
             {list.totalItems} de {counts.total} na listagem
@@ -354,106 +359,160 @@ export function UsersList({
           </span>
         </div>
 
-        {canManage && !loading && filteredSelectableIds.length > 0 ? (
-          <div className="panel-body users-bulk-bar">
-            <div className="users-bulk-bar-actions">
-              <button
-                type="button"
-                className="btn-ghost btn-sm"
-                disabled={busy || allPageSelected}
-                onClick={() => selectIds(pageSelectableIds)}
-              >
-                Selecionar página
-              </button>
-              <button
-                type="button"
-                className="btn-ghost btn-sm"
-                disabled={busy || allFilteredSelected}
-                onClick={() => selectIds(filteredSelectableIds)}
-              >
-                Selecionar filtrados ({filteredSelectableIds.length})
-              </button>
-              <button
-                type="button"
-                className="btn-ghost btn-sm"
-                disabled={busy || selectedCount === 0}
-                onClick={clearSelection}
-              >
-                Limpar seleção
-              </button>
-            </div>
-            <button
-              type="button"
-              className="btn-ghost btn-sm btn-danger"
-              disabled={busy || selectedCount === 0}
-              onClick={removeSelected}
-            >
-              Remover selecionados{selectedCount > 0 ? ` (${selectedCount})` : ''}
-            </button>
-          </div>
-        ) : null}
-
-        <div className="panel-body list-toolbar-body">
-          <CrudListToolbar
-            query={list.query}
-            onQueryChange={list.onQueryChange}
-            placeholder="Buscar por nome, e-mail, CPF ou celular…"
-            sortKey={list.sortKey}
-            sortDirection={list.sortDirection}
-            sortOptions={[
-              { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-              { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
-              { key: 'createdAt', direction: 'desc', label: 'Cadastro (recente)' },
-            ]}
-            onSortChange={list.setSort}
-            pageSize={list.pageSize}
-            onPageSizeChange={list.onPageSizeChange}
-            showPageSize
-            filterDefinitions={filterDefinitions}
-            fieldFilters={list.fieldFilters}
-            onApplyFieldFilter={list.applyFieldFilter}
-            onRemoveFieldFilter={list.removeFieldFilter}
-            onClearFieldFilters={list.clearFieldFilters}
-          />
-        </div>
-
-        <div className="panel-body users-registry-body">
-          {loading ? (
-            <AppLoading label="Carregando usuários…" />
-          ) : list.rows.length === 0 ? (
-            <div className="empty-state">
-              {users.length === 0
-                ? 'Nenhum usuário cadastrado. Clique em Adicionar usuário para começar.'
-                : 'Nenhum usuário corresponde aos filtros aplicados.'}
-            </div>
-          ) : (
-            <div className="users-registry-list">
-              {list.rows.map((user) => (
-                <UserRegistryCard
-                  key={user.id}
-                  user={user}
-                  selected={selectedIds.has(user.id)}
-                  selectable={canManage && user.id !== currentUserId}
-                  onToggleSelect={toggleSelect}
-                  onView={onView}
-                  onEdit={onEdit}
+        <CrudListShell
+          embedded
+          loading={loading || busy}
+          query={list.query}
+          onQueryChange={list.onQueryChange}
+          searchPlaceholder="Buscar por nome, e-mail, CPF, celular ou cargo"
+          toolbarLayout="compact"
+          toolbarWrapClassName="crud-list-toolbar"
+          sortKey={list.sortKey}
+          sortDirection={list.sortDirection}
+          onSortChange={list.setSort}
+          sortOptions={[
+            { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+            { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
+            { key: 'createdAt', direction: 'desc', label: 'Cadastro (recente)' },
+            { key: 'createdAt', direction: 'asc', label: 'Cadastro (antigo)' },
+          ]}
+          page={list.page}
+          pageSize={list.pageSize}
+          totalItems={list.totalItems}
+          totalPages={list.totalPages}
+          onPageChange={list.setPage}
+          onPageSizeChange={list.onPageSizeChange}
+          filterDefinitions={filterDefinitions}
+          fieldFilters={list.fieldFilters}
+          onApplyFieldFilter={list.applyFieldFilter}
+          onRemoveFieldFilter={list.removeFieldFilter}
+          onClearFieldFilters={list.clearFieldFilters}
+          emptyMessage={
+            users.length === 0
+              ? 'Nenhum usuário cadastrado. Clique em Adicionar usuário para começar.'
+              : 'Nenhum usuário corresponde à busca ou aos filtros.'
+          }
+          tableClassName="crud-list-cards-table crud-list-cards-table--users"
+          tableFooter={bulkBar}
+          selection={selection}
+          columns={[
+            {
+              key: 'avatar',
+              label: '',
+              className: 'data-table-col-user-avatar',
+              render: (row) => (
+                <Avatar
+                  name={row.name}
+                  src={row.avatarUrl}
+                  color={row.avatarColor}
+                  size="sm"
+                  className="users-list-avatar"
                 />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {!loading && list.totalItems > 0 ? (
-          <div className="panel-body crud-pagination-wrap">
-            <CrudPagination
-              page={list.page}
-              pageSize={list.pageSize}
-              totalPages={list.totalPages}
-              totalItems={list.totalItems}
-              onPageChange={list.setPage}
-            />
-          </div>
-        ) : null}
+              ),
+            },
+            {
+              key: 'name',
+              label: 'Nome',
+              headerHint: 'Nome completo do usuário.',
+              className: 'data-table-col-list-identity data-table-col-user-name',
+              render: (row) => <UserListIdentity user={row} />,
+            },
+            {
+              key: 'email',
+              label: 'E-mail',
+              headerHint: 'E-mail de acesso e contato.',
+              className: 'data-table-col-user-email crud-col-desktop-only',
+              render: (row) =>
+                row.email ? (
+                  <a href={`mailto:${row.email}`} onClick={(ev) => ev.stopPropagation()}>
+                    {row.email}
+                  </a>
+                ) : (
+                  '—'
+                ),
+            },
+            {
+              key: 'cpf',
+              label: 'CPF',
+              className: 'data-table-col-user-cpf crud-col-desktop-only',
+              render: (row) => row.cpf ?? '—',
+            },
+            {
+              key: 'mobilePhone',
+              label: 'Celular',
+              mobileLabel: 'Cel.',
+              className: 'data-table-col-user-phone crud-col-desktop-only',
+              render: (row) => {
+                const phone = formatPhoneDisplay(row.mobilePhone);
+                if (!phone) return '—';
+                return (
+                  <a
+                    href={`tel:+55${String(row.mobilePhone).replace(/\D/g, '')}`}
+                    onClick={(ev) => ev.stopPropagation()}
+                  >
+                    {phone}
+                  </a>
+                );
+              },
+            },
+            {
+              key: 'jobPositionName',
+              label: 'Cargo',
+              headerHint: 'Cargo organizacional vinculado.',
+              className: 'data-table-col-user-job crud-col-desktop-only',
+              render: (row) => row.jobPositionName ?? '—',
+            },
+            {
+              key: 'userGroupName',
+              label: 'Grupo',
+              headerHint: 'Grupo de permissões de acesso.',
+              headerAbbr: 'Grupo',
+              className: 'data-table-col-user-group crud-col-desktop-only',
+              render: (row) => row.userGroupName ?? '—',
+            },
+            {
+              key: 'active',
+              label: 'Status',
+              headerHint: 'Usuário ativo pode acessar a plataforma conforme permissões.',
+              className: 'data-table-col-user-status crud-col-desktop-only',
+              render: (row) => userStatusBadge(row),
+            },
+            {
+              key: 'createdAt',
+              label: 'Cadastro',
+              headerHint: 'Data de criação do cadastro.',
+              className: 'data-table-col-user-created data-table-cell-numeric crud-col-desktop-only',
+              render: (row) => formatDate(row.createdAt),
+            },
+            {
+              key: 'rowMenu',
+              label: '',
+              className: 'data-table-col-row-menu crud-col-mobile-only',
+              render: (row) => (
+                <CrudRowMenu
+                  isOpen={openRowMenuId === row.id}
+                  onToggle={() =>
+                    setOpenRowMenuId((prev) => (prev === row.id ? null : row.id))
+                  }
+                  onClose={() => setOpenRowMenuId(null)}
+                  onView={onView ? () => onView(row.id) : undefined}
+                  onEdit={canManage && onEdit ? () => onEdit(row.id) : undefined}
+                />
+              ),
+            },
+          ]}
+          rows={list.rows}
+          onRowClick={
+            onView
+              ? (row) => onView(row.id)
+              : onEdit
+                ? (row) => onEdit(row.id)
+                : undefined
+          }
+          onView={onView ? (row) => onView(row.id) : undefined}
+          onEdit={canManage && onEdit ? (row) => onEdit(row.id) : undefined}
+          canManage={canManage}
+        />
       </section>
     </div>
   );
