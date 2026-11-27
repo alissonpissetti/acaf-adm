@@ -88,7 +88,7 @@ export function CrudRowMenu({
         }}
       >
         <MoreVertical size={18} strokeWidth={2} aria-hidden="true" />
-        <span className="visually-hidden">Mais ações</span>
+        <span className="sr-only">Mais ações</span>
       </button>
       {isOpen ? (
         <ul className="crud-row-menu__dropdown" id={menuId} role="menu">

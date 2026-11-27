@@ -14,6 +14,7 @@ export function companyMatchesSearch(company, query) {
     company.legalName,
     company.email,
     company.phone,
+    company.commercialOwnerName,
   ]
     .filter(Boolean)
     .map((value) => value.toLowerCase().normalize('NFD').replace(/\p{M}/gu, ''));

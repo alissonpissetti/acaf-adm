@@ -71,7 +71,7 @@ export function CompanyCreateScreen({ onBack, onCreated }) {
       <PageHeader
         breadcrumbs={[{ label: 'Empresas', onClick: onBack }, { label: 'Nova empresa' }]}
         title="Adicionar empresa"
-        subtitle="Cadastre a empresa para vincular gestores de RH e iniciar a operação corporativa."
+        subtitle="Cadastro mínimo para o comercial. Depois gere o link de onboarding do gestor na ficha da empresa."
       />
 
       <CrudAlerts error={error} />

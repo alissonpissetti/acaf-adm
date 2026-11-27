@@ -7,7 +7,10 @@ import {
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CatalogListIdentity } from '../components/crud/CatalogListIdentity.jsx';
+import { catalogListRowMenuColumn } from '../components/crud/catalogListRowMenuColumn.jsx';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CATALOG_LIST_SHELL_PROPS } from '../crud/catalogListPattern.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { confirmCrudDelete, inactiveBadgeClass, inactiveLabel } from '../crud/crudUtils.js';
@@ -216,6 +219,7 @@ export function AccountPlansPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const filterDefinitions = useMemo(
     () => [
@@ -398,62 +402,102 @@ export function AccountPlansPage() {
   }
 
   return (
-    <CrudListShell
-      title="Planos de Conta"
-      subtitle="Categorias contábeis para contas a pagar e a receber"
-      addLabel="Adicionar plano de conta"
-      onAdd={canManage ? router.goToCreate : undefined}
-      canAdd={canManage}
-      loading={loading}
-      error={error}
-      message={message}
-      query={list.query}
-      onQueryChange={list.onQueryChange}
-      searchPlaceholder="Buscar por código, nome ou descrição"
-      sortKey={list.sortKey}
-      sortDirection={list.sortDirection}
-      onSortChange={list.setSort}
-      sortOptions={[
-        { key: 'code', direction: 'asc', label: 'Código (A–Z)' },
-        { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-        { key: 'kind', direction: 'asc', label: 'Tipo (A–Z)' },
-      ]}
-      filterDefinitions={filterDefinitions}
-      fieldFilters={list.fieldFilters}
-      onApplyFieldFilter={list.applyFieldFilter}
-      onRemoveFieldFilter={list.removeFieldFilter}
-      onClearFieldFilters={list.clearFieldFilters}
-      page={list.page}
-      pageSize={list.pageSize}
-      totalItems={list.totalItems}
-      totalPages={list.totalPages}
-      onPageChange={list.setPage}
-      onPageSizeChange={list.onPageSizeChange}
-      panelTitle="Planos de conta cadastrados"
-      emptyMessage="Nenhum plano de conta encontrado."
-      columns={[
-        { key: 'code', label: 'Código', render: (row) => <strong>{row.code}</strong> },
-        { key: 'name', label: 'Nome' },
-        {
-          key: 'kind',
-          label: 'Tipo',
-          render: (row) => kindLabel(row.kind),
-        },
-        { key: 'parentName', label: 'Plano pai' },
-        {
-          key: 'active',
-          label: 'Status',
-          render: (row) => (
-            <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
-          ),
-        },
-      ]}
-      rows={list.rows}
-      onView={(row) => router.goToView(row.id)}
-      onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
-      onDuplicate={canManage ? (row) => router.goToDuplicate(row.id) : undefined}
-      onDelete={canManage ? handleDelete : undefined}
-      canManage={canManage}
-    />
+    <div className="page-stack crud-list-page financeiro-planos-conta-page">
+      <CrudListShell
+        {...CATALOG_LIST_SHELL_PROPS}
+        title="Planos de Conta"
+        subtitle="Categorias contábeis para contas a pagar e a receber"
+        addLabel="Adicionar plano de conta"
+        onAdd={canManage ? router.goToCreate : undefined}
+        canAdd={canManage}
+        loading={loading}
+        error={error}
+        message={message}
+        query={list.query}
+        onQueryChange={list.onQueryChange}
+        searchPlaceholder="Buscar por código, nome ou descrição"
+        sortKey={list.sortKey}
+        sortDirection={list.sortDirection}
+        onSortChange={list.setSort}
+        sortOptions={[
+          { key: 'code', direction: 'asc', label: 'Código (A–Z)' },
+          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+          { key: 'kind', direction: 'asc', label: 'Tipo (A–Z)' },
+        ]}
+        filterDefinitions={filterDefinitions}
+        fieldFilters={list.fieldFilters}
+        onApplyFieldFilter={list.applyFieldFilter}
+        onRemoveFieldFilter={list.removeFieldFilter}
+        onClearFieldFilters={list.clearFieldFilters}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalItems={list.totalItems}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.onPageSizeChange}
+        panelTitle="Planos de conta cadastrados"
+        emptyMessage="Nenhum plano de conta encontrado. Clique em Adicionar plano de conta para começar."
+        columns={[
+          {
+            key: 'name',
+            label: 'Plano de conta',
+            headerHint: 'Código contábil e nome da categoria.',
+            className: 'data-table-col-list-identity',
+            render: (row) => (
+              <CatalogListIdentity
+                title={`${row.code} — ${row.name}`}
+                meta={`${kindLabel(row.kind)} · ${row.parentName || 'Raiz'} · ${inactiveLabel(row.active)}`}
+              />
+            ),
+          },
+          {
+            key: 'code',
+            label: 'Código',
+            className: 'crud-col-desktop-only data-table-cell-numeric',
+            render: (row) => <strong>{row.code}</strong>,
+          },
+          {
+            key: 'name',
+            label: 'Nome',
+            className: 'crud-col-desktop-only',
+          },
+          {
+            key: 'kind',
+            label: 'Tipo',
+            className: 'crud-col-desktop-only',
+            render: (row) => kindLabel(row.kind),
+          },
+          {
+            key: 'parentName',
+            label: 'Plano pai',
+            className: 'crud-col-desktop-only',
+            render: (row) => row.parentName || '—',
+          },
+          {
+            key: 'active',
+            label: 'Status',
+            className: 'crud-col-desktop-only',
+            render: (row) => (
+              <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
+            ),
+          },
+          catalogListRowMenuColumn({
+            openRowMenuId,
+            setOpenRowMenuId,
+            onView: (row) => router.goToView(row.id),
+            onEdit: canManage ? (row) => router.goToEdit(row.id) : undefined,
+            onDelete: canManage ? handleDelete : undefined,
+            canManage,
+          }),
+        ]}
+        rows={list.rows}
+        onRowClick={(row) => router.goToView(row.id)}
+        onView={(row) => router.goToView(row.id)}
+        onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+        onDuplicate={canManage ? (row) => router.goToDuplicate(row.id) : undefined}
+        onDelete={canManage ? handleDelete : undefined}
+        canManage={canManage}
+      />
+    </div>
   );
 }

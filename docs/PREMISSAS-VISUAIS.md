@@ -67,7 +67,7 @@ Nunca usar vermelho ou verde como cor de marca — apenas semântica.
 
 | Tipo | Obrigatório |
 |------|-------------|
-| **Lista CRUD** | `CrudListShell`, busca, ordenação, paginação, `CrudRowActions`, `AppLoading`, empty state |
+| **Lista CRUD** | `CrudListShell`, busca, ordenação, paginação, `CrudRowActions`, `AppLoading`, empty state — listas densas: [`DESIGN-LISTAGENS.md`](./DESIGN-LISTAGENS.md) (`dense-list-table`, card = Parceiros) |
 | **Criar** | `PageHeader` + breadcrumbs, `.form-grid`, `CrudFormActions` (**Salvar** + Cancelar) |
 | **Editar** | Igual ao criar + **Excluir** (quando aplicável) via `CrudFormActions` |
 | **Visualizar** | Campos desabilitados + `CrudViewActions` (Editar + Voltar) |

@@ -11,7 +11,10 @@ import {
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CatalogListIdentity } from '../components/crud/CatalogListIdentity.jsx';
+import { catalogListRowMenuColumn } from '../components/crud/catalogListRowMenuColumn.jsx';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CATALOG_LIST_SHELL_PROPS } from '../crud/catalogListPattern.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { IconPicker } from '../components/IconPicker.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -408,6 +411,7 @@ function ModuleItemsPanel({
   onEditItem,
   onDeleteItem,
 }) {
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
   const items = module.items ?? [];
   const list = useCrudList(items, {
     searchKeys: ['label', 'slug', 'route'],
@@ -416,8 +420,8 @@ function ModuleItemsPanel({
   });
 
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className="panel crud-list-panel">
+      <div className="panel-header panel-header--meta-only">
         <h2>Itens do módulo</h2>
         <span className="panel-meta">{items.length} item(ns)</span>
         {canManage && !readOnly ? (
@@ -428,6 +432,10 @@ function ModuleItemsPanel({
       </div>
       <CrudListShell
         embedded
+        {...CATALOG_LIST_SHELL_PROPS}
+        tableClassName="crud-list-cards-table crud-list-cards-table--simple module-items-list-table"
+        toolbarLayout="compact"
+        toolbarWrapClassName="crud-list-toolbar"
         query={list.query}
         onQueryChange={list.onQueryChange}
         searchPlaceholder="Buscar item por label, slug ou rota"
@@ -446,21 +454,47 @@ function ModuleItemsPanel({
         onPageSizeChange={list.onPageSizeChange}
         emptyMessage="Nenhum item cadastrado neste módulo."
         columns={[
-          { key: 'label', label: 'Item', render: (row) => <strong>{row.label}</strong> },
-          { key: 'route', label: 'Rota' },
+          {
+            key: 'label',
+            label: 'Item',
+            headerHint: 'Rótulo exibido no menu do admin.',
+            className: 'data-table-col-list-identity',
+            render: (row) => (
+              <CatalogListIdentity
+                title={row.label}
+                meta={`${row.route || '—'} · ${inactiveLabel(row.active)}`}
+              />
+            ),
+          },
+          {
+            key: 'route',
+            label: 'Rota',
+            className: 'crud-col-desktop-only',
+            render: (row) => row.route || '—',
+          },
           {
             key: 'active',
             label: 'Status',
+            className: 'crud-col-desktop-only',
             render: (row) => (
               <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
             ),
           },
+          catalogListRowMenuColumn({
+            openRowMenuId,
+            setOpenRowMenuId,
+            onView: (row) => onViewItem(row.id),
+            onEdit: canManage && !readOnly ? (row) => onEditItem(row.id) : undefined,
+            onDelete: canManage && !readOnly ? onDeleteItem : undefined,
+            canManage: canManage && !readOnly,
+          }),
         ]}
         rows={list.rows}
+        onRowClick={(row) => onViewItem(row.id)}
         onView={(row) => onViewItem(row.id)}
         onEdit={canManage && !readOnly ? (row) => onEditItem(row.id) : undefined}
         onDelete={canManage && !readOnly ? onDeleteItem : undefined}
-        canManage={canManage}
+        canManage={canManage && !readOnly}
       />
     </section>
   );
@@ -479,6 +513,7 @@ export function ModulesPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const list = useCrudList(
     useMemo(
@@ -768,59 +803,91 @@ export function ModulesPage() {
   }
 
   return (
-    <CrudListShell
-      title="Módulos"
-      subtitle="Gerencie módulos da sidebar, itens do menu superior, ícones e permissões"
-      addLabel="Adicionar módulo"
-      onAdd={canManage ? router.goToCreate : undefined}
-      canAdd={canManage}
-      loading={loading}
-      error={error}
-      message={message}
-      query={list.query}
-      onQueryChange={list.onQueryChange}
-      searchPlaceholder="Buscar por nome, slug ou descrição"
-      sortKey={list.sortKey}
-      sortDirection={list.sortDirection}
-      onSortChange={list.setSort}
-      sortOptions={[
-        { key: 'sortOrder', direction: 'asc', label: 'Ordem' },
-        { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-      ]}
-      page={list.page}
-      pageSize={list.pageSize}
-      totalItems={list.totalItems}
-      totalPages={list.totalPages}
-      onPageChange={list.setPage}
-      onPageSizeChange={list.onPageSizeChange}
-      panelTitle="Módulos cadastrados"
-      emptyMessage="Nenhum módulo encontrado."
-      columns={[
-        {
-          key: 'name',
-          label: 'Módulo',
-          render: (row) => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <ModuleIcon name={row.icon} size={18} />
-              <strong>{row.name}</strong>
-            </div>
-          ),
-        },
-        { key: 'slug', label: 'Slug' },
-        { key: 'itemCount', label: 'Itens' },
-        {
-          key: 'active',
-          label: 'Status',
-          render: (row) => (
-            <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
-          ),
-        },
-      ]}
-      rows={list.rows}
-      onView={(row) => router.goToView(row.id)}
-      onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
-      onDelete={canManage ? handleDeleteModule : undefined}
-      canManage={canManage}
-    />
+    <div className="page-stack crud-list-page sistema-modulos-page">
+      <CrudListShell
+        {...CATALOG_LIST_SHELL_PROPS}
+        tableClassName="crud-list-cards-table crud-list-cards-table--simple modules-list-table"
+        title="Módulos"
+        subtitle="Gerencie módulos da sidebar, itens do menu superior, ícones e permissões"
+        addLabel="Adicionar módulo"
+        onAdd={canManage ? router.goToCreate : undefined}
+        canAdd={canManage}
+        loading={loading}
+        error={error}
+        message={message}
+        query={list.query}
+        onQueryChange={list.onQueryChange}
+        searchPlaceholder="Buscar por nome, slug ou descrição"
+        sortKey={list.sortKey}
+        sortDirection={list.sortDirection}
+        onSortChange={list.setSort}
+        sortOptions={[
+          { key: 'sortOrder', direction: 'asc', label: 'Ordem' },
+          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+        ]}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalItems={list.totalItems}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.onPageSizeChange}
+        panelTitle="Módulos cadastrados"
+        emptyMessage="Nenhum módulo encontrado. Clique em Adicionar módulo para começar."
+        columns={[
+          {
+            key: 'name',
+            label: 'Módulo',
+            headerHint: 'Nome e ícone exibidos na navegação do admin.',
+            className: 'data-table-col-list-identity',
+            render: (row) => (
+              <div className="crud-list-identity modules-list-identity">
+                <div className="modules-list-identity__head">
+                  <span className="modules-list-icon" aria-hidden="true">
+                    <ModuleIcon name={row.icon} size={18} />
+                  </span>
+                  <strong className="crud-list-identity__title">{row.name}</strong>
+                </div>
+                <span className="crud-list-identity__meta--mobile crud-list-identity__meta-line">
+                  {row.slug} · {row.itemCount ?? 0} itens · {inactiveLabel(row.active)}
+                </span>
+              </div>
+            ),
+          },
+          {
+            key: 'slug',
+            label: 'Slug',
+            className: 'crud-col-desktop-only',
+          },
+          {
+            key: 'itemCount',
+            label: 'Itens',
+            headerAbbr: '#',
+            className: 'data-table-cell-numeric crud-col-desktop-only',
+          },
+          {
+            key: 'active',
+            label: 'Status',
+            className: 'crud-col-desktop-only',
+            render: (row) => (
+              <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
+            ),
+          },
+          catalogListRowMenuColumn({
+            openRowMenuId,
+            setOpenRowMenuId,
+            onView: (row) => router.goToView(row.id),
+            onEdit: canManage ? (row) => router.goToEdit(row.id) : undefined,
+            onDelete: canManage ? handleDeleteModule : undefined,
+            canManage,
+          }),
+        ]}
+        rows={list.rows}
+        onRowClick={(row) => router.goToView(row.id)}
+        onView={(row) => router.goToView(row.id)}
+        onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+        onDelete={canManage ? handleDeleteModule : undefined}
+        canManage={canManage}
+      />
+    </div>
   );
 }

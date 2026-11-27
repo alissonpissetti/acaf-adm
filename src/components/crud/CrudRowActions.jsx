@@ -7,6 +7,8 @@ export function CrudRowActions({
   onEdit,
   onDuplicate,
   onDelete,
+  deleteDisabled = false,
+  deleteTitle = 'Excluir',
   disabled = false,
   children = null,
 }) {
@@ -80,9 +82,9 @@ export function CrudRowActions({
         <button
           type="button"
           className="crud-icon-btn crud-icon-btn-danger"
-          disabled={disabled}
-          aria-label="Excluir"
-          title="Excluir"
+          disabled={disabled || deleteDisabled}
+          aria-label={deleteTitle}
+          title={deleteTitle}
           onClick={(ev) => {
             ev.stopPropagation();
             onDelete();

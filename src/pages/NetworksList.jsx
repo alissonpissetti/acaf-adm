@@ -16,6 +16,7 @@ import {
   partnerAccessStatusSortRank,
 } from '../utils/networkPartnerAccessFilter.js';
 import { networkMatchesNameOrCnpj } from '../utils/networkCnpjSearch.js';
+import { DenseListRowIdentity } from '../components/crud/DenseListRowIdentity.jsx';
 import { NetworkPartnerRowMenu } from '../components/networks/NetworkPartnerRowMenu.jsx';
 
 /**
@@ -312,8 +313,12 @@ export function NetworksList({
         res.inviteKind === 'team' || isTeam ? 'Convite de equipe' : 'E-mail de boas-vindas';
       const verb = forceResend ? 'Reenviado' : 'Enviado';
       const at = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const targets =
+        Array.isArray(res.recipientEmails) && res.recipientEmails.length > 0
+          ? res.recipientEmails.join(' / ')
+          : res.recipientEmail ?? row.onboardingInviteEmail;
       flash.success(
-        `${verb} às ${at}: ${kindLabel} para ${res.recipientEmail ?? row.onboardingInviteEmail}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
+        `${verb} às ${at}: ${kindLabel} para ${targets}. Válido até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.`,
         12000,
       );
       onInviteEmailSent?.();
@@ -456,7 +461,7 @@ export function NetworksList({
           : 'Nenhuma rede cadastrada. Clique em Adicionar rede para começar.'
       }
       tableFooter={mergeBar}
-      tableClassName="networks-partners-table"
+      tableClassName="dense-list-table networks-partners-table"
       selection={{
         selectedIds,
         onToggleRow: toggleRow,
@@ -478,21 +483,13 @@ export function NetworksList({
           render: (row) => {
             const email = row.onboardingInviteEmail;
             return (
-              <div className="networks-partners-identity">
-                <strong className="networks-partners-name">{row.name}</strong>
-                <span
-                  className={`networks-partners-portal-badge badge networks-partners-portal-badge--mobile ${partnerAccessStatusBadgeClass(row)}`}
-                >
-                  {partnerAccessStatusLabel(row)}
-                </span>
-                {email ? (
-                  <span className="networks-partners-mobile-email" title={email}>
-                    {email}
-                  </span>
-                ) : (
-                  <span className="networks-partners-mobile-email muted">Sem e-mail de convite</span>
-                )}
-              </div>
+              <DenseListRowIdentity
+                title={row.name}
+                badge={partnerAccessStatusLabel(row)}
+                badgeClassName={partnerAccessStatusBadgeClass(row)}
+                meta={email || 'Sem e-mail de convite'}
+                metaClassName={email ? '' : 'muted'}
+              />
             );
           },
         },

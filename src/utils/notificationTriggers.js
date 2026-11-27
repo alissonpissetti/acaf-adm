@@ -5,6 +5,8 @@ export const NOTIFICATION_TRIGGER_LABELS = {
   'support.ticket.assigned': 'Chamado atribuído',
   'support.ticket.status': 'Status alterado',
   'marketing.lead.created': 'Lead de formulário',
+  'operacao.partner.onboarding.completed': 'Onboarding de academia',
+  'corporativo.company.onboarding.completed': 'Onboarding de empresa',
 };
 
 export function notificationTriggerLabel(triggerKey) {

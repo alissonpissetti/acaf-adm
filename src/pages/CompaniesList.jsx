@@ -1,13 +1,19 @@
-import { useMemo } from 'react';
-import { Building2, Calendar, Mail, Phone, UserCog, Users } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Link2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader.jsx';
-import { CrudPagination } from '../components/crud/CrudListToolbar.jsx';
-import { CrudRowActions } from '../components/crud/CrudRowActions.jsx';
-import { AppLoading } from '../components/crud/AppLoading.jsx';
+import { TableNetworkLogo } from '../components/TableNetworkLogo.jsx';
+import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
+import { DenseListRowIdentity } from '../components/crud/DenseListRowIdentity.jsx';
+import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CompanyRowMenu } from '../components/companies/CompanyRowMenu.jsx';
+import { appConfirm } from '../components/confirm/appConfirm.js';
+import { useFlashMessage } from '../components/flash/FlashMessageProvider.jsx';
 import { selectFilter } from '../crud/filterUtils.js';
 import { useCrudList } from '../crud/useCrudList.js';
+import { createCompanyManagerOnboardingInvite } from '../api/admin.js';
 import {
   COMPANIES_PAGE_SIZE,
+  companyDisplayName,
   companyMatchesSearch,
   countCompaniesByStatus,
 } from '../utils/companiesList.js';
@@ -38,151 +44,25 @@ function formatDate(value) {
   }
 }
 
-function formatPhoneDisplay(value) {
-  const digits = String(value ?? '').replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
-
-function companyDisplayName(company) {
-  return company.tradeName?.trim() || company.legalName?.trim() || 'Sem nome';
-}
-
-function companySecondaryName(company) {
-  const trade = company.tradeName?.trim();
-  const legal = company.legalName?.trim();
-  if (trade && legal && trade !== legal) return legal;
-  return null;
-}
-
-function companyInitials(company) {
-  const name = companyDisplayName(company);
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
-
 function statusFilterValue(fieldFilters) {
   const match = fieldFilters.find((item) => item.id === 'status');
   return match?.value ?? '';
 }
 
-function CompanyMetaChip({ icon: Icon, label, value, href }) {
-  if (!value || value === '—') return null;
-
-  const content = href ? (
-    <a href={href} onClick={(ev) => ev.stopPropagation()}>
-      {value}
-    </a>
-  ) : (
-    <span>{value}</span>
-  );
-
+function CompanyScaleSummary({ company }) {
+  const managers = company.managers ?? 0;
+  const employees = company.employees ?? 0;
   return (
-    <span className="companies-registry-chip" title={label}>
-      <Icon size={13} aria-hidden="true" />
-      {content}
-    </span>
-  );
-}
-
-function CompanyRegistryCard({ company, onView, onEdit }) {
-  const secondaryName = companySecondaryName(company);
-  const phone = formatPhoneDisplay(company.phone);
-  const hasSecondaryRow = Boolean(
-    company.cnpj || company.email || phone || company.commercialOwnerName,
-  );
-
-  const open = () => (onView ? onView(company.id) : onEdit(company.id));
-
-  return (
-    <article
-      className="companies-registry-card"
-      onClick={open}
-      onKeyDown={(ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          open();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      <div className="companies-registry-row companies-registry-row--primary">
-        <div className="companies-registry-avatar" aria-hidden="true">
-          {companyInitials(company)}
-        </div>
-
-        <div className="companies-registry-identity">
-          <h3 className="companies-registry-title">{companyDisplayName(company)}</h3>
-          {secondaryName ? (
-            <>
-              <span className="companies-registry-dot" aria-hidden="true">
-                ·
-              </span>
-              <span className="companies-registry-subtitle">{secondaryName}</span>
-            </>
-          ) : null}
-        </div>
-
-        <span className={STATUS_CLASS[company.status] ?? 'badge badge-muted'}>
-          {STATUS_LABEL[company.status] ?? company.status}
-        </span>
-
-        <div className="companies-registry-metrics">
-          <span className="companies-registry-metric" title="Gestores de RH vinculados">
-            <Users size={14} aria-hidden="true" />
-            <span className="companies-registry-metric-label">Gestores</span>
-            <strong>{company.managers ?? 0}</strong>
-          </span>
-          <span className="companies-registry-metric" title="Colaboradores cadastrados">
-            <UserCog size={14} aria-hidden="true" />
-            <span className="companies-registry-metric-label">Colab.</span>
-            <strong>{company.employees ?? 0}</strong>
-          </span>
-          <span className="companies-registry-metric" title="Data de cadastro">
-            <Calendar size={14} aria-hidden="true" />
-            <span className="companies-registry-metric-label">Cadastro</span>
-            <strong>{formatDate(company.createdAt)}</strong>
-          </span>
-        </div>
-
-        <div className="companies-registry-actions">
-          <CrudRowActions
-            onView={onView ? () => onView(company.id) : undefined}
-            onEdit={() => onEdit(company.id)}
-          />
-        </div>
+    <div className="networks-scale-summary" role="group" aria-label="Resumo da empresa">
+      <div className="networks-scale-chip" title="Gestores de RH com acesso ao portal">
+        <span className="networks-scale-chip__label">Gest.</span>
+        <span className="badge badge-muted">{managers}</span>
       </div>
-
-      {hasSecondaryRow ? (
-        <div className="companies-registry-row companies-registry-row--secondary">
-          <CompanyMetaChip icon={Building2} label="CNPJ" value={company.cnpj || null} />
-          <CompanyMetaChip
-            icon={Mail}
-            label="E-mail"
-            value={company.email || null}
-            href={company.email ? `mailto:${company.email}` : undefined}
-          />
-          <CompanyMetaChip
-            icon={Phone}
-            label="Telefone"
-            value={phone || null}
-            href={phone ? `tel:+55${String(company.phone).replace(/\D/g, '')}` : undefined}
-          />
-          {company.commercialOwnerName ? (
-            <CompanyMetaChip
-              icon={UserCog}
-              label="Resp. comercial"
-              value={company.commercialOwnerName}
-            />
-          ) : null}
-        </div>
-      ) : null}
-    </article>
+      <div className="networks-scale-chip" title="Colaboradores cadastrados">
+        <span className="networks-scale-chip__label">Colab.</span>
+        <span className="badge badge-muted">{employees}</span>
+      </div>
+    </div>
   );
 }
 
@@ -195,7 +75,7 @@ function StatPanel({ label, value, active, onClick }) {
       aria-pressed={active}
     >
       <span className="stat-label">{label}</span>
-      <strong className="stat-value">{value}</strong>
+      <strong className="stat-value stat-value--hero">{value}</strong>
     </button>
   );
 }
@@ -207,7 +87,13 @@ export function CompaniesList({
   onAdd,
   onView,
   onEdit,
+  onDelete,
+  onReload,
 }) {
+  const flash = useFlashMessage();
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
+  const [onboardingCopyBusyId, setOnboardingCopyBusyId] = useState(null);
+
   const filterDefinitions = useMemo(
     () => [
       selectFilter('status', 'Status', 'status', [
@@ -235,10 +121,105 @@ export function CompaniesList({
     else list.applyFieldFilter({ id: 'status', value });
   };
 
+  const onboardingActionMeta = useCallback(
+    (row) => {
+      const hasManager = (row.managers ?? 0) > 0;
+      const busy = onboardingCopyBusyId === row.id;
+      const invite = row.managerOnboardingInvite;
+      const hasValidInvite = Boolean(invite?.inviteUrl && !invite?.expired && !invite?.used);
+      const disabled = hasManager || busy;
+      let title = 'Copiar link de onboarding do gestor';
+      let menuLabel = 'Copiar link de onboarding';
+      if (busy) {
+        menuLabel = 'Gerando link…';
+      } else if (hasManager) {
+        title = 'Empresa já possui gestor — use a aba Gestores na ficha';
+        menuLabel = 'Onboarding indisponível';
+      } else if (!hasValidInvite) {
+        title = 'Gerar link de onboarding (14 dias) e copiar';
+        menuLabel = 'Gerar e copiar link';
+      }
+      return { disabled, title, menuLabel, busy };
+    },
+    [onboardingCopyBusyId],
+  );
+
+  const copyOnboardingUrl = async (row, ev) => {
+    ev?.stopPropagation?.();
+    if ((row.managers ?? 0) > 0) return;
+
+    let url = row.managerOnboardingInvite?.inviteUrl;
+    const invite = row.managerOnboardingInvite;
+    const needsGenerate = !url || invite?.expired || invite?.used;
+
+    if (needsGenerate) {
+      setOnboardingCopyBusyId(row.id);
+      try {
+        const res = await createCompanyManagerOnboardingInvite(row.id);
+        url = res.inviteUrl;
+        onReload?.();
+      } catch (err) {
+        flash.error(err instanceof Error ? err.message : 'Não foi possível gerar o link.');
+        return;
+      } finally {
+        setOnboardingCopyBusyId(null);
+      }
+    }
+
+    if (!url) {
+      flash.error('Nenhum link disponível. Abra a ficha na aba Cadastral para gerar.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      flash.success('Link de onboarding copiado.');
+    } catch {
+      flash.error('Não foi possível copiar. Tente novamente ou copie pela ficha da empresa.');
+    }
+  };
+
+  const renderOnboardingCopyAction = (row) => {
+    const { disabled, title, busy } = onboardingActionMeta(row);
+    return (
+      <button
+        type="button"
+        className="crud-icon-btn companies-onboarding-icon-btn"
+        disabled={disabled}
+        title={title}
+        aria-label={title}
+        onClick={(ev) => void copyOnboardingUrl(row, ev)}
+      >
+        {busy ? (
+          '…'
+        ) : (
+          <Link2 size={15} strokeWidth={2} aria-hidden="true" />
+        )}
+      </button>
+    );
+  };
+
+  const confirmDeleteCompany = async (row) => {
+    if (row.canDelete === false) {
+      flash.error(row.deleteBlockedReason || 'Não é possível excluir esta empresa.');
+      return;
+    }
+    const label = companyDisplayName(row);
+    const confirmed = await appConfirm({
+      title: 'Excluir empresa',
+      message: `Excluir "${label}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir empresa',
+      cancelLabel: 'Cancelar',
+      tone: 'danger',
+    });
+    if (!confirmed || !onDelete) return;
+    await onDelete(row);
+  };
+
   return (
-    <div className="page-stack companies-page">
+    <div className="page-stack crud-list-page companies-page">
       <PageHeader
-        title="Empresas corporativas"
+        title="Empresas"
         subtitle="Cadastros do portal corporativo — aprovação, gestores de RH e visão dos colaboradores."
         actions={
           onAdd ? (
@@ -249,7 +230,7 @@ export function CompaniesList({
         }
       />
 
-      {error ? <div className="alert-banner alert-banner-error">{error}</div> : null}
+      <CrudAlerts error={error} />
 
       {counts.pending > 0 ? (
         <div className="alert-banner alert-banner-warning">
@@ -286,67 +267,146 @@ export function CompaniesList({
         />
       </div>
 
-      <section className="panel companies-registry-panel">
-        <div className="panel-header list-toolbar-header">
+      <section className="panel crud-list-panel companies-list-panel">
+        <div className="panel-header panel-header--meta-only companies-list-panel-header">
           <h2>Empresas cadastradas</h2>
           <span className="panel-meta">
             {list.filteredCount} de {counts.total} na listagem
           </span>
         </div>
 
-        <div className="panel-body list-toolbar-body">
-          <div className="list-toolbar">
-            <div className="list-toolbar-search">
-              <input
-                type="search"
-                className="list-toolbar-input"
-                placeholder="Buscar por nome, CNPJ, e-mail…"
-                value={list.query}
-                onChange={(ev) => list.onQueryChange(ev.target.value)}
-              />
-              {list.query ? (
-                <button type="button" className="btn-ghost btn-sm" onClick={() => list.onQueryChange('')}>
-                  Limpar
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="panel-body companies-registry-body">
-          {loading ? (
-            <AppLoading label="Carregando empresas…" />
-          ) : list.rows.length === 0 ? (
-            <div className="empty-state">
-              {companies.length === 0
-                ? 'Nenhuma empresa cadastrada. Clique em Adicionar empresa para começar.'
-                : 'Nenhuma empresa corresponde aos filtros aplicados.'}
-            </div>
-          ) : (
-            <div className="companies-registry-list">
-              {list.rows.map((company) => (
-                <CompanyRegistryCard
-                  key={company.id}
-                  company={company}
-                  onView={onView}
-                  onEdit={onEdit}
+        <CrudListShell
+          embedded
+          loading={loading}
+          query={list.query}
+          onQueryChange={list.onQueryChange}
+          searchPlaceholder="Buscar por nome, CNPJ, e-mail, telefone ou responsável comercial"
+          toolbarLayout="compact"
+          toolbarWrapClassName="crud-list-toolbar companies-list-toolbar"
+          filterDefinitions={filterDefinitions}
+          fieldFilters={list.fieldFilters}
+          onApplyFieldFilter={list.applyFieldFilter}
+          onRemoveFieldFilter={list.removeFieldFilter}
+          onClearFieldFilters={list.clearFieldFilters}
+          sortKey={list.sortKey}
+          sortDirection={list.sortDirection}
+          onSortChange={list.setSort}
+          sortOptions={[
+            { key: 'tradeName', direction: 'asc', label: 'Nome (A–Z)' },
+            { key: 'tradeName', direction: 'desc', label: 'Nome (Z–A)' },
+            { key: 'createdAt', direction: 'desc', label: 'Cadastro (recente)' },
+            { key: 'createdAt', direction: 'asc', label: 'Cadastro (antigo)' },
+            { key: 'status', direction: 'asc', label: 'Status' },
+          ]}
+          page={list.page}
+          pageSize={list.pageSize}
+          totalItems={list.totalItems}
+          totalPages={list.totalPages}
+          onPageChange={list.setPage}
+          onPageSizeChange={list.onPageSizeChange}
+          emptyMessage={
+            companies.length === 0
+              ? 'Nenhuma empresa cadastrada. Clique em Adicionar empresa para começar.'
+              : 'Nenhuma empresa corresponde à busca ou aos filtros.'
+          }
+          tableClassName="dense-list-table dense-list-table--no-select companies-list-table"
+          columns={[
+            {
+              key: 'logo',
+              label: '',
+              className: 'data-table-col-logo data-table-col-company-avatar',
+              render: (row) => (
+                <TableNetworkLogo name={companyDisplayName(row)} logoUrl={null} />
+              ),
+            },
+            {
+              key: 'name',
+              label: 'Empresa',
+              headerHint: 'Nome fantasia ou razão social. E-mail cadastrado logo abaixo.',
+              className:
+                'data-table-cell-wrap data-table-col-network-name data-table-col-company-name',
+              render: (row) => (
+                <DenseListRowIdentity
+                  title={companyDisplayName(row)}
+                  badge={STATUS_LABEL[row.status] ?? row.status}
+                  badgeClassName={STATUS_CLASS[row.status] ?? 'badge-muted'}
+                  meta={row.email || 'Sem e-mail cadastrado'}
+                  metaClassName={row.email ? '' : 'muted'}
+                  metaHref={row.email ? `mailto:${row.email}` : undefined}
                 />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {!loading && list.totalItems > 0 ? (
-          <div className="panel-body crud-pagination-wrap">
-            <CrudPagination
-              page={list.page}
-              pageSize={list.pageSize}
-              totalPages={list.totalPages}
-              totalItems={list.totalItems}
-              onPageChange={list.setPage}
-            />
-          </div>
-        ) : null}
+              ),
+            },
+            {
+              key: 'status',
+              label: 'Status',
+              headerHint: 'Pendente aguarda aprovação no admin.',
+              className: 'data-table-col-company-status dense-list-desktop-only',
+              render: (row) => (
+                <span className={STATUS_CLASS[row.status] ?? 'badge badge-muted'}>
+                  {STATUS_LABEL[row.status] ?? row.status}
+                </span>
+              ),
+            },
+            {
+              key: 'cnpj',
+              label: 'CNPJ',
+              className: 'data-table-col-company-cnpj dense-list-desktop-only',
+              render: (row) => row.cnpj ?? '—',
+            },
+            {
+              key: 'scale',
+              label: 'Resumo',
+              headerAbbr: 'Resumo',
+              headerHint: 'Gestores de RH e colaboradores cadastrados.',
+              className: 'data-table-col-company-scale dense-list-desktop-only',
+              render: (row) => <CompanyScaleSummary company={row} />,
+            },
+            {
+              key: 'commercialOwnerName',
+              label: 'Resp. comercial',
+              headerAbbr: 'Comercial',
+              className: 'data-table-col-company-commercial dense-list-desktop-only',
+              render: (row) => row.commercialOwnerName ?? '—',
+            },
+            {
+              key: 'createdAt',
+              label: 'Cadastro',
+              headerHint: 'Data de criação no admin.',
+              className:
+                'data-table-col-company-created data-table-cell-numeric dense-list-desktop-only',
+              render: (row) => formatDate(row.createdAt),
+            },
+            {
+              key: 'rowMenu',
+              label: '',
+              className: 'data-table-col-network-row-menu dense-list-mobile-only',
+              render: (row) => {
+                const onboarding = onboardingActionMeta(row);
+                return (
+                  <CompanyRowMenu
+                    isOpen={openRowMenuId === row.id}
+                    onToggle={() =>
+                      setOpenRowMenuId((prev) => (prev === row.id ? null : row.id))
+                    }
+                    onClose={() => setOpenRowMenuId(null)}
+                    onView={onView ? () => onView(row.id) : undefined}
+                    onEdit={onEdit ? () => onEdit(row.id) : undefined}
+                    onDelete={onDelete ? () => void confirmDeleteCompany(row) : undefined}
+                    onCopyOnboarding={() => void copyOnboardingUrl(row, null)}
+                    onboardingLabel={onboarding.menuLabel}
+                    onboardingDisabled={onboarding.disabled}
+                  />
+                );
+              },
+            },
+          ]}
+          rows={list.rows}
+          onRowClick={onView ? (row) => onView(row.id) : onEdit ? (row) => onEdit(row.id) : undefined}
+          onView={onView ? (row) => onView(row.id) : undefined}
+          onEdit={onEdit ? (row) => onEdit(row.id) : undefined}
+          onDelete={onDelete ? (row) => void confirmDeleteCompany(row) : undefined}
+          renderActionsExtra={renderOnboardingCopyAction}
+        />
       </section>
     </div>
   );

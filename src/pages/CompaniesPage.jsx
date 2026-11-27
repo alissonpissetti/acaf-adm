@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getCompanies } from '../api/admin.js';
+import { deleteCompany, getCompanies } from '../api/admin.js';
 import { CompaniesList } from './CompaniesList.jsx';
 import { CompanyCreateScreen } from './CompanyCreateScreen.jsx';
 import { CompanyEditScreen } from './CompanyEditScreen.jsx';
@@ -56,15 +56,30 @@ export function CompaniesPage() {
     setSearchParams({ id: company.id });
   };
 
+  const removeCompanyFromList = async (company) => {
+    if (company?.canDelete === false) return;
+    setError('');
+    try {
+      await deleteCompany(company.id);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const goBackToCompany = () => {
     const params = { id: selectedId };
     if (isViewing) params.mode = 'view';
+    const tab = searchParams.get('tab');
+    if (tab) params.tab = tab;
     setSearchParams(params);
   };
 
   const goToEmployeeProfile = (empId) => {
     const params = { id: selectedId, employee: empId };
     if (isViewing) params.mode = 'view';
+    const tab = searchParams.get('tab');
+    if (tab) params.tab = tab;
     setSearchParams(params);
   };
 
@@ -107,6 +122,8 @@ export function CompaniesPage() {
       onAdd={goToCreate}
       onView={goToView}
       onEdit={goToEdit}
+      onDelete={removeCompanyFromList}
+      onReload={load}
     />
   );
 }

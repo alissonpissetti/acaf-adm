@@ -4,7 +4,10 @@ import { createSupplier, fetchSuppliers, updateSupplier } from '../api/finance.j
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CatalogListIdentity } from '../components/crud/CatalogListIdentity.jsx';
+import { catalogListRowMenuColumn } from '../components/crud/catalogListRowMenuColumn.jsx';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CATALOG_LIST_SHELL_PROPS } from '../crud/catalogListPattern.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { SupplierPixKeysEditor } from '../components/SupplierPixKeysEditor.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -217,6 +220,7 @@ export function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const filterDefinitions = useMemo(() => [activeStatusFilter()], []);
 
@@ -363,63 +367,89 @@ export function SuppliersPage() {
   }
 
   return (
-    <CrudListShell
-      title="Fornecedores"
-      subtitle="Cadastro de fornecedores e chaves PIX para contas a pagar"
-      addLabel="Adicionar fornecedor"
-      onAdd={canManage ? router.goToCreate : undefined}
-      canAdd={canManage}
-      loading={loading}
-      error={error}
-      message={message}
-      query={list.query}
-      onQueryChange={list.onQueryChange}
-      searchPlaceholder="Buscar por nome, documento ou chave PIX"
-      sortKey={list.sortKey}
-      sortDirection={list.sortDirection}
-      onSortChange={list.setSort}
-      sortOptions={[
-        { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-        { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
-      ]}
-      filterDefinitions={filterDefinitions}
-      fieldFilters={list.fieldFilters}
-      onApplyFieldFilter={list.applyFieldFilter}
-      onRemoveFieldFilter={list.removeFieldFilter}
-      onClearFieldFilters={list.clearFieldFilters}
-      page={list.page}
-      pageSize={list.pageSize}
-      totalItems={list.totalItems}
-      totalPages={list.totalPages}
-      onPageChange={list.setPage}
-      onPageSizeChange={list.onPageSizeChange}
-      panelTitle="Fornecedores cadastrados"
-      emptyMessage="Nenhum fornecedor encontrado."
-      columns={[
-        { key: 'name', label: 'Fornecedor', render: (row) => <strong>{row.name}</strong> },
-        {
-          key: 'documentFormatted',
-          label: 'Documento',
-          render: (row) => formatSupplierDocument(row.document) || '—',
-        },
-        {
-          key: 'primaryPixLabel',
-          label: 'PIX principal',
-          render: (row) => row.primaryPixLabel || '—',
-        },
-        {
-          key: 'active',
-          label: 'Status',
-          render: (row) => (
-            <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
-          ),
-        },
-      ]}
-      rows={list.rows}
-      onView={(row) => router.goToView(row.id)}
-      onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
-      onDelete={canManage ? handleDelete : undefined}
-      canManage={canManage}
-    />
+    <div className="page-stack crud-list-page financeiro-fornecedores-page">
+      <CrudListShell
+        {...CATALOG_LIST_SHELL_PROPS}
+        title="Fornecedores"
+        subtitle="Cadastro de fornecedores e chaves PIX para contas a pagar"
+        addLabel="Adicionar fornecedor"
+        onAdd={canManage ? router.goToCreate : undefined}
+        canAdd={canManage}
+        loading={loading}
+        error={error}
+        message={message}
+        query={list.query}
+        onQueryChange={list.onQueryChange}
+        searchPlaceholder="Buscar por nome, documento ou chave PIX"
+        sortKey={list.sortKey}
+        sortDirection={list.sortDirection}
+        onSortChange={list.setSort}
+        sortOptions={[
+          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+          { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
+        ]}
+        filterDefinitions={filterDefinitions}
+        fieldFilters={list.fieldFilters}
+        onApplyFieldFilter={list.applyFieldFilter}
+        onRemoveFieldFilter={list.removeFieldFilter}
+        onClearFieldFilters={list.clearFieldFilters}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalItems={list.totalItems}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.onPageSizeChange}
+        panelTitle="Fornecedores cadastrados"
+        emptyMessage="Nenhum fornecedor encontrado. Clique em Adicionar fornecedor para começar."
+        columns={[
+          {
+            key: 'name',
+            label: 'Fornecedor',
+            headerHint: 'Nome fantasia ou identificação principal.',
+            className: 'data-table-col-list-identity',
+            render: (row) => (
+              <CatalogListIdentity
+                title={row.name}
+                meta={`${formatSupplierDocument(row.document) || '—'} · ${row.primaryPixLabel || 'Sem PIX'} · ${inactiveLabel(row.active)}`}
+              />
+            ),
+          },
+          {
+            key: 'documentFormatted',
+            label: 'Documento',
+            className: 'crud-col-desktop-only',
+            render: (row) => formatSupplierDocument(row.document) || '—',
+          },
+          {
+            key: 'primaryPixLabel',
+            label: 'PIX principal',
+            className: 'crud-col-desktop-only',
+            render: (row) => row.primaryPixLabel || '—',
+          },
+          {
+            key: 'active',
+            label: 'Status',
+            className: 'crud-col-desktop-only',
+            render: (row) => (
+              <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
+            ),
+          },
+          catalogListRowMenuColumn({
+            openRowMenuId,
+            setOpenRowMenuId,
+            onView: (row) => router.goToView(row.id),
+            onEdit: canManage ? (row) => router.goToEdit(row.id) : undefined,
+            onDelete: canManage ? handleDelete : undefined,
+            canManage,
+          }),
+        ]}
+        rows={list.rows}
+        onRowClick={(row) => router.goToView(row.id)}
+        onView={(row) => router.goToView(row.id)}
+        onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+        onDelete={canManage ? handleDelete : undefined}
+        canManage={canManage}
+      />
+    </div>
   );
 }

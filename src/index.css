@@ -2369,8 +2369,30 @@ textarea {
   border-bottom: 1px solid var(--border);
 }
 
-.networks-partners-mobile-only {
+.networks-partners-mobile-only,
+.dense-list-mobile-only {
   display: none;
+}
+
+.dense-list-identity {
+  display: block;
+  min-width: 0;
+}
+
+.dense-list-title {
+  display: block;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dense-list-badge--mobile,
+.dense-list-meta--mobile {
+  display: none;
+}
+
+.dense-list-desktop-only {
+  display: table-cell;
 }
 
 .data-table.networks-partners-table th.data-table-col-network-row-menu {
@@ -2555,6 +2577,158 @@ textarea {
 
 .data-table.networks-partners-table .networks-invite-icon-btn {
   font-size: 0.8125rem;
+}
+
+/* Empresas corporativas — listagem densa (ver `dense-list-table`) */
+.companies-list-panel-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.companies-page .companies-stat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (min-width: 961px) {
+  .companies-page .companies-stat-panel {
+    text-align: left;
+    justify-items: start;
+    padding: 1rem 1.1rem;
+  }
+
+  .data-table.companies-list-table th.data-table-col-network-name,
+  .data-table.companies-list-table td.data-table-col-network-name,
+  .data-table.companies-list-table th.data-table-col-company-name,
+  .data-table.companies-list-table td.data-table-col-company-name {
+    min-width: 11rem;
+    width: auto;
+    max-width: none;
+  }
+
+  .data-table.companies-list-table .dense-list-title,
+  .data-table.companies-list-table .networks-partners-name {
+    display: block;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+
+  .data-table.companies-list-table .dense-list-meta--mobile,
+  .data-table.companies-list-table .networks-partners-mobile-email {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  .data-table.companies-list-table .dense-list-meta--link {
+    text-decoration: none;
+    color: var(--select, #2563eb);
+  }
+
+  .data-table.companies-list-table .dense-list-meta--link:hover {
+    text-decoration: underline;
+  }
+
+  .data-table.companies-list-table th.data-table-col-logo,
+  .data-table.companies-list-table td.data-table-col-logo,
+  .data-table.companies-list-table th.data-table-col-company-avatar,
+  .data-table.companies-list-table td.data-table-col-company-avatar {
+    width: 3.25rem;
+    max-width: 3.25rem;
+    text-align: center;
+    padding-right: 0.35rem;
+  }
+
+  .companies-page .companies-list-panel .panel-body {
+    padding-inline: 1.25rem;
+  }
+}
+
+.data-table.companies-list-table th.data-table-col-company-row-menu,
+.data-table.dense-list-table th.data-table-col-network-row-menu {
+  display: none;
+  width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.data-table.companies-list-table thead th:not(.col-actions) {
+  overflow: visible;
+  text-overflow: clip;
+  cursor: help;
+}
+
+.data-table.companies-list-table th.data-table-col-company-name,
+.data-table.companies-list-table td.data-table-col-company-name {
+  min-width: 9rem;
+}
+
+.data-table.companies-list-table th.data-table-col-company-avatar,
+.data-table.companies-list-table td.data-table-col-company-avatar {
+  width: 3.25rem;
+  max-width: 3.25rem;
+  text-align: center;
+  padding-right: 0.35rem;
+}
+
+.data-table.companies-list-table th.data-table-col-company-scale,
+.data-table.companies-list-table td.data-table-col-company-scale {
+  width: 5.75rem;
+  min-width: 5.75rem;
+  max-width: 6.5rem;
+  vertical-align: middle;
+}
+
+.data-table.companies-list-table th.data-table-col-company-status,
+.data-table.companies-list-table td.data-table-col-company-status {
+  width: 6.5rem;
+  text-align: center;
+}
+
+.data-table.companies-list-table th.data-table-col-company-cnpj,
+.data-table.companies-list-table td.data-table-col-company-cnpj {
+  width: 9.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table.companies-list-table th.data-table-col-company-email,
+.data-table.companies-list-table td.data-table-col-company-email {
+  min-width: 9rem;
+}
+
+.data-table.companies-list-table td.data-table-col-company-email {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.data-table.companies-list-table th.data-table-col-company-commercial,
+.data-table.companies-list-table td.data-table-col-company-commercial {
+  width: 6.5rem;
+  min-width: 6.5rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.data-table.companies-list-table .companies-onboarding-icon-btn {
+  font-size: 0.8125rem;
+}
+
+@media (min-width: 1201px) and (max-width: 1400px) {
+  .data-table.companies-list-table th.data-table-col-company-commercial,
+  .data-table.companies-list-table td.data-table-col-company-commercial,
+  .data-table.companies-list-table th.data-table-col-company-created,
+  .data-table.companies-list-table td.data-table-col-company-created {
+    display: none;
+  }
 }
 
 .data-table th.data-table-cell-numeric,
@@ -4404,6 +4578,146 @@ input.input-disabled:disabled {
   margin: 0 1.25rem 1rem;
 }
 
+.company-detail-workspace {
+  overflow: hidden;
+}
+
+.company-detail-tab-badge {
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.company-detail-tab.active .company-detail-tab-badge {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.company-detail-tab-body--padded {
+  padding: 1.25rem;
+}
+
+.company-detail-tab-stack {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.company-detail-tab-lead {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.company-detail-delete-hint {
+  margin-top: 1rem;
+}
+
+.company-onboarding-panel {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--primary) 4%, #fff);
+}
+
+.company-onboarding-panel-head h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.company-onboarding-panel-head p {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.company-onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.company-onboarding-link-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.company-onboarding-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.company-onboarding-link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  background: var(--surface);
+}
+
+.company-detail-actions--tab {
+  margin-top: 1.25rem;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+}
+
+.company-usage-summary {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: #fafbfc;
+}
+
+.company-usage-stats {
+  flex-wrap: wrap;
+}
+
+.company-usage-stat-hint {
+  grid-column: 2;
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.company-usage-summary-hint {
+  margin: 1rem 0 0;
+  max-width: 40rem;
+  font-size: 0.8125rem;
+}
+
+.company-usage-metrics {
+  display: grid;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  min-width: 6.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.company-usage-metrics strong {
+  color: var(--foreground);
+}
+
+.company-usage-row .company-employee-row-main {
+  align-items: flex-start;
+}
+
+.company-usage-empty {
+  padding: 1.5rem 1.25rem;
+}
+
 .company-detail-actions {
   display: flex;
   align-items: center;
@@ -5160,7 +5474,8 @@ input.input-disabled:disabled {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.sr-only {
+.sr-only,
+.visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -5218,10 +5533,6 @@ input.input-disabled:disabled {
 
   .master-detail-list .panel-body-flush {
     max-height: 280px;
-  }
-
-  .companies-stat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .company-detail-grid {
@@ -5799,7 +6110,8 @@ input.input-disabled:disabled {
   }
 }
 
-.sr-only {
+.sr-only,
+.visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Building2,
   Calendar,
@@ -15,6 +16,8 @@ import { CrudPagination } from '../components/crud/CrudListToolbar.jsx';
 import { CompanyManagersField } from '../components/CompanyManagersField.jsx';
 import { CompanyMonthlyStatementsSection } from '../components/CompanyMonthlyStatementsSection.jsx';
 import { PayerMembershipFeesSection } from '../components/PayerMembershipFeesSection.jsx';
+import { CompanyUsageSection } from '../components/companies/CompanyUsageSection.jsx';
+import { CompanyManagerOnboardingPanel } from '../components/companies/CompanyManagerOnboardingPanel.jsx';
 import { getCompany, updateCompanyStatus, deleteCompany, removeCompanyEmployee } from '../api/admin.js';
 import { appConfirm } from '../components/confirm/appConfirm.js';
 import {
@@ -27,6 +30,16 @@ import {
 } from '../utils/companiesList.js';
 
 const EMPLOYEE_PAGE_SIZE = 20;
+
+const COMPANY_TABS = [
+  { id: 'cadastral', label: 'Cadastral' },
+  { id: 'extrato', label: 'Extrato' },
+  { id: 'uso', label: 'Check-ins / uso' },
+  { id: 'gestores', label: 'Gestores' },
+  { id: 'colaboradores', label: 'Colaboradores' },
+];
+
+const COMPANY_TAB_IDS = new Set(COMPANY_TABS.map((tab) => tab.id));
 
 const STATUS_LABEL = {
   pending: 'Pendente',
@@ -107,7 +120,7 @@ function CompanyDetailChip({ icon: Icon, label, children }) {
   );
 }
 
-function CompanyEmployeeCard({ employee, busy, onView, onRemove }) {
+function CompanyEmployeeCard({ employee, busy, readOnly, onView, onRemove }) {
   return (
     <li
       className="company-employee-row"
@@ -153,17 +166,19 @@ function CompanyEmployeeCard({ employee, busy, onView, onRemove }) {
               <ChevronRight size={14} aria-hidden="true" />
             </button>
           ) : null}
-          <button
-            type="button"
-            className="btn-ghost btn-sm btn-danger"
-            disabled={busy}
-            onClick={(ev) => {
-              ev.stopPropagation();
-              onRemove();
-            }}
-          >
-            Remover
-          </button>
+          {!readOnly ? (
+            <button
+              type="button"
+              className="btn-ghost btn-sm btn-danger"
+              disabled={busy}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onRemove();
+              }}
+            >
+              Remover
+            </button>
+          ) : null}
         </div>
       </div>
     </li>
@@ -185,6 +200,16 @@ export function CompanyEditScreen({
   const [busy, setBusy] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeePage, setEmployeePage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const activeTab = COMPANY_TAB_IDS.has(tabFromUrl) ? tabFromUrl : 'cadastral';
+
+  const setActiveTab = (tabId) => {
+    const next = new URLSearchParams(searchParams);
+    if (tabId === 'cadastral') next.delete('tab');
+    else next.set('tab', tabId);
+    setSearchParams(next, { replace: true });
+  };
 
   const load = () => {
     getCompany(companyId)
@@ -222,14 +247,11 @@ export function CompanyEditScreen({
   };
 
   const removeCompany = async () => {
+    if (company?.canDelete === false) return;
     const label = companyDisplayName(company);
-    const employeeTotal = countEmployees(company);
     const confirmed = await appConfirm({
       title: 'Excluir empresa',
-      message:
-        employeeTotal > 0
-          ? `Excluir "${label}" e remover ${employeeTotal} colaborador(es) vinculado(s)? Esta ação não pode ser desfeita.`
-          : `Excluir "${label}"? Esta ação não pode ser desfeita.`,
+      message: `Excluir "${label}"? Esta ação não pode ser desfeita.`,
       confirmLabel: 'Excluir empresa',
       cancelLabel: 'Cancelar',
       tone: 'danger',
@@ -341,9 +363,16 @@ export function CompanyEditScreen({
         title={readOnly ? undefined : displayName}
         subtitle={readOnly ? undefined : secondaryName || company.legalName}
         actions={
-          <button type="button" className="btn-ghost" onClick={onBack}>
-            Voltar para lista
-          </button>
+          <>
+            {readOnly && onEdit ? (
+              <button type="button" className="btn-primary" onClick={onEdit}>
+                Editar
+              </button>
+            ) : null}
+            <button type="button" className="btn-ghost" onClick={onBack}>
+              Voltar para lista
+            </button>
+          </>
         }
       />
 
@@ -420,84 +449,185 @@ export function CompanyEditScreen({
             Empresa aguardando aprovação. Após aprovar, o código de adesão será gerado automaticamente.
           </div>
         ) : null}
+      </section>
 
-        <div className="company-detail-actions">
-          <div className="company-detail-actions-primary">
-            {company.status === 'pending' ? (
+      <section className="panel company-detail-workspace">
+        <div
+          className="unit-edit-tabs company-detail-tabs"
+          role="tablist"
+          aria-label="Seções da empresa"
+        >
+          {COMPANY_TABS.map((tab) => {
+            const count =
+              tab.id === 'gestores'
+                ? managerCount
+                : tab.id === 'colaboradores'
+                  ? employeeCount
+                  : null;
+            return (
               <button
+                key={tab.id}
                 type="button"
-                className="btn-primary"
-                disabled={busy}
-                onClick={() => setStatus('active')}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                className={
+                  activeTab === tab.id
+                    ? 'unit-edit-tab company-detail-tab active'
+                    : 'unit-edit-tab company-detail-tab'
+                }
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === 'colaboradores') setEmployeePage(1);
+                }}
               >
-                Aprovar empresa
+                {tab.label}
+                {count != null ? <span className="company-detail-tab-badge">{count}</span> : null}
               </button>
-            ) : null}
-            {company.status === 'active' ? (
-              <button
-                type="button"
-                className="btn-ghost btn-danger"
-                disabled={busy}
-                onClick={() => setStatus('suspended')}
-              >
-                Suspender empresa
-              </button>
-            ) : null}
-            {company.status === 'suspended' ? (
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={busy}
-                onClick={() => setStatus('active')}
-              >
-                Reativar empresa
-              </button>
-            ) : null}
-            {!readOnly && onEdit ? (
-              <button type="button" className="btn-ghost" onClick={onEdit}>
-                Editar empresa
-              </button>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            className="btn-ghost btn-danger"
-            disabled={busy}
-            onClick={removeCompany}
+            );
+          })}
+        </div>
+
+        {activeTab === 'cadastral' ? (
+          <div
+            className="company-detail-tab-body company-detail-tab-body--padded"
+            role="tabpanel"
+            aria-label="Cadastral"
           >
-            Excluir empresa
-          </button>
-        </div>
-      </section>
+            <CompanyManagerOnboardingPanel
+              companyId={companyId}
+              companyEmail={company.email}
+              managerCount={managerCount}
+              inviteMeta={company.managerOnboardingInvite}
+              disabled={busy || readOnly}
+              onChanged={load}
+            />
 
-      <PayerMembershipFeesSection payerKind="company" payerId={companyId} showInvoice />
+            <dl className="detail-grid detail-grid-dl">
+              <div>
+                <dt>Razão social</dt>
+                <dd>{company.legalName || '—'}</dd>
+              </div>
+              <div>
+                <dt>Nome fantasia</dt>
+                <dd>{company.tradeName || '—'}</dd>
+              </div>
+              <div>
+                <dt>CNPJ</dt>
+                <dd>{company.cnpj || '—'}</dd>
+              </div>
+              <div>
+                <dt>E-mail</dt>
+                <dd>{company.email || '—'}</dd>
+              </div>
+              <div>
+                <dt>Telefone</dt>
+                <dd>{phone || '—'}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{STATUS_LABEL[company.status] ?? company.status}</dd>
+              </div>
+              <div>
+                <dt>Responsável comercial</dt>
+                <dd>{company.commercialOwnerName || '—'}</dd>
+              </div>
+              <div>
+                <dt>Cadastro em</dt>
+                <dd>{formatDate(company.createdAt)}</dd>
+              </div>
+            </dl>
 
-      <CompanyMonthlyStatementsSection companyId={companyId} />
+            {company.canDelete === false && company.deleteBlockedReason ? (
+              <div className="alert-banner alert-banner-warning company-detail-delete-hint">
+                {company.deleteBlockedReason}
+              </div>
+            ) : null}
 
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Gestores de RH</h2>
-          <span className="panel-meta">{managerCount} vinculado(s)</span>
-        </div>
-        <div className="panel-body">
-          <CompanyManagersField companyId={companyId} disabled={busy} onChanged={load} />
-        </div>
-      </section>
-
-      <section className="panel company-detail-employees-panel">
-        <div className="panel-header">
-          <div className="company-detail-employees-heading">
-            <h2>Colaboradores</h2>
-            {employees.length > 0 && (employeeSearch || filteredEmployees.length !== employeeCount) ? (
-              <p className="panel-subtitle">
-                Exibindo {filteredEmployees.length} de {employeeCount}
-              </p>
+            {!readOnly ? (
+              <div className="company-detail-actions company-detail-actions--tab">
+                <div className="company-detail-actions-primary">
+                  {company.status === 'pending' ? (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={busy}
+                      onClick={() => setStatus('active')}
+                    >
+                      Aprovar empresa
+                    </button>
+                  ) : null}
+                  {company.status === 'active' ? (
+                    <button
+                      type="button"
+                      className="btn-ghost btn-danger"
+                      disabled={busy}
+                      onClick={() => setStatus('suspended')}
+                    >
+                      Suspender empresa
+                    </button>
+                  ) : null}
+                  {company.status === 'suspended' ? (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={busy}
+                      onClick={() => setStatus('active')}
+                    >
+                      Reativar empresa
+                    </button>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className="btn-ghost btn-danger"
+                  disabled={busy || company.canDelete === false}
+                  title={
+                    company.canDelete === false
+                      ? company.deleteBlockedReason || 'Não é possível excluir esta empresa.'
+                      : 'Excluir empresa'
+                  }
+                  onClick={removeCompany}
+                >
+                  Excluir empresa
+                </button>
+              </div>
             ) : null}
           </div>
-          <span className="panel-meta">{employeeCount} cadastrado(s)</span>
-        </div>
+        ) : null}
 
-        <div className="company-detail-employees-body">
+        {activeTab === 'extrato' ? (
+          <div className="company-detail-tab-body company-detail-tab-stack" role="tabpanel" aria-label="Extrato">
+            <PayerMembershipFeesSection payerKind="company" payerId={companyId} showInvoice />
+            <CompanyMonthlyStatementsSection companyId={companyId} />
+          </div>
+        ) : null}
+
+        {activeTab === 'uso' ? (
+          <div role="tabpanel" aria-label="Check-ins e uso">
+            <CompanyUsageSection
+              companyId={companyId}
+              active
+              onViewEmployee={onViewEmployee ? (employeeId) => onViewEmployee(employeeId) : undefined}
+            />
+          </div>
+        ) : null}
+
+        {activeTab === 'gestores' ? (
+          <div
+            className="company-detail-tab-body company-detail-tab-body--padded"
+            role="tabpanel"
+            aria-label="Gestores"
+          >
+            <p className="muted company-detail-tab-lead">
+              Usuários com acesso ao portal corporativo desta empresa ({managerCount} vinculado(s)).
+            </p>
+            <CompanyManagersField companyId={companyId} disabled={busy || readOnly} onChanged={load} />
+          </div>
+        ) : null}
+
+        {activeTab === 'colaboradores' ? (
+          <div className="company-detail-employees-panel" role="tabpanel" aria-label="Colaboradores">
+            <div className="company-detail-employees-body">
           {employees.length > 0 ? (
             <div className="company-detail-employees-toolbar">
               <label className="company-detail-employees-search">
@@ -544,6 +674,7 @@ export function CompanyEditScreen({
                   key={emp.id}
                   employee={emp}
                   busy={busy}
+                  readOnly={readOnly}
                   onView={onViewEmployee ? () => onViewEmployee(emp.id) : undefined}
                   onRemove={() => removeEmployee(emp)}
                 />
@@ -562,7 +693,9 @@ export function CompanyEditScreen({
               />
             </div>
           ) : null}
-        </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

@@ -368,6 +368,23 @@ export function updateCompanyStatus(id, status) {
   });
 }
 
+export function createCompanyManagerOnboardingInvite(companyId) {
+  return fetchApi(`/api/admin/companies/${encodeURIComponent(companyId)}/manager-onboarding-invite`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function sendCompanyManagerOnboardingInviteEmail(companyId, body = {}) {
+  return fetchApi(
+    `/api/admin/companies/${encodeURIComponent(companyId)}/manager-onboarding-invite-email`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export function addCompanyManager(companyId, userId) {
   return fetchApi(`/api/admin/companies/${companyId}/access`, {
     method: 'POST',
@@ -395,6 +412,10 @@ export function removeCompanyEmployee(companyId, employeeId) {
 
 export function getCompanyEmployeeProfile(companyId, employeeId) {
   return fetchApi(`/api/admin/companies/${companyId}/employees/${employeeId}/profile`);
+}
+
+export function getCompanyUsageOverview(companyId) {
+  return fetchApi(`/api/admin/companies/${companyId}/usage-overview`);
 }
 
 export function listCompanyMonthlyStatements(companyId) {

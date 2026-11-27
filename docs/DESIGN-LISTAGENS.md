@@ -1,6 +1,8 @@
 # Premissas de design — listagens (desktop e mobile)
 
-Referência canônica: **Operação → Parceiros** (`NetworksList` + `NetworksPage`). Novas listagens densas do admin devem seguir este documento antes de inventar layout próprio.
+Referência canônica: **Operação → Parceiros** (`NetworksList` + `NetworksPage`). A **listagem densa em card** (≤1200px) — avatar + título + badge + linha secundária + menu **⋮** só — é a premissa visual padrão do admin; Empresas e novas listas operacionais devem replicá-la.
+
+Kit compartilhado: `dense-list-table`, `DenseListRowIdentity`, `TableNetworkLogo`, `CrudRowMenu` — ver `src/styles/crud-list-responsive.css` e regra Cursor `design-listagens.mdc`.
 
 Complementa [PREMISSAS-VISUAIS.md](./PREMISSAS-VISUAL.md) e [REFERENCIA-VISUAL.md](./REFERENCIA-VISUAL.md). Copy e marca: [PREMISSAS.md](../../PREMISSAS.md) (produto **Movly**).
 
@@ -37,18 +39,30 @@ Uma listagem deve funcionar bem em **desktop** (gestão diária, muitas colunas)
 
 ## Modelo mobile e tablet (≤ 1200px)
 
-Breakpoint de **cards**: `1200px` (alinhado a Parceiros). Abaixo disso a tabela vira **lista de cards** (`table-wrap-responsive` + `crud-list-cards-table`).
+Breakpoint de **cards**: `1200px` (alinhado a Parceiros).
+
+### Listagem **densa** (premissa padrão — Parceiros, Empresas, …)
+
+| Elemento no card | Implementação |
+|------------------|-----------------|
+| **Avatar** | `data-table-col-logo` + `TableNetworkLogo` (quadrado com borda, inicial ou imagem) |
+| **Identidade** | `data-table-col-network-name` + `DenseListRowIdentity` (título, badge de status, **uma** linha: e-mail ou CNPJ) |
+| **Seleção** (opcional) | Checkbox na 1ª coluna; sem seleção: `dense-list-table--no-select` (avatar \| identidade \| ⋮) |
+| **Ações** | **Somente** `CrudRowMenu` — gatilho ⋮ 2,5rem com borda; `col-actions` **oculta** no card |
+| **Card** | `dense-list-table` em `table-wrap-responsive`; `tr` com radius ~14px, sombra leve, padding 0,75rem |
+
+Desktop (≥1201px): tabela completa + `CrudRowActions` na última coluna; colunas extras com `dense-list-desktop-only`.
+
+### Listagem **simples** (planos, modalidades, catálogos)
+
+Abaixo de 1200px usa `crud-list-cards-table--simple`: identidade + `crud-list-identity__meta--mobile` + menu ⋮ (sem avatar obrigatório).
 
 | Regra | Detalhe |
 |-------|---------|
-| **Sem thead** | Cabeçalhos de coluna somem; rótulos vêm da coluna de identidade ou de `data-label` (listas simples). |
-| **Card por linha** | `tr` com borda, radius ~14px, sombra leve, padding interno |
-| **Identidade no card** | Título + metas com `crud-list-identity__meta--mobile` (ex.: ID técnico, preço, e-mail) |
-| **Colunas desktop-only** | Não renderizam no card — evita duplicar informação |
-| **Ações** | **Sempre** menu ⋮ compacto (`CrudRowMenu` na coluna `data-table-col-row-menu`, classe `crud-col-mobile-only`). **Ocultar** a coluna `col-actions` no card — **não** usar a barra gigante de `crud-row-actions` do card genérico (`mobile.css`) |
-| **Ações (desktop)** | `CrudRowActions` (ícones compactos) na última coluna — sem menu ⋮ |
-| **Touch** | No menu ⋮, itens de lista com altura confortável; gatilho 2,5rem — sem barra de três botões gigantes por linha |
-| **Painel** | `crud-list-panel .panel-body` com padding horizontal reduzido (~0.75rem) |
+| **Sem thead** | Cabeçalhos somem no modo card |
+| **Colunas desktop-only** | Não renderizam no card |
+| **Touch** | Itens do dropdown com altura confortável; **nunca** barra expandida de ícones por linha no card |
+| **Painel** | `crud-list-panel .panel-body` com padding horizontal ~0,75rem |
 
 ### Variantes de card
 
@@ -57,7 +71,11 @@ Breakpoint de **cards**: `1200px` (alinhado a Parceiros). Abaixo disso a tabela 
 | `crud-list-cards-table` | Base compartilhada (cards ≤1200px) |
 | `crud-list-cards-table--simple` | Listas curtas (planos, catálogos) — identidade + menu ⋮ no card |
 | `crud-list-cards-table--users` | Usuários — seleção, avatar, identidade, menu ⋮ |
-| `networks-partners-table` | Parceiros — grid com logo, checkbox, menu ⋮ (não generalizar sem necessidade) |
+| `dense-list-table` | **Base** do card denso (Parceiros + Empresas + futuras) |
+| `dense-list-table--no-select` | Sem checkbox (ex.: Empresas) |
+| `networks-partners-table` | Sufixo desktop/colunas de Parceiros |
+| `companies-list-table` | Sufixo desktop/colunas de Empresas |
+| `crud-list-cards-table--simple` | Catálogos curtos (não listas densas operacionais) |
 
 ---
 
@@ -75,9 +93,26 @@ Breakpoint de **cards**: `1200px` (alinhado a Parceiros). Abaixo disso a tabela 
 
 ---
 
+## Kit catálogo compartilhado
+
+Para listagens curtas (modalidades, planos, **Sistema**):
+
+- `src/crud/catalogListPattern.js` — `CATALOG_LIST_SHELL_PROPS`
+- `CatalogListIdentity` + `catalogListRowMenuColumn` — coluna principal e menu ⋮ mobile
+- `page-stack crud-list-page` na view de lista
+
+**Sistema (✓):** Módulos, Departamentos, Cargos, Centros de custo, Grupos, Associações. **Financeiro (parcial):** Fornecedores ✓; Planos de conta e demais telas legadas ainda em migração.
+
+## Breakpoints (dois modos)
+
+| Modo | Breakpoint cards | Uso |
+|------|------------------|-----|
+| `crud-list-cards-table` / `--simple` | **1200px** | Catálogos (planos, modalidades, sistema) |
+| `dense-list-table` | **960px** | Listas operacionais densas (Parceiros, Empresas) |
+
 ## Migração gradual
 
-Telas legadas podem manter tabela só com `data-label` (card genérico &lt; 720px) até migrarem para o breakpoint 1200px. Prioridade: **Operação** (Parceiros ✓, Planos ✓, Modalidades ✓, Usuários ✓), depois Empresas e financeiro.
+Telas legadas podem manter tabela só com `data-label` (card genérico &lt; 720px) até migrarem para o breakpoint 1200px. Prioridade: **Operação** (Parceiros ✓, Planos ✓, Modalidades ✓, Usuários ✓), **Corporativo** (Empresas ✓), **Sistema** (catálogos ✓), depois financeiro e suporte.
 
 ---
 
@@ -93,3 +128,6 @@ Telas legadas podem manter tabela só com `data-label` (card genérico &lt; 720p
 | Menu ⋮ de linha | `src/components/crud/CrudRowMenu.jsx` |
 | Estilos compartilhados | `src/styles/crud-list-responsive.css`, `src/styles/mobile.css` |
 | Shell CRUD | `src/components/crud/CrudListShell.jsx` |
+| Props catálogo | `src/crud/catalogListPattern.js` |
+| Identidade catálogo | `src/components/crud/CatalogListIdentity.jsx` |
+| Módulos (ícone + identidade) | `src/pages/ModulesPage.jsx` |

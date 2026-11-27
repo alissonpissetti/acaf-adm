@@ -590,10 +590,13 @@ function LeadModal({
     setError('');
     try {
       const result = await convertCommercialLead(lead.id);
+      const corpInvite = result.conversion?.managerOnboardingInviteUrl;
       flash.success(
         result.conversion.kind === 'partner'
           ? `Lead convertido em parceiro "${result.conversion.networkName}".`
-          : `Lead convertido em empresa "${result.conversion.companyName}".`,
+          : corpInvite
+            ? `Empresa "${result.conversion.companyName}" criada. Link de onboarding do gestor gerado — veja na aba Cadastral da empresa.`
+            : `Lead convertido em empresa "${result.conversion.companyName}".`,
       );
       onSaved(result.lead, result.conversion);
     } catch (err) {

@@ -3,7 +3,10 @@ import { createAssociation, fetchAssociations, updateAssociation } from '../api/
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CatalogListIdentity } from '../components/crud/CatalogListIdentity.jsx';
+import { catalogListRowMenuColumn } from '../components/crud/catalogListRowMenuColumn.jsx';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CATALOG_LIST_SHELL_PROPS } from '../crud/catalogListPattern.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { PermissionGate } from '../components/PermissionGate.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -168,6 +171,7 @@ export default function AssociationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const filterDefinitions = useMemo(() => [activeStatusFilter()], []);
 
@@ -285,57 +289,90 @@ export default function AssociationsPage() {
 
   return (
     <PermissionGate permission="sistema.associacoes">
-      <CrudListShell
-        title="Associações"
-        subtitle="Agrupadores comerciais e portais de parceiros."
-        breadcrumbs={[{ label: 'Associações' }, { label: 'Cadastro' }]}
-        loading={loading}
-        error={error}
-        message={message}
-        query={list.query}
-        onQueryChange={list.onQueryChange}
-        searchPlaceholder="Buscar por nome, slug ou descrição"
-        filterDefinitions={filterDefinitions}
-        fieldFilters={list.fieldFilters}
-        onApplyFieldFilter={list.applyFieldFilter}
-        onRemoveFieldFilter={list.removeFieldFilter}
-        onClearFieldFilters={list.clearFieldFilters}
-        sortKey={list.sortKey}
-        sortDirection={list.sortDirection}
-        onSortChange={list.setSort}
-        sortOptions={[
-          { key: 'sortOrder', direction: 'asc', label: 'Ordem do catálogo' },
-          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-          { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
-          { key: 'slug', direction: 'asc', label: 'Slug (A–Z)' },
-        ]}
-        page={list.page}
-        pageSize={list.pageSize}
-        totalItems={list.totalItems}
-        totalPages={list.totalPages}
-        onPageChange={list.setPage}
-        onPageSizeChange={list.onPageSizeChange}
-        addLabel="Nova associação"
-        onAdd={canManage ? () => router.goToCreate() : undefined}
-        canAdd={canManage}
-        panelTitle="Cadastro"
-        rows={list.rows}
-        columns={[
-          { key: 'name', label: 'Nome', sortable: true },
-          { key: 'slug', label: 'Slug', sortable: true },
-          {
-            key: 'portalPublicUrl',
-            label: 'Portal',
-            render: (r) => r.portalPublicUrl || '—',
-          },
-          {
-            key: 'active',
-            label: 'Status',
-            render: (r) => <span className={inactiveBadgeClass(r.active)}>{inactiveLabel(r.active)}</span>,
-          },
-        ]}
-        onRowClick={(row) => router.goToView(row.id)}
-      />
+      <div className="page-stack crud-list-page sistema-associacoes-page">
+        <CrudListShell
+          {...CATALOG_LIST_SHELL_PROPS}
+          title="Associações"
+          subtitle="Agrupadores comerciais e portais de parceiros."
+          breadcrumbs={[{ label: 'Associações' }, { label: 'Cadastro' }]}
+          loading={loading}
+          error={error}
+          message={message}
+          query={list.query}
+          onQueryChange={list.onQueryChange}
+          searchPlaceholder="Buscar por nome, slug ou descrição"
+          filterDefinitions={filterDefinitions}
+          fieldFilters={list.fieldFilters}
+          onApplyFieldFilter={list.applyFieldFilter}
+          onRemoveFieldFilter={list.removeFieldFilter}
+          onClearFieldFilters={list.clearFieldFilters}
+          sortKey={list.sortKey}
+          sortDirection={list.sortDirection}
+          onSortChange={list.setSort}
+          sortOptions={[
+            { key: 'sortOrder', direction: 'asc', label: 'Ordem do catálogo' },
+            { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+            { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
+            { key: 'slug', direction: 'asc', label: 'Slug (A–Z)' },
+          ]}
+          page={list.page}
+          pageSize={list.pageSize}
+          totalItems={list.totalItems}
+          totalPages={list.totalPages}
+          onPageChange={list.setPage}
+          onPageSizeChange={list.onPageSizeChange}
+          addLabel="Nova associação"
+          onAdd={canManage ? () => router.goToCreate() : undefined}
+          canAdd={canManage}
+          panelTitle="Associações cadastradas"
+          emptyMessage="Nenhuma associação encontrada. Clique em Nova associação para começar."
+          rows={list.rows}
+          columns={[
+            {
+              key: 'name',
+              label: 'Associação',
+              headerHint: 'Nome público e slug do agrupador.',
+              className: 'data-table-col-list-identity',
+              render: (row) => (
+                <CatalogListIdentity
+                  title={row.name}
+                  meta={`${row.slug} · ${inactiveLabel(row.active)}`}
+                />
+              ),
+            },
+            {
+              key: 'slug',
+              label: 'Slug',
+              className: 'crud-col-desktop-only',
+            },
+            {
+              key: 'portalPublicUrl',
+              label: 'Portal',
+              className: 'crud-col-desktop-only',
+              render: (row) => row.portalPublicUrl || '—',
+            },
+            {
+              key: 'active',
+              label: 'Status',
+              className: 'crud-col-desktop-only',
+              render: (row) => (
+                <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
+              ),
+            },
+            catalogListRowMenuColumn({
+              openRowMenuId,
+              setOpenRowMenuId,
+              onView: (row) => router.goToView(row.id),
+              onEdit: canManage ? (row) => router.goToEdit(row.id) : undefined,
+              canManage,
+            }),
+          ]}
+          onRowClick={(row) => router.goToView(row.id)}
+          onView={(row) => router.goToView(row.id)}
+          onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+          canManage={canManage}
+        />
+      </div>
     </PermissionGate>
   );
 }

@@ -8,7 +8,10 @@ import {
 import { AppLoadingPanel } from '../components/crud/AppLoading.jsx';
 import { CrudAlerts } from '../components/crud/CrudAlerts.jsx';
 import { CrudFormActions, CrudViewActions } from '../components/crud/CrudFormActions.jsx';
+import { CatalogListIdentity } from '../components/crud/CatalogListIdentity.jsx';
+import { catalogListRowMenuColumn } from '../components/crud/catalogListRowMenuColumn.jsx';
 import { CrudListShell } from '../components/crud/CrudListShell.jsx';
+import { CATALOG_LIST_SHELL_PROPS } from '../crud/catalogListPattern.js';
 import { PageHeader } from '../components/PageHeader.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { confirmCrudDelete, inactiveBadgeClass, inactiveLabel } from '../crud/crudUtils.js';
@@ -166,6 +169,7 @@ export function JobPositionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   const filterDefinitions = useMemo(
     () => [
@@ -323,55 +327,84 @@ export function JobPositionsPage() {
   }
 
   return (
-    <CrudListShell
-      title="Cargos"
-      subtitle="Cargos vinculados a departamentos, base para organograma futuro"
-      addLabel="Adicionar cargo"
-      onAdd={canManage ? router.goToCreate : undefined}
-      canAdd={canManage}
-      loading={loading}
-      error={error}
-      message={message}
-      query={list.query}
-      onQueryChange={list.onQueryChange}
-      searchPlaceholder="Buscar por cargo, departamento ou descrição"
-      sortKey={list.sortKey}
-      sortDirection={list.sortDirection}
-      onSortChange={list.setSort}
-      sortOptions={[
-        { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
-        { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
-        { key: 'departmentName', direction: 'asc', label: 'Departamento (A–Z)' },
-      ]}
-      filterDefinitions={filterDefinitions}
-      fieldFilters={list.fieldFilters}
-      onApplyFieldFilter={list.applyFieldFilter}
-      onRemoveFieldFilter={list.removeFieldFilter}
-      onClearFieldFilters={list.clearFieldFilters}
-      page={list.page}
-      pageSize={list.pageSize}
-      totalItems={list.totalItems}
-      totalPages={list.totalPages}
-      onPageChange={list.setPage}
-      onPageSizeChange={list.onPageSizeChange}
-      panelTitle="Cargos cadastrados"
-      emptyMessage="Nenhum cargo encontrado."
-      columns={[
-        { key: 'name', label: 'Cargo', render: (row) => <strong>{row.name}</strong> },
-        { key: 'departmentName', label: 'Departamento' },
-        {
-          key: 'active',
-          label: 'Status',
-          render: (row) => (
-            <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
-          ),
-        },
-      ]}
-      rows={list.rows}
-      onView={(row) => router.goToView(row.id)}
-      onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
-      onDelete={canManage ? handleDelete : undefined}
-      canManage={canManage}
-    />
+    <div className="page-stack crud-list-page sistema-cargos-page">
+      <CrudListShell
+        {...CATALOG_LIST_SHELL_PROPS}
+        title="Cargos"
+        subtitle="Cargos vinculados a departamentos, base para organograma futuro"
+        addLabel="Adicionar cargo"
+        onAdd={canManage ? router.goToCreate : undefined}
+        canAdd={canManage}
+        loading={loading}
+        error={error}
+        message={message}
+        query={list.query}
+        onQueryChange={list.onQueryChange}
+        searchPlaceholder="Buscar por cargo, departamento ou descrição"
+        sortKey={list.sortKey}
+        sortDirection={list.sortDirection}
+        onSortChange={list.setSort}
+        sortOptions={[
+          { key: 'name', direction: 'asc', label: 'Nome (A–Z)' },
+          { key: 'name', direction: 'desc', label: 'Nome (Z–A)' },
+          { key: 'departmentName', direction: 'asc', label: 'Departamento (A–Z)' },
+        ]}
+        filterDefinitions={filterDefinitions}
+        fieldFilters={list.fieldFilters}
+        onApplyFieldFilter={list.applyFieldFilter}
+        onRemoveFieldFilter={list.removeFieldFilter}
+        onClearFieldFilters={list.clearFieldFilters}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalItems={list.totalItems}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.onPageSizeChange}
+        panelTitle="Cargos cadastrados"
+        emptyMessage="Nenhum cargo encontrado. Clique em Adicionar cargo para começar."
+        columns={[
+          {
+            key: 'name',
+            label: 'Cargo',
+            headerHint: 'Cargo na estrutura do departamento.',
+            className: 'data-table-col-list-identity',
+            render: (row) => (
+              <CatalogListIdentity
+                title={row.name}
+                meta={`${row.departmentName || '—'} · ${inactiveLabel(row.active)}`}
+              />
+            ),
+          },
+          {
+            key: 'departmentName',
+            label: 'Departamento',
+            className: 'crud-col-desktop-only',
+            render: (row) => row.departmentName || '—',
+          },
+          {
+            key: 'active',
+            label: 'Status',
+            className: 'crud-col-desktop-only',
+            render: (row) => (
+              <span className={inactiveBadgeClass(row.active)}>{inactiveLabel(row.active)}</span>
+            ),
+          },
+          catalogListRowMenuColumn({
+            openRowMenuId,
+            setOpenRowMenuId,
+            onView: (row) => router.goToView(row.id),
+            onEdit: canManage ? (row) => router.goToEdit(row.id) : undefined,
+            onDelete: canManage ? handleDelete : undefined,
+            canManage,
+          }),
+        ]}
+        rows={list.rows}
+        onRowClick={(row) => router.goToView(row.id)}
+        onView={(row) => router.goToView(row.id)}
+        onEdit={canManage ? (row) => router.goToEdit(row.id) : undefined}
+        onDelete={canManage ? handleDelete : undefined}
+        canManage={canManage}
+      />
+    </div>
   );
 }
